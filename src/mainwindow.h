@@ -26,6 +26,7 @@
 #include <QColor>
 #include <QIcon>
 #include <QList>
+#include <QPointer>
 #include "core/Backend.h"
 #include <QTranslator>
 #include <QSettings>
@@ -47,6 +48,7 @@ class QMdiSubWindow;
 class QWidget;
 class QDomElement;
 class QActionGroup;
+class QProgressDialog;
 QT_END_NAMESPACE
 
 namespace Ui {
@@ -55,6 +57,8 @@ class MainWindow;
 
 class ConfigurableWidget;
 class SetupDialog;
+class UpdateChecker;
+struct UpdateCheckResult;
 
 class MainWindow : public QMainWindow
 {
@@ -110,6 +114,8 @@ private slots:
     void exportFullTrace();
     void importFullTrace();
     void reloadInterfaces();
+    void checkForUpdates();
+    void handleUpdateCheckFinished(const UpdateCheckResult &result);
 
 private:
     Ui::MainWindow *ui;
@@ -193,4 +199,10 @@ private:
 
     void checkZsCanFdDlls();
     void downloadZsCanFdDlls();
+
+    void showUpdateAvailableDialog(const UpdateCheckResult &result);
+    void closeUpdateProgressDialog();
+
+    UpdateChecker *_updateChecker = nullptr;
+    QPointer<QProgressDialog> _updateProgressDlg;
 };

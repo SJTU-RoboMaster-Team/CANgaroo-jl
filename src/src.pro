@@ -6,6 +6,7 @@ QT += xml
 QT += charts
 QT += serialport
 QT += svg
+QT += network
 
 TARGET = cangaroo
 TEMPLATE = app

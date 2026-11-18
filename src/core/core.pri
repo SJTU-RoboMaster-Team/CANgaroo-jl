@@ -16,7 +16,8 @@ SOURCES += \
     $$PWD/PcapNgFormat.cpp \
     $$PWD/TraceFileWriter.cpp \
     $$PWD/TraceRecorder.cpp \
-    $$PWD/PythonEngine.cpp
+    $$PWD/PythonEngine.cpp \
+    $$PWD/UpdateChecker.cpp
 
 HEADERS += \
     $$PWD/portable_endian.h \
@@ -37,4 +38,5 @@ HEADERS += \
     $$PWD/SocketCan.h \
     $$PWD/TraceRecorder.h \
     $$PWD/PythonEngine.h \
-    $$PWD/TraceFileFormat.h
+    $$PWD/TraceFileFormat.h \
+    $$PWD/UpdateChecker.h

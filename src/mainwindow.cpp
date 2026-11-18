@@ -48,6 +48,7 @@
 #include "core/BusTrace.h"
 #include "core/ThemeManager.h"
 #include "core/TraceRecorder.h"
+#include "core/UpdateChecker.h"
 #include "window/TraceWindow/TraceWindow.h"
 #include "window/SetupDialog/SetupDialog.h"
 #include "window/LogWindow/LogWindow.h"
@@ -177,6 +178,7 @@ void MainWindow::initActions()
     updateMeasurementActions();
 
     connect(ui->actionSave_Trace_to_file, &QAction::triggered, this, &MainWindow::saveTraceToFile);
+    connect(ui->actionCheck_for_Updates, &QAction::triggered, this, &MainWindow::checkForUpdates);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::showAboutDialog);
 
     auto *actionExportFull = new QAction(tr("Export full trace"), this);
@@ -361,13 +363,13 @@ void MainWindow::applyCurrentTheme()
     const bool nativeStyling = settings.value("ui/nativeStyling", true).toBool();
 
     // In native mode the dark/light decision must follow the active style's
-    // palette (e.g. choosing the "adwaita-dark" style), so the app's content
-    // colors match what the style actually paints. In the bundled (non-native)
-    // theme we follow the desktop's color scheme instead.
+    // resolved palette (e.g. Windows 11 system palette or "adwaita-dark"), so
+    // content colors match what the style actually paints. In the bundled
+    // (non-native) theme we follow the desktop's color scheme instead.
     bool dark;
     if (nativeStyling)
     {
-        const QPalette pal = QApplication::style()->standardPalette();
+        const QPalette pal = ThemeManager::resolveNativePalette();
         dark = pal.color(QPalette::Window).lightness() < 128;
     }
     else
@@ -386,14 +388,15 @@ void MainWindow::applyTabBackgrounds()
 {
     // The tab pages get a subtle background derived from the active palette so
     // they read as a distinct canvas without ever becoming a hard-coded light
-    // patch in a dark theme.
+    // patch in a dark theme. Start from QApplication::palette() so theme
+    // switches never preserve stale text/base colors on tab children.
     const QColor bg = tabBackgroundColor();
     for (int i = 0; i < ui->mainTabs->count(); ++i)
     {
         QWidget *page = ui->mainTabs->widget(i);
         if (!page)
             continue;
-        QPalette pal(page->palette());
+        QPalette pal(QApplication::palette());
         pal.setColor(QPalette::Window, bg);
         page->setAutoFillBackground(true);
         page->setPalette(pal);
@@ -440,6 +443,9 @@ void MainWindow::applyActionIcons()
     setIcon(ui->actionAbout,              "help-about");
     setIcon(ui->action_TraceClear,        "edit-clear");
     setIcon(ui->actionSave_Trace_to_file, "document-save");
+
+    if (ui->actionCheck_for_Updates)
+        ui->actionCheck_for_Updates->setIcon(QIcon::fromTheme("system-software-update", symbolicIcon("view-refresh")));
 
     if (_btnOpenGraph)
         _btnOpenGraph->setIcon(AppHelpers::themedIcon("office-chart-line", ":/assets/graph.svg"));
@@ -726,7 +732,7 @@ Backend &MainWindow::backend()
 QMainWindow *MainWindow::createTab(const QString &title)
 {
     auto *mm = new QMainWindow(this);
-    QPalette pal(mm->palette());
+    QPalette pal(QApplication::palette());
     pal.setColor(QPalette::Window, tabBackgroundColor());
     mm->setAutoFillBackground(true);
     mm->setPalette(pal);
@@ -1382,14 +1388,36 @@ void MainWindow::reloadInterfaces()
     backend().refreshInterfaces();
 }
 
+namespace {
+
+void openSafeWebUrl(const QString &urlStr)
+{
+    const QUrl url(urlStr);
+    if (url.isValid() && (url.scheme() == QLatin1String("https") || url.scheme() == QLatin1String("http")))
+        QDesktopServices::openUrl(url);
+}
+
+QString formatDisplayVersion(const QString &version)
+{
+    const QString trimmed = version.trimmed();
+    if (trimmed.isEmpty() || trimmed.compare(QLatin1String("dev"), Qt::CaseInsensitive) == 0)
+        return trimmed.isEmpty() ? QStringLiteral("dev") : trimmed;
+    if (trimmed.startsWith(QLatin1Char('v'), Qt::CaseInsensitive))
+        return trimmed;
+    return QLatin1Char('v') + trimmed;
+}
+
+} // namespace
+
 void MainWindow::showAboutDialog()
 {
     QMessageBox::about(this,
                        tr("About CANgaroo"),
                        "CANgaroo\n"
                        "Open Source CAN bus analyzer\n"
-                       "https://github.com/Schildkroet/CANgaroo"
-                       "\n"
+                       "https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl\n"
+                       "(Upstream: https://github.com/Schildkroet/CANgaroo)"
+                       "\n\n"
                        "Version " VERSION_STRING "\n"
                        "\n"
                        "(c)2024-2026 Schildkroet\n"
@@ -1401,6 +1429,206 @@ void MainWindow::showAboutDialog()
                        "\n\n"
                        "CANgaroo is free software licensed"
                        "\nunder the GPL v2 license.");
+}
+
+void MainWindow::checkForUpdates()
+{
+    if (!_updateChecker)
+    {
+        _updateChecker = new UpdateChecker(this);
+        connect(_updateChecker, &UpdateChecker::checkFinished,
+                this, &MainWindow::handleUpdateCheckFinished);
+        connect(_updateChecker, &UpdateChecker::checkCancelled,
+                this, &MainWindow::closeUpdateProgressDialog);
+    }
+
+    if (_updateChecker->isChecking())
+    {
+        if (_updateProgressDlg)
+        {
+            _updateProgressDlg->show();
+            _updateProgressDlg->raise();
+            _updateProgressDlg->activateWindow();
+        }
+        return;
+    }
+
+    closeUpdateProgressDialog();
+    auto *progress = new QProgressDialog(
+        tr("Checking for updates from %1...").arg(_updateChecker->repository()),
+        tr("Cancel"),
+        0, 0, this);
+    progress->setWindowTitle(tr("Check for Updates"));
+    progress->setWindowModality(Qt::WindowModal);
+    progress->setMinimumDuration(0);
+    progress->setAutoClose(false);
+    progress->setAutoReset(false);
+    connect(progress, &QProgressDialog::canceled, _updateChecker, &UpdateChecker::cancel);
+    _updateProgressDlg = progress;
+    progress->show();
+
+    _updateChecker->checkForUpdates(QStringLiteral(VERSION_STRING));
+}
+
+void MainWindow::closeUpdateProgressDialog()
+{
+    if (!_updateProgressDlg)
+        return;
+    QProgressDialog *dlg = _updateProgressDlg.data();
+    _updateProgressDlg.clear();
+    disconnect(dlg, nullptr, this, nullptr);
+    if (_updateChecker)
+        disconnect(dlg, nullptr, _updateChecker, nullptr);
+    dlg->hide();
+    dlg->deleteLater();
+}
+
+void MainWindow::handleUpdateCheckFinished(const UpdateCheckResult &result)
+{
+    closeUpdateProgressDialog();
+
+    const QString repoText = result.repository.isEmpty()
+        ? QString::fromLatin1(UpdateChecker::defaultRepository())
+        : result.repository;
+
+    switch (result.status)
+    {
+    case UpdateCheckResult::Status::UpToDate:
+    {
+        QMessageBox::information(
+            this,
+            tr("Check for Updates"),
+            tr("You are already using the latest version (%1).\n\nUpdate source: %2")
+                .arg(formatDisplayVersion(result.currentVersion), repoText));
+        break;
+    }
+    case UpdateCheckResult::Status::DevBuild:
+    {
+        QMessageBox msgBox(this);
+        msgBox.setIcon(QMessageBox::Information);
+        msgBox.setWindowTitle(tr("Check for Updates"));
+        msgBox.setText(tr("You are running a development build (%1).\n\n"
+                          "Latest version in %2: %3")
+                           .arg(formatDisplayVersion(result.currentVersion),
+                                repoText,
+                                result.latestTag));
+        QPushButton *openBtn = msgBox.addButton(tr("Open Release Page"), QMessageBox::ActionRole);
+        msgBox.addButton(QMessageBox::Close);
+        msgBox.exec();
+        if (msgBox.clickedButton() == openBtn)
+            openSafeWebUrl(result.releasePageUrl);
+        break;
+    }
+    case UpdateCheckResult::Status::UpdateAvailable:
+        showUpdateAvailableDialog(result);
+        break;
+    case UpdateCheckResult::Status::Error:
+    {
+        QMessageBox msgBox(this);
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setWindowTitle(tr("Check for Updates"));
+        msgBox.setText(tr("Failed to check for updates from %1.").arg(repoText));
+        msgBox.setInformativeText(result.errorMessage);
+        QPushButton *openBtn = msgBox.addButton(tr("Open Releases Page"), QMessageBox::ActionRole);
+        msgBox.addButton(QMessageBox::Close);
+        msgBox.exec();
+        if (msgBox.clickedButton() == openBtn)
+            openSafeWebUrl(result.releasePageUrl);
+        break;
+    }
+    }
+}
+
+void MainWindow::showUpdateAvailableDialog(const UpdateCheckResult &result)
+{
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Update Available"));
+    dlg.setMinimumWidth(460);
+
+    auto *layout = new QVBoxLayout(&dlg);
+
+    auto *headerLabel = new QLabel(tr("A new version of CANgaroo is available!"), &dlg);
+    QFont headerFont = headerLabel->font();
+    headerFont.setBold(true);
+    headerLabel->setFont(headerFont);
+    layout->addWidget(headerLabel);
+
+    auto *form = new QFormLayout();
+    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form->addRow(tr("Current version:"), new QLabel(formatDisplayVersion(result.currentVersion), &dlg));
+
+    QString latestDisplay = formatDisplayVersion(result.latestVersion);
+    if (result.sourceKind == UpdateSourceKind::TagFallback)
+        latestDisplay += tr(" (tag %1)").arg(result.latestTag);
+    form->addRow(tr("Latest version:"), new QLabel(latestDisplay, &dlg));
+
+    auto *sourceLabel = new QLabel(
+        QStringLiteral("<a href=\"%1\">%2</a>")
+            .arg(UpdateChecker::repositoryWebUrl(result.repository).toHtmlEscaped(),
+                 result.repository.toHtmlEscaped()),
+        &dlg);
+    sourceLabel->setOpenExternalLinks(true);
+    sourceLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    form->addRow(tr("Update source:"), sourceLabel);
+
+    if (!result.assetName.isEmpty())
+        form->addRow(tr("Package:"), new QLabel(result.assetName, &dlg));
+
+    layout->addLayout(form);
+
+    if (!result.releaseNotes.isEmpty())
+    {
+        auto *notesLabel = new QLabel(tr("Release notes:"), &dlg);
+        layout->addWidget(notesLabel);
+
+        auto *notesEdit = new QPlainTextEdit(&dlg);
+        notesEdit->setReadOnly(true);
+        notesEdit->setPlainText(result.releaseNotes);
+        notesEdit->setMaximumHeight(200);
+        layout->addWidget(notesEdit);
+    }
+    else if (result.sourceKind == UpdateSourceKind::TagFallback)
+    {
+        auto *tagNote = new QLabel(
+            tr("Detected from repository tag %1 (no published release notes yet).").arg(result.latestTag),
+            &dlg);
+        tagNote->setWordWrap(true);
+        layout->addWidget(tagNote);
+    }
+
+    auto *buttonBox = new QDialogButtonBox(&dlg);
+    QPushButton *downloadBtn = nullptr;
+    QPushButton *releasePageBtn = nullptr;
+
+    if (!result.downloadUrl.isEmpty())
+    {
+        downloadBtn = buttonBox->addButton(tr("Download"), QDialogButtonBox::AcceptRole);
+        releasePageBtn = buttonBox->addButton(tr("Release Page"), QDialogButtonBox::ActionRole);
+    }
+    else
+    {
+        releasePageBtn = buttonBox->addButton(tr("Open Release Page"), QDialogButtonBox::AcceptRole);
+    }
+    buttonBox->addButton(QDialogButtonBox::Close);
+
+    connect(buttonBox, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (downloadBtn)
+    {
+        connect(downloadBtn, &QPushButton::clicked, &dlg, [&dlg, &result]() {
+            openSafeWebUrl(result.downloadUrl);
+            dlg.accept();
+        });
+    }
+    if (releasePageBtn)
+    {
+        connect(releasePageBtn, &QPushButton::clicked, &dlg, [&dlg, &result]() {
+            openSafeWebUrl(result.releasePageUrl);
+            dlg.accept();
+        });
+    }
+
+    layout->addWidget(buttonBox);
+    dlg.exec();
 }
 
 void MainWindow::startMeasurement()

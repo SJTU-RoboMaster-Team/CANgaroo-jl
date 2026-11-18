@@ -24,4 +24,5 @@ SUBDIRS += \
     canblaster_driver \
     lindeapi_driver \
     measurement_setup \
-    python_engine
+    python_engine \
+    update_checker

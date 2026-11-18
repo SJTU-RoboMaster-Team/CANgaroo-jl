@@ -204,6 +204,8 @@
     <property name="title">
      <string>&amp;Help</string>
     </property>
+    <addaction name="actionCheck_for_Updates"/>
+    <addaction name="separator"/>
     <addaction name="actionAbout"/>
    </widget>
    <widget class="QMenu" name="menu_Trace">
@@ -271,6 +273,11 @@
   <action name="actionReload_Interfaces">
    <property name="text">
     <string>&amp;Reload Interfaces</string>
+   </property>
+  </action>
+  <action name="actionCheck_for_Updates">
+   <property name="text">
+    <string>Check for &amp;Updates...</string>
    </property>
   </action>
   <action name="actionAbout">

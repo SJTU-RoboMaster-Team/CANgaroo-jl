@@ -1886,6 +1886,90 @@ Please restart CANgaroo to use ZsCanFd devices.</source>
         <source>About CANgaroo</source>
         <translation>关于CANgaroo</translation>
     </message>
+    <message>
+        <source>Check for &amp;Updates...</source>
+        <translation>检查更新(&amp;U)...</translation>
+    </message>
+    <message>
+        <source>Checking for updates from %1...</source>
+        <translation>正在从 %1 检查更新...</translation>
+    </message>
+    <message>
+        <source>Check for Updates</source>
+        <translation>检查更新</translation>
+    </message>
+    <message>
+        <source>You are already using the latest version (%1).
+
+Update source: %2</source>
+        <translation>当前已是最新版本 (%1)。
+
+更新源: %2</translation>
+    </message>
+    <message>
+        <source>You are running a development build (%1).
+
+Latest version in %2: %3</source>
+        <translation>当前正在运行开发构建版本 (%1)。
+
+%2 中的最新版本: %3</translation>
+    </message>
+    <message>
+        <source>Open Release Page</source>
+        <translation>打开发布页面</translation>
+    </message>
+    <message>
+        <source>Failed to check for updates from %1.</source>
+        <translation>从 %1 检查更新失败。</translation>
+    </message>
+    <message>
+        <source>Open Releases Page</source>
+        <translation>打开发布列表</translation>
+    </message>
+    <message>
+        <source>Update Available</source>
+        <translation>发现新版本</translation>
+    </message>
+    <message>
+        <source>A new version of CANgaroo is available!</source>
+        <translation>发现新版本 CANgaroo！</translation>
+    </message>
+    <message>
+        <source>Current version:</source>
+        <translation>当前版本:</translation>
+    </message>
+    <message>
+        <source> (tag %1)</source>
+        <translation> (标签 %1)</translation>
+    </message>
+    <message>
+        <source>Latest version:</source>
+        <translation>最新版本:</translation>
+    </message>
+    <message>
+        <source>Update source:</source>
+        <translation>更新源:</translation>
+    </message>
+    <message>
+        <source>Package:</source>
+        <translation>安装包:</translation>
+    </message>
+    <message>
+        <source>Release notes:</source>
+        <translation>更新说明:</translation>
+    </message>
+    <message>
+        <source>Detected from repository tag %1 (no published release notes yet).</source>
+        <translation>检测到仓库标签 %1（暂未发布发行说明）。</translation>
+    </message>
+    <message>
+        <source>Download</source>
+        <translation>下载</translation>
+    </message>
+    <message>
+        <source>Release Page</source>
+        <translation>发布页面</translation>
+    </message>
 </context>
 <context>
     <name>QObject</name>
@@ -3452,6 +3536,37 @@ Reason: %2</source>
         <location filename="../window/TraceWindow/UnifiedTraceViewModel.cpp" line="546"/>
         <source>[raw]</source>
         <translation>[raw]</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateChecker</name>
+    <message>
+        <source>Invalid release metadata received from GitHub (%1).</source>
+        <translation>从 GitHub 收到的发行版元数据无效 (%1)。</translation>
+    </message>
+    <message>
+        <source>Latest release entry in %1 is still marked as draft.</source>
+        <translation>%1 中的最新发布记录仍处于草稿状态。</translation>
+    </message>
+    <message>
+        <source>Could not parse release version &quot;%1&quot; from %2.</source>
+        <translation>无法解析来自 %2 的版本号 &quot;%1&quot;。</translation>
+    </message>
+    <message>
+        <source>Invalid tag metadata received from GitHub (%1).</source>
+        <translation>从 GitHub 收到的标签元数据无效 (%1)。</translation>
+    </message>
+    <message>
+        <source>No published releases or version tags were found in %1.</source>
+        <translation>在 %1 中未找到已发布的版本或版本标签。</translation>
+    </message>
+    <message>
+        <source>GitHub API rate limit exceeded. Please try again later or check the releases page directly.</source>
+        <translation>GitHub API 请求频率受限，请稍后再试或直接打开发布页面查看。</translation>
+    </message>
+    <message>
+        <source>HTTP %1: %2</source>
+        <translation>HTTP %1: %2</translation>
     </message>
 </context>
 </TS>

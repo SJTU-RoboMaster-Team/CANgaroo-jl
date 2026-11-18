@@ -62,6 +62,7 @@ public:
     // When nativeStyling is true, CANgaroo defers to the active QStyle and the
     // desktop platform theme: no custom palette or global stylesheet is applied.
     void applyTheme(Theme theme, bool nativeStyling = false);
+    [[nodiscard]] static QPalette resolveNativePalette();
     Theme currentTheme() const { return _currentTheme; }
     bool nativeStyling() const { return _nativeStyling; }
     bool isDarkMode() const { return _currentTheme == Dark; }
