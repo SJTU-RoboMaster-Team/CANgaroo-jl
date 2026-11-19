@@ -57,6 +57,8 @@ public:
     bool isEnabled() const { return _enabled; }
     bool isFileLoggingEnabled() const { return _fileLoggingEnabled; }
     void setFileLoggingEnabled(bool enabled);
+    void setPreBufferSeconds(double seconds);
+    [[nodiscard]] double preBufferSeconds() const noexcept { return _preBufferSeconds; }
     void reset();
 
 signals:
@@ -92,4 +94,6 @@ private:
     QString _logFilePath;
     QFile _logFile;
     QTextStream *_textStream;
+    double _preBufferSeconds = 5.0;
+    int _pendingFlushRows = 0;
 };

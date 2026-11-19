@@ -172,13 +172,24 @@ void ThemeManager::updateColors(Theme theme)
         _colors.graphGrid = QColor(230, 230, 230);
         _colors.graphAxisText = Qt::black;
         _colors.graphCursor = Qt::black;
+
+        _colors.statusSuccess = QColor(0x1b, 0x7f, 0x37);
+        _colors.statusWarning = QColor(0xb4, 0x53, 0x09);
+        _colors.statusError   = QColor(0xc6, 0x28, 0x28);
+        _colors.statusInfo    = QColor(0x09, 0x69, 0xda);
+        _colors.bannerWarningBg     = QColor(0xff, 0xf4, 0xd6);
+        _colors.bannerWarningBorder = QColor(0xd9, 0x77, 0x06);
+        _colors.bannerWarningText   = QColor(0x5c, 0x2d, 0x06);
+        _colors.cursorA       = QColor(0x09, 0x69, 0xda);
+        _colors.cursorB       = QColor(0xd9, 0x77, 0x06);
+        _colors.triggerMarker = QColor(0xdc, 0x26, 0x26);
     } else {
         _colors.window = QColor(45, 45, 48);
         _colors.windowText = QColor(220, 220, 220);
         _colors.base = QColor(30, 30, 30);
         _colors.alternateBase = QColor(37, 37, 38);
-        _colors.toolTipBase = Qt::white;
-        _colors.toolTipText = Qt::black;
+        _colors.toolTipBase = QColor(48, 48, 52);
+        _colors.toolTipText = QColor(240, 240, 240);
         _colors.text = QColor(220, 220, 220);
         _colors.button = QColor(45, 45, 48);
         _colors.buttonText = QColor(220, 220, 220);
@@ -191,6 +202,17 @@ void ThemeManager::updateColors(Theme theme)
         _colors.graphGrid = QColor(60, 60, 60);
         _colors.graphAxisText = QColor(180, 180, 180);
         _colors.graphCursor = Qt::white;
+
+        _colors.statusSuccess = QColor(0x4a, 0xde, 0x80);
+        _colors.statusWarning = QColor(0xfb, 0xbf, 0x24);
+        _colors.statusError   = QColor(0xf8, 0x71, 0x71);
+        _colors.statusInfo    = QColor(0x60, 0xa5, 0xfa);
+        _colors.bannerWarningBg     = QColor(0x45, 0x2a, 0x0d);
+        _colors.bannerWarningBorder = QColor(0xd9, 0x77, 0x06);
+        _colors.bannerWarningText   = QColor(0xfd, 0xe6, 0x8a);
+        _colors.cursorA       = QColor(0x60, 0xa5, 0xfa);
+        _colors.cursorB       = QColor(0xfb, 0xbf, 0x24);
+        _colors.triggerMarker = QColor(0xf8, 0x71, 0x71);
     }
 }
 

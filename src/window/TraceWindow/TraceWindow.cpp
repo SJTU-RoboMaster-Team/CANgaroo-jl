@@ -26,6 +26,7 @@
 #include <QCheckBox>
 #include <QDomDocument>
 #include <QHeaderView>
+#include <QMenu>
 #include <QScrollBar>
 #include <QSettings>
 #include <QSortFilterProxyModel>
@@ -33,8 +34,10 @@
 #include "core/Backend.h"
 #include "core/BusTrace.h"
 #include "core/ThemeManager.h"
+#include "core/TriggerCaptureManager.h"
 #include "helpers/apphelpers.h"
 #include "window/ConditionalLoggingDialog/ConditionalLoggingDialog.h"
+#include "window/TriggerCaptureDialog/TriggerCaptureDialog.h"
 
 #include "AggregatedTraceViewModel.h"
 #include "DataColumnDelegate.h"
@@ -100,6 +103,8 @@ TraceWindow::TraceWindow(QWidget *parent, Backend &backend) :
         tree->setColumnWidth(BaseTraceViewModel::column_data, 260);
         tree->setColumnWidth(BaseTraceViewModel::column_comment, 120);
         tree->setItemDelegateForColumn(BaseTraceViewModel::column_data, new DataColumnDelegate(tree));
+        tree->setContextMenuPolicy(Qt::CustomContextMenu);
+        connect(tree, &QTreeView::customContextMenuRequested, this, &TraceWindow::onTreeContextMenu);
 
         connect(_filterModels[i], &QAbstractItemModel::rowsInserted, this, &TraceWindow::onRowsInserted);
     }
@@ -180,6 +185,46 @@ TraceWindow::~TraceWindow()
 void TraceWindow::retranslateUi()
 {
     ui->retranslateUi(this);
+}
+
+void TraceWindow::onTreeContextMenu(const QPoint &pos)
+{
+    auto *tree = qobject_cast<QTreeView *>(sender());
+    if (!tree || !_backend) return;
+
+    const QModelIndex idx = tree->indexAt(pos);
+    if (!idx.isValid()) return;
+
+    const QModelIndex idIdx = idx.sibling(idx.row(), BaseTraceViewModel::column_canid);
+    QString idText = idIdx.data(Qt::DisplayRole).toString().trimmed();
+    if (idText.startsWith(QStringLiteral("0x"), Qt::CaseInsensitive)) {
+        idText = idText.mid(2);
+    }
+    bool ok = false;
+    const uint32_t canId = idText.toUInt(&ok, 16);
+    if (!ok) return;
+
+    QMenu menu(this);
+    QAction *actFrame = menu.addAction(tr("Create Trigger Rule for ID 0x%1...").arg(canId, 0, 16).toUpper());
+    QAction *actWatchdog = menu.addAction(tr("Create Watchdog Trigger (200 ms) for ID 0x%1...").arg(canId, 0, 16).toUpper());
+    QAction *chosen = menu.exec(tree->viewport()->mapToGlobal(pos));
+    if (!chosen) return;
+
+    auto *mgr = _backend->getTriggerCaptureManager();
+    if (!mgr) return;
+
+    TriggerCaptureConfig cfg = mgr->config();
+    if (chosen == actFrame) {
+        cfg.rules.append(TriggerCaptureDialog::makeQuickFrameRule(canId));
+    } else if (chosen == actWatchdog) {
+        cfg.rules.append(TriggerCaptureDialog::makeQuickWatchdogRule(canId, 200));
+    }
+
+    TriggerCaptureDialog dlg(cfg, mgr->isArmed(), this);
+    if (dlg.exec() == QDialog::Accepted) {
+        mgr->setConfig(dlg.config());
+        mgr->setArmed(dlg.shouldArm());
+    }
 }
 
 void TraceWindow::setMode(TraceWindow::mode_t mode)

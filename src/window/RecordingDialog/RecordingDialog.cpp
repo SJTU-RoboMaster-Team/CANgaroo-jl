@@ -60,6 +60,7 @@ RecordingDialog::RecordingDialog(const RecordingConfig &config, QWidget *parent)
 
     m_formatCombo = new QComboBox(grpOutput);
     m_formatCombo->addItem(tr("Vector ASC (*.asc)"), static_cast<int>(TraceFileFormat::VectorAsc));
+    m_formatCombo->addItem(tr("CAN/FD Raw CSV (*.csv)"), static_cast<int>(TraceFileFormat::Csv));
     m_formatCombo->addItem(tr("Linux candump (*.candump)"), static_cast<int>(TraceFileFormat::CanDump));
     m_formatCombo->addItem(tr("PCAPng (*.pcapng)"), static_cast<int>(TraceFileFormat::PcapNg));
     m_formatCombo->setCurrentIndex(std::max(m_formatCombo->findData(static_cast<int>(config.format)), 0));
@@ -96,6 +97,10 @@ RecordingDialog::RecordingDialog(const RecordingConfig &config, QWidget *parent)
     m_stayArmedCheck->setChecked(config.stayArmed);
     startLayout->addWidget(m_stayArmedCheck);
 
+    m_recordReplayCheck = new QCheckBox(tr("Also record during offline trace replay"), grpStart);
+    m_recordReplayCheck->setChecked(config.recordDuringReplay);
+    startLayout->addWidget(m_recordReplayCheck);
+
     auto *hint = new QLabel(tr("Recording starts with the next measurement, or immediately if one is running. "
                                "Changed options apply from the next recording."), grpStart);
     hint->setWordWrap(true);
@@ -127,6 +132,7 @@ RecordingConfig RecordingDialog::config() const
         .format = static_cast<TraceFileFormat>(m_formatCombo->currentData().toInt()),
         .splitSizeMb = m_splitCheck->isChecked() ? m_splitSizeSpin->value() : 0,
         .stayArmed = m_stayArmedCheck->isChecked(),
+        .recordDuringReplay = m_recordReplayCheck->isChecked(),
     };
 }
 

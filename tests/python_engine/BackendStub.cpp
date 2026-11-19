@@ -22,9 +22,14 @@ Backend::Backend()
 Backend::~Backend() = default;
 
 void Backend::onMessageEnqueued(int) {}
-bool Backend::startMeasurement() { return false; }
+void Backend::onListenerDisconnected(BusInterfaceId, const QString &, const QString &) {}
+bool Backend::startMeasurement(bool) { return false; }
 bool Backend::stopMeasurement() { return false; }
 bool Backend::isMeasurementRunning() const { return false; }
+bool Backend::isPreservingTrace() const { return false; }
+bool Backend::isReplayRunning() const { return false; }
+void Backend::setReplayRunning(bool) {}
+bool Backend::rebindAndResume(QString *) { return false; }
 MeasurementSetup &Backend::getSetup() { return _setup; }
 BusTrace *Backend::getTrace() { return nullptr; }
 void Backend::clearTrace() {}

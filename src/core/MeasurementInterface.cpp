@@ -66,6 +66,7 @@ bool MeasurementInterface::loadXML(Backend &backend, QDomElement &el)
 
     _savedDriverName = el.attribute("driver");
     _savedInterfaceName = el.attribute("name");
+    _savedHardwareKey = el.attribute("hardware-key");
 
     _busType = (el.attribute("bus-type", "can") == "lin") ? BusType::LIN : BusType::CAN;
 
@@ -127,12 +128,20 @@ bool MeasurementInterface::saveXML(Backend &backend, QDomDocument &xml, QDomElem
     {
         _savedDriverName = backend.getDriverName(_busif);
         _savedInterfaceName = backend.getInterfaceName(_busif);
+        if (BusInterface *intf = backend.getInterfaceById(_busif))
+        {
+            _savedHardwareKey = intf->hardwareKey();
+        }
     }
 
     root.setAttribute("bus-type", _busType == BusType::LIN ? "lin" : "can");
     root.setAttribute("type", _busType == BusType::LIN ? "lin" : "can");
     root.setAttribute("driver", _savedDriverName);
     root.setAttribute("name", _savedInterfaceName);
+    if (!_savedHardwareKey.isEmpty())
+    {
+        root.setAttribute("hardware-key", _savedHardwareKey);
+    }
 
     root.setAttribute("configure", _doConfigure ? 1 : 0);
 
@@ -405,3 +414,15 @@ void     MeasurementInterface::setLinJitterUs(uint16_t us) { _linJitterUs = us; 
 const QMap<uint8_t, QByteArray> &MeasurementInterface::linFrameDefaults() const { return _linFrameDefaults; }
 QMap<uint8_t, QByteArray>       &MeasurementInterface::linFrameDefaultsRef()    { return _linFrameDefaults; }
 void MeasurementInterface::setLinFrameDefaults(const QMap<uint8_t, QByteArray> &defaults) { _linFrameDefaults = defaults; }
+
+QString MeasurementInterface::savedHardwareKey() const
+{
+    return _savedHardwareKey;
+}
+
+void MeasurementInterface::setSavedIdentity(const QString &driverName, const QString &interfaceName, const QString &hardwareKey)
+{
+    _savedDriverName = driverName;
+    _savedInterfaceName = interfaceName;
+    _savedHardwareKey = hardwareKey;
+}

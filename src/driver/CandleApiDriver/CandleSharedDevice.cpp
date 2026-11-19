@@ -306,6 +306,7 @@ std::vector<CandleDiscovered> candleDiscoverDevices()
         auto sharedDev = std::make_shared<CandleSharedDevice>();
         sharedDev->handle = shared_handle;
         sharedDev->productName = productNameFromPath(devPath);
+        sharedDev->hardwareBaseKey = QString::fromStdWString(baseKey);
         sharedDev->deviceIndex = deviceCounter++;
         found.push_back(CandleDiscovered{.device = sharedDev, .channels = num_channels, .baseKey = baseKey});
     }

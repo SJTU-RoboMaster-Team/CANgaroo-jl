@@ -70,21 +70,43 @@
      <item>
       <widget class="QPushButton" name="zoomInButton">
        <property name="text">
-        <string>🔍+</string>
+        <string>Zoom +</string>
+       </property>
+       <property name="toolTip">
+        <string>Zoom in along time axis</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="zoomOutButton">
        <property name="text">
-        <string>🔍-</string>
+        <string>Zoom -</string>
+       </property>
+       <property name="toolTip">
+        <string>Zoom out along time axis</string>
        </property>
       </widget>
      </item>
      <item>
       <widget class="QPushButton" name="resetZoomButton">
        <property name="text">
-        <string>↺</string>
+        <string>Reset Zoom</string>
+       </property>
+       <property name="toolTip">
+        <string>Reset zoom and re-enable auto scroll</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="cursorsButton">
+       <property name="text">
+        <string>Cursors (Δt/Δy)</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="toolTip">
+        <string>Toggle dual measurement cursors (Left-click: A, Right/Shift-click: B)</string>
        </property>
       </widget>
      </item>

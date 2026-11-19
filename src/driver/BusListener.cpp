@@ -80,8 +80,15 @@ void BusListener::run()
         }
         else if(_intf.isOpen() == false)
         {
-            log_error(QString(tr("Error on interface: %1, Closed!!!")).arg(_intf.getName()));
+            const QString ifName = _intf.getName();
+            const BusInterfaceId ifId = _intf.getId();
+            const QString reason = tr("Device connection lost or closed unexpectedly");
+            log_error(QString(tr("Error on interface: %1, Closed!!!")).arg(ifName));
             rxMessages.clear();
+            if (_shouldBeRunning)
+            {
+                emit interfaceDisconnected(ifId, ifName, reason);
+            }
             break;
 
         }

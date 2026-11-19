@@ -52,7 +52,10 @@ public:
     BusMessage getMessage(int idx);
     QVector<BusMessage> getSnapshot(int maxCount = 0);
     void enqueueMessage(const BusMessage &msg, bool more_to_follow=false);
+    void loadMessages(const QVector<BusMessage> &msgs, bool clearFirst = true);
     void setMaxSize(int maxSize);
+    int maxSize() const;
+    bool hasPruned() const;
 
     // Writes the whole trace in `format`; see core/TraceFileWriter.
     void save(QFile &file, TraceFileFormat format);

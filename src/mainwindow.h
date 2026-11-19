@@ -142,10 +142,21 @@ private:
     void initWorkspace();
     void initAppearance();
     void initRecording();
+    void initTriggerCapture();
+    void initDisconnectBanner();
 
     // Continuous trace recording
     void showRecordingDialog();
     void updateRecordingStatus();
+
+    // Trigger capture (blackbox)
+    void showTriggerCaptureDialog();
+    void updateTriggerStatus();
+
+    // USB disconnect alert & manual rebind
+    void onInterfaceConnectionLost(const QString &interfaceName, const QString &reason);
+    void onManualRebindClicked();
+    void applyDisconnectBannerTheme();
 
     // Theming helpers
     void applyCurrentTheme();
@@ -185,6 +196,15 @@ private:
     class QToolButton *_btnRecord = nullptr;
     class QLabel *_recordStatusLabel = nullptr;
     class QTimer *_recordStatusTimer = nullptr;
+
+    QAction *_actionTriggerCapture = nullptr;
+    class QToolButton *_btnTriggerCapture = nullptr;
+    class QLabel *_triggerStatusLabel = nullptr;
+
+    QWidget *_disconnectBanner = nullptr;
+    class QLabel *_disconnectBannerLabel = nullptr;
+    class QPushButton *_btnBannerRebind = nullptr;
+    class QPushButton *_btnBannerDismiss = nullptr;
 
     // Recent files
     static constexpr int MaxRecentFiles = 8;

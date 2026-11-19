@@ -37,7 +37,8 @@ enum class TraceFileFormat
     VectorAsc,  // Vector ASCII
     VectorMdf,  // Vector MDF4
     Pcap,       // pcap, LINKTYPE_CAN_SOCKETCAN
-    PcapNg      // pcapng, LINKTYPE_CAN_SOCKETCAN
+    PcapNg,     // pcapng, LINKTYPE_CAN_SOCKETCAN
+    Csv         // Raw CAN/FD frame CSV
 };
 
 // File extension for a format, without the leading dot.
@@ -50,6 +51,7 @@ enum class TraceFileFormat
         case TraceFileFormat::VectorMdf: return QStringLiteral("mf4");
         case TraceFileFormat::Pcap:      return QStringLiteral("pcap");
         case TraceFileFormat::PcapNg:    return QStringLiteral("pcapng");
+        case TraceFileFormat::Csv:       return QStringLiteral("csv");
     }
     return {};
 }
@@ -64,6 +66,7 @@ enum class TraceFileFormat
         case TraceFileFormat::VectorMdf: return QStringLiteral("mdf");
         case TraceFileFormat::Pcap:      return QStringLiteral("pcap");
         case TraceFileFormat::PcapNg:    return QStringLiteral("pcapng");
+        case TraceFileFormat::Csv:       return QStringLiteral("csv");
     }
     return {};
 }
@@ -71,7 +74,7 @@ enum class TraceFileFormat
 [[nodiscard]] inline QStringList supportedTraceFormatNames()
 {
     return { QStringLiteral("candump"), QStringLiteral("asc"), QStringLiteral("mdf"),
-             QStringLiteral("pcap"), QStringLiteral("pcapng") };
+             QStringLiteral("pcap"), QStringLiteral("pcapng"), QStringLiteral("csv") };
 }
 
 // Resolves an explicit format name. Accepts the canonical names above plus a few
@@ -102,6 +105,10 @@ enum class TraceFileFormat
     {
         return TraceFileFormat::PcapNg;
     }
+    if (key == QStringLiteral("csv"))
+    {
+        return TraceFileFormat::Csv;
+    }
 
     return std::nullopt;
 }
@@ -123,6 +130,7 @@ enum class TraceFileFormat
         return TraceFileFormat::CanDump;
     }
     if (suffix == QStringLiteral("asc")) { return TraceFileFormat::VectorAsc; }
+    if (suffix == QStringLiteral("csv")) { return TraceFileFormat::Csv; }
     if (suffix == QStringLiteral("mf4") || suffix == QStringLiteral("mdf")
         || suffix == QStringLiteral("mdf4"))
     {

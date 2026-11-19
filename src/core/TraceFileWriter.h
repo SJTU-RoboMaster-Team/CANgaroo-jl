@@ -62,4 +62,7 @@ void writePcap(QIODevice &out, std::span<const BusMessage> messages);
 // first appearance, then one enhanced packet per message.
 void writePcapNg(QIODevice &out, std::span<const BusMessage> messages, const InterfaceNameFn &interfaceName);
 
+// Raw CAN/FD frame CSV with relative seconds, exact microsecond epoch, flags and hex payload.
+void writeCsv(QIODevice &out, std::span<const BusMessage> messages, const InterfaceNameFn &interfaceName);
+
 }

@@ -12,7 +12,9 @@ SUBDIRS += \
     trace_line_format \
     pcapng_format \
     trace_file_writer \
+    trace_file_reader \
     trace_recorder \
+    trigger_capture \
     decoders \
     autosar_e2e \
     ldf_parser \

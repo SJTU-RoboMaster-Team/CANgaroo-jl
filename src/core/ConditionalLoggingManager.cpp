@@ -6,6 +6,7 @@
 #include "ConditionalLoggingManager.h"
 #include "core/Backend.h"
 #include "core/BusMessage.h"
+#include "core/Log.h"
 #include "db/model/CanDbMessage.h"
 #include "db/model/CanDbSignal.h"
 #include <QDateTime>
@@ -30,17 +31,26 @@ void ConditionalLoggingManager::setEnabled(bool enabled)
     _enabled = enabled;
 
     if (!_enabled) {
+        if (_textStream) {
+            _textStream->flush();
+        }
         if (_logFile.isOpen()) {
             _logFile.close();
         }
         delete _textStream;
         _textStream = nullptr;
+        _pendingFlushRows = 0;
         _conditionMet = false;
         _preBuffer.clear();
         emit conditionChanged(false);
     } else {
         evaluate();
     }
+}
+
+void ConditionalLoggingManager::setPreBufferSeconds(double seconds)
+{
+    _preBufferSeconds = qBound(0.0, seconds, 60.0);
 }
 
 void ConditionalLoggingManager::setFileLoggingEnabled(bool enabled)
@@ -112,9 +122,9 @@ void ConditionalLoggingManager::processMessage(const BusMessage &msg)
             double ts = msg.getFloatTimestamp();
             _preBuffer.append(qMakePair(ts, _signalValues));
 
-            // Prune entries older than 5 seconds
+            // Prune entries older than configured pre-buffer window
             int removeCount = 0;
-            while (removeCount < _preBuffer.size() && (ts - _preBuffer[removeCount].first > 5.0)) {
+            while (removeCount < _preBuffer.size() && (ts - _preBuffer[removeCount].first > _preBufferSeconds)) {
                 ++removeCount;
             }
             if (removeCount > 0) {
@@ -126,6 +136,10 @@ void ConditionalLoggingManager::processMessage(const BusMessage &msg)
 
         if (_conditionMet && _textStream) {
             writeDataRow(msg.getFloatTimestamp(), _signalValues);
+            if (++_pendingFlushRows >= 32) {
+                _textStream->flush();
+                _pendingFlushRows = 0;
+            }
         }
         emit liveValuesUpdated(_signalValues, false);
     }
@@ -190,16 +204,24 @@ void ConditionalLoggingManager::evaluate()
                     for (const auto &entry : _preBuffer) {
                         writeDataRow(entry.first, entry.second);
                     }
+                    _textStream->flush();
+                    _pendingFlushRows = 0;
                     _preBuffer.clear();
+                } else {
+                    log_error(tr("Conditional logging failed to open '%1': %2").arg(_logFilePath, _logFile.errorString()));
                 }
             }
         } else {
             // Stop logging to file
+            if (_textStream) {
+                _textStream->flush();
+            }
             if (_logFile.isOpen()) {
                 _logFile.close();
             }
             delete _textStream;
             _textStream = nullptr;
+            _pendingFlushRows = 0;
         }
     }
 }

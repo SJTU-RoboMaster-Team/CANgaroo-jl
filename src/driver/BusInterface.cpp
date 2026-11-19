@@ -42,6 +42,11 @@ QString BusInterface::getDetailsStr() const
     return "";
 }
 
+QString BusInterface::hardwareKey() const
+{
+    return getName();
+}
+
 uint32_t BusInterface::getCapabilities()
 {
     return 0;

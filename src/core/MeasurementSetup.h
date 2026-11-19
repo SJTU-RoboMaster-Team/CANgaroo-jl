@@ -38,6 +38,23 @@ class CanDbMessage;
 class LinFrame;
 class BusMessage;
 
+struct InterfaceDescriptor
+{
+    BusInterfaceId id = InvalidBusInterfaceId;
+    QString driverName;
+    QString interfaceName;
+    QString hardwareKey;
+};
+
+struct RebindReport
+{
+    QStringList rebound;
+    QStringList missing;
+    QStringList ambiguous;
+
+    [[nodiscard]] bool allResolved() const noexcept { return missing.isEmpty() && ambiguous.isEmpty(); }
+};
+
 class MeasurementSetup : public QObject
 {
     Q_OBJECT
@@ -69,6 +86,11 @@ public:
     void cloneFrom(MeasurementSetup &origin);
     bool saveXML(Backend &backend, QDomDocument &xml, QDomElement &root);
     bool loadXML(Backend &backend, QDomElement &el);
+
+    // Rebinds all configured MeasurementInterfaces against a freshly scanned
+    // hardware list by exact (driverName, hardwareKey), or by unique
+    // (driverName, interfaceName) when no hardwareKey was recorded.
+    [[nodiscard]] RebindReport rebindInterfaces(const QVector<InterfaceDescriptor> &available);
 
 signals:
     void onSetupChanged();

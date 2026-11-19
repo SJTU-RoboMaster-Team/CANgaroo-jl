@@ -57,14 +57,16 @@ RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend)
     auto *headerLayout = new QHBoxLayout();
     headerLayout->setSpacing(8);
 
-    headerLayout->addWidget(new QLabel(tr("ID (Hex):"), this));
+    _labelId = new QLabel(tr("ID (Hex):"), this);
+    headerLayout->addWidget(_labelId);
     _editId = new QLineEdit(this);
     _editId->setMaximumWidth(120);
     _editId->setValidator(new QRegularExpressionValidator(QRegularExpression("^[0-9A-Fa-f]{0,8}$"), this));
     _editId->setPlaceholderText("000");
     headerLayout->addWidget(_editId);
 
-    headerLayout->addWidget(new QLabel(tr("DLC:"), this));
+    _labelDlc = new QLabel(tr("DLC:"), this);
+    headerLayout->addWidget(_labelDlc);
     _comboDlc = new QComboBox(this);
     _comboDlc->setMinimumWidth(60);
     headerLayout->addWidget(_comboDlc);
@@ -81,7 +83,8 @@ RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend)
     headerLayout->addWidget(_cbBRS);
     headerLayout->addStretch();
 
-    headerLayout->addWidget(new QLabel(tr("Interface:"), this));
+    _labelInterface = new QLabel(tr("Interface:"), this);
+    headerLayout->addWidget(_labelInterface);
     _comboInterface = new QComboBox(this);
     _comboInterface->setMinimumWidth(180);
     headerLayout->addWidget(_comboInterface);
@@ -205,6 +208,14 @@ RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend)
 
 void RawTxWindow::retranslateUi()
 {
+    if (_labelId) _labelId->setText(tr("ID (Hex):"));
+    if (_labelDlc) _labelDlc->setText(tr("DLC:"));
+    if (_labelInterface) _labelInterface->setText(tr("Interface:"));
+    _cbExtended->setText(tr("Extended"));
+    _cbRTR->setText(tr("RTR"));
+    _cbFD->setText(tr("FD"));
+    _cbBRS->setText(tr("BRS"));
+    _signalTable->setHorizontalHeaderLabels({tr("Signal"), tr("Value"), tr("Unit")});
 }
 
 int RawTxWindow::currentDlc() const

@@ -24,6 +24,7 @@
 #include "core/MeasurementSetup.h"
 
 class QLineEdit;
+class QLabel;
 class QComboBox;
 class QCheckBox;
 class QTableWidget;
@@ -63,6 +64,9 @@ private:
     bool _settingMessage;
     bool _updatingSignals;
 
+    QLabel *_labelId = nullptr;
+    QLabel *_labelDlc = nullptr;
+    QLabel *_labelInterface = nullptr;
     QLineEdit *_editId;
     QComboBox *_comboDlc;
     QComboBox *_comboInterface;

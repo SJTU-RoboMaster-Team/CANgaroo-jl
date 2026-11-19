@@ -78,6 +78,18 @@ void write(QIODevice &out, TraceFileFormat format, std::span<const BusMessage> m
         case TraceFileFormat::VectorMdf: writeVectorMdf(out, messages); return;
         case TraceFileFormat::Pcap:      writePcap(out, messages); return;
         case TraceFileFormat::PcapNg:    writePcapNg(out, messages, interfaceName); return;
+        case TraceFileFormat::Csv:       writeCsv(out, messages, interfaceName); return;
+    }
+}
+
+void writeCsv(QIODevice &out, std::span<const BusMessage> messages, const InterfaceNameFn &interfaceName)
+{
+    QTextStream stream(&out);
+    stream << TraceLineFormat::csvHeader() << '\n';
+    const double tStart = messages.empty() ? 0.0 : messages.front().getFloatTimestamp();
+    for (const BusMessage &msg : messages)
+    {
+        stream << TraceLineFormat::csvLine(msg, tStart, interfaceName(msg.getInterfaceId())) << '\n';
     }
 }
 

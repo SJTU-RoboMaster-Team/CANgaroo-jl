@@ -183,6 +183,59 @@ QString canDumpLine(const BusMessage &msg, const QString &interfaceName)
     return line;
 }
 
+QString csvHeader()
+{
+    return QStringLiteral("Timestamp_s,Epoch_us,Channel,Direction,BusType,ID_Hex,Extended,FD,BRS,ESI,RTR,ErrorFlags,DLC,Data_Hex");
+}
+
+QString csvLine(const BusMessage &msg, double tStart, const QString &interfaceName)
+{
+    const double relTime = msg.getFloatTimestamp() - tStart;
+    const QString dir = msg.isRX() ? QStringLiteral("Rx") : QStringLiteral("Tx");
+    const QString busType = (msg.busType() == BusType::LIN) ? QStringLiteral("LIN") : QStringLiteral("CAN");
+    const int idWidth = msg.isExtended() ? 8 : 3;
+    const QString idHex = QString::number(msg.getId(), 16).toUpper().rightJustified(idWidth, QLatin1Char('0'));
+
+    QString safeChannel = interfaceName;
+    if (safeChannel.contains(QLatin1Char(',')) || safeChannel.contains(QLatin1Char('"')))
+    {
+        safeChannel.replace(QLatin1Char('"'), QStringLiteral("\"\""));
+        safeChannel = QLatin1Char('"') + safeChannel + QLatin1Char('"');
+    }
+
+    QString dataHex;
+    if (!msg.isRTR() && msg.getLength() > 0)
+    {
+        dataHex.reserve(msg.getLength() * 3);
+        for (int i = 0; i < msg.getLength(); ++i)
+        {
+            if (i > 0)
+            {
+                dataHex.append(QLatin1Char(' '));
+            }
+            dataHex.append(hexByte(msg.getByte(static_cast<uint8_t>(i))));
+        }
+    }
+
+    const uint32_t errFlags = msg.errorFlags().toInt();
+    const QString errStr = (errFlags != 0)
+        ? QStringLiteral("0x%1").arg(errFlags, 0, 16)
+        : QStringLiteral("0");
+
+    return QStringLiteral("%1,%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12,%13,%14")
+        .arg(relTime, 0, 'f', 6)
+        .arg(msg.getTimestamp_us())
+        .arg(safeChannel, dir, busType, idHex)
+        .arg(msg.isExtended() ? 1 : 0)
+        .arg(msg.isFD() ? 1 : 0)
+        .arg(msg.isBRS() ? 1 : 0)
+        .arg(msg.isESI() ? 1 : 0)
+        .arg(msg.isRTR() ? 1 : 0)
+        .arg(errStr)
+        .arg(msg.getLength())
+        .arg(dataHex);
+}
+
 bool parseAscCanFdLine(const QStringList &parts, BusMessage &msg)
 {
     if (parts.size() < 9 || parts[1].compare(QLatin1String("CANFD"), Qt::CaseInsensitive) != 0)

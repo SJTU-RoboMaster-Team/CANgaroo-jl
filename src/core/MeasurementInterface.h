@@ -143,6 +143,8 @@ public:
     void setResolved(bool resolved) noexcept;
     QString savedDriverName() const;
     QString savedInterfaceName() const;
+    QString savedHardwareKey() const;
+    void setSavedIdentity(const QString &driverName, const QString &interfaceName, const QString &hardwareKey);
 
 private:
     BusType        _busType;
@@ -151,6 +153,7 @@ private:
     bool    _isResolved {false};
     QString _savedDriverName;
     QString _savedInterfaceName;
+    QString _savedHardwareKey;
 
     bool _doConfigure;
     bool _enabled;

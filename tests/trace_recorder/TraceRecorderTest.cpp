@@ -195,6 +195,8 @@ private slots:
     void stayArmed();
     void unusableFolderDisarms();
     void unsupportedFormatDisarms();
+    void recordsCsvAndSplits();
+    void recordsDuringOfflineReplay();
 };
 
 void TraceRecorderTest::fileNameFor_data()
@@ -447,6 +449,55 @@ void TraceRecorderTest::unsupportedFormatDisarms()
     QVERIFY(!recorder.isRecording());
     QVERIFY(!recorder.isArmed());
     QVERIFY(filesIn(dir.path()).isEmpty());
+}
+
+void TraceRecorderTest::recordsCsvAndSplits()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    TraceRecorder recorder(interfaceName, []() { return false; });
+    RecordingConfig cfg = config(dir.path(), TraceFileFormat::Csv, 1);
+    recorder.setConfig(cfg);
+    recorder.setArmed(true);
+    recorder.onMeasurementStarting();
+    QVERIFY(recorder.isRecording());
+
+    for (int i = 0; i < 20000; ++i)
+    {
+        recorder.enqueue(bulkFrame(i));
+    }
+    recorder.onMeasurementStopped();
+
+    QCOMPARE(recorder.framesWritten(), quint64(20000));
+    const QStringList files = filesIn(dir.path());
+    QVERIFY(files.size() >= 2);
+    for (const QString &f : files)
+    {
+        const QByteArray bytes = readAll(f);
+        QVERIFY(bytes.startsWith("Timestamp_s,Epoch_us,"));
+    }
+}
+
+void TraceRecorderTest::recordsDuringOfflineReplay()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+
+    TraceRecorder recorder(interfaceName, []() { return false; });
+    RecordingConfig cfg = config(dir.path(), TraceFileFormat::Csv, 0);
+    cfg.recordDuringReplay = true;
+    recorder.setConfig(cfg);
+    recorder.setArmed(true);
+
+    QVERIFY(!recorder.isRecording());
+    recorder.onReplayStarting();
+    QVERIFY(recorder.isRecording());
+    recorder.enqueue(bulkFrame(0));
+    recorder.enqueue(bulkFrame(1));
+    recorder.onReplayStopped();
+    QVERIFY(!recorder.isRecording());
+    QCOMPARE(recorder.framesWritten(), quint64(2));
 }
 
 QTEST_GUILESS_MAIN(TraceRecorderTest)

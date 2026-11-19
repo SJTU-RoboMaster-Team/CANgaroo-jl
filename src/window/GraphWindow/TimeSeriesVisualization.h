@@ -68,8 +68,13 @@ void applyTheme(ThemeManager::Theme theme) override;
     QMap<GraphSignal*, QGraphicsEllipseItem*> tracers() const { return _tracers; }
     int getBusId(GraphSignal* sig) const { return _signalBusMap.value(sig, 0); }
 
+    void setCursorsEnabled(bool enabled);
+    void clearCursors();
+    void addTriggerMarker(double relSec, const QString &label);
+
 signals:
     void mouseMoved(QMouseEvent *event);
+    void cursorsUpdated(const QString &summary);
 
 protected:
 void wheelEvent(QWheelEvent *event) override;
@@ -85,12 +90,30 @@ private:
     bool _isUpdatingRange;
 
     void updateYAxisRange();
+    void updateOverlayLines();
+    void emitCursorSummary();
+    bool sampleSignalAt(QLineSeries *series, double t, double &outY) const;
 
     QGraphicsLineItem *_cursorLine;
     QMap<GraphSignal*, QGraphicsEllipseItem*> _tracers;
     QGraphicsRectItem *_tooltipBox;
     QGraphicsTextItem *_tooltipText;
     QMap<GraphSignal*, int> _signalBusMap;
+
+    bool _cursorsEnabled = false;
+    bool _hasCursorA = false;
+    bool _hasCursorB = false;
+    double _cursorAT = 0.0;
+    double _cursorBT = 0.0;
+    QGraphicsLineItem *_cursorALine = nullptr;
+    QGraphicsLineItem *_cursorBLine = nullptr;
+
+    struct TriggerMarker {
+        double t = 0.0;
+        QString label;
+        QGraphicsLineItem *line = nullptr;
+    };
+    QVector<TriggerMarker> _triggerMarkers;
 
 private slots:
     void onAxisRangeChanged(qreal min, qreal max);

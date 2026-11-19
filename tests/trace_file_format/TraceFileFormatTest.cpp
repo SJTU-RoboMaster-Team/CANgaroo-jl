@@ -71,6 +71,7 @@ void TraceFileFormatTest::fromPath_data()
     QTest::newRow("mdf4")    << "/tmp/run.mdf4"    << int(TraceFileFormat::VectorMdf);
     QTest::newRow("pcap")    << "/tmp/run.pcap"    << int(TraceFileFormat::Pcap);
     QTest::newRow("pcapng")  << "/tmp/run.pcapng"  << int(TraceFileFormat::PcapNg);
+    QTest::newRow("csv")     << "/tmp/run.csv"     << int(TraceFileFormat::Csv);
     QTest::newRow("bare name") << "run.asc"        << int(TraceFileFormat::VectorAsc);
 }
 
@@ -116,7 +117,6 @@ void TraceFileFormatTest::fromPathRejectsUnknownExtension_data()
     QTest::newRow("no extension")   << "/tmp/run";
     QTest::newRow("trailing dot")   << "/tmp/run.";
     QTest::newRow("unknown ext")    << "/tmp/run.txt";
-    QTest::newRow("csv")            << "/tmp/run.csv";
     QTest::newRow("blf")            << "/tmp/run.blf";   // not implemented
     QTest::newRow("empty")          << "";
     QTest::newRow("just a dot")     << ".";
@@ -148,6 +148,7 @@ void TraceFileFormatTest::fromName_data()
     QTest::newRow("mdf")     << "mdf"     << int(TraceFileFormat::VectorMdf);
     QTest::newRow("pcap")    << "pcap"    << int(TraceFileFormat::Pcap);
     QTest::newRow("pcapng")  << "pcapng"  << int(TraceFileFormat::PcapNg);
+    QTest::newRow("csv")     << "csv"     << int(TraceFileFormat::Csv);
 }
 
 void TraceFileFormatTest::fromName()
@@ -178,7 +179,7 @@ void TraceFileFormatTest::fromNameIsCaseAndSpaceInsensitive()
 
 void TraceFileFormatTest::fromNameRejectsUnknown()
 {
-    for (const char *name : { "", "  ", "blf", "csv", "vector", "asc2", "pcap ng" })
+    for (const char *name : { "", "  ", "blf", "txt", "vector", "asc2", "pcap ng" })
     {
         QVERIFY2(!traceFormatFromName(QString::fromLatin1(name)).has_value(), name);
     }
@@ -192,7 +193,8 @@ void TraceFileFormatTest::everyFormatHasNameAndExtension()
                                           TraceFileFormat::VectorAsc,
                                           TraceFileFormat::VectorMdf,
                                           TraceFileFormat::Pcap,
-                                          TraceFileFormat::PcapNg })
+                                          TraceFileFormat::PcapNg,
+                                          TraceFileFormat::Csv })
     {
         QVERIFY(!traceFormatName(format).isEmpty());
         QVERIFY(!traceFormatExtension(format).isEmpty());
@@ -203,7 +205,7 @@ void TraceFileFormatTest::everyFormatHasNameAndExtension()
 void TraceFileFormatTest::canonicalNamesAreAllSupported()
 {
     const QStringList names = supportedTraceFormatNames();
-    QCOMPARE(names.size(), 5);
+    QCOMPARE(names.size(), 6);
 
     for (const QString &name : names)
     {
@@ -220,7 +222,8 @@ void TraceFileFormatTest::extensionsRoundTripThroughFromPath()
                                           TraceFileFormat::VectorAsc,
                                           TraceFileFormat::VectorMdf,
                                           TraceFileFormat::Pcap,
-                                          TraceFileFormat::PcapNg })
+                                          TraceFileFormat::PcapNg,
+                                          TraceFileFormat::Csv })
     {
         const QString path = "/tmp/trace." + traceFormatExtension(format);
         const auto resolved = traceFormatFromPath(path);

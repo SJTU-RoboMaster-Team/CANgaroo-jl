@@ -53,7 +53,8 @@ bool TraceRecorder::isFormatSupported(TraceFileFormat format) noexcept
 {
     return format == TraceFileFormat::VectorAsc
         || format == TraceFileFormat::CanDump
-        || format == TraceFileFormat::PcapNg;
+        || format == TraceFileFormat::PcapNg
+        || format == TraceFileFormat::Csv;
 }
 
 QString TraceRecorder::fileNameFor(const RecordingConfig &config, const QDateTime &start, int index)
@@ -96,7 +97,7 @@ void TraceRecorder::setArmed(bool armed)
     {
         stopRecording();
     }
-    else if (_measurementRunning && _measurementRunning())
+    else if ((_measurementRunning && _measurementRunning()) || (_config.recordDuringReplay && _replayActive))
     {
         startRecording();
     }
@@ -112,10 +113,35 @@ void TraceRecorder::onMeasurementStarting()
 
 void TraceRecorder::onMeasurementStopped()
 {
-    stopRecording();
-    if (_armed && !_config.stayArmed)
+    if (!_replayActive || !_config.recordDuringReplay)
     {
-        setArmed(false);
+        stopRecording();
+        if (_armed && !_config.stayArmed)
+        {
+            setArmed(false);
+        }
+    }
+}
+
+void TraceRecorder::onReplayStarting()
+{
+    _replayActive = true;
+    if (_armed && _config.recordDuringReplay)
+    {
+        startRecording();
+    }
+}
+
+void TraceRecorder::onReplayStopped()
+{
+    _replayActive = false;
+    if (!_measurementRunning || !_measurementRunning())
+    {
+        stopRecording();
+        if (_armed && !_config.stayArmed)
+        {
+            setArmed(false);
+        }
     }
 }
 
@@ -294,6 +320,17 @@ bool TraceRecorder::writeMessages(const QVector<BusMessage> &messages)
                 break;
             }
 
+            case TraceFileFormat::Csv:
+                if (_fileFrames == 0)
+                {
+                    _fileStartTimestamp = msg.getFloatTimestamp();
+                    chunk += TraceLineFormat::csvHeader().toUtf8();
+                    chunk += '\n';
+                }
+                chunk += TraceLineFormat::csvLine(msg, _fileStartTimestamp, _interfaceName(msg.getInterfaceId())).toUtf8();
+                chunk += '\n';
+                break;
+
             default:
                 chunk += TraceLineFormat::canDumpLine(msg, _interfaceName(msg.getInterfaceId())).toUtf8();
                 chunk += '\n';
@@ -377,6 +414,11 @@ bool TraceRecorder::finishFile()
     {
         // A pcapng file must at least contain its section header.
         tail += PcapNgFormat::sectionHeaderBlock();
+    }
+    else if (_active.format == TraceFileFormat::Csv && _fileFrames == 0)
+    {
+        tail += TraceLineFormat::csvHeader().toUtf8();
+        tail += '\n';
     }
 
     const bool ok = writeChunk(tail) && _file.flush();

@@ -20,8 +20,12 @@
 * **总线状态与硬件诊断**：内置 CAN 总线状态监控、多条件报文过滤与触发录制，支持通过 **Measurement > Hardware...** 查看所有已识别驱动、设备状态、总线错误状态、固件版本、能力掩码及支持的波特率，并可一键复制纯文本诊断报告。
 * **报文发送与周期生成器**：支持单帧/手动报文发送（Raw Tx）、多任务周期调度生成（Tx Generator，支持随机载荷填充）。
 * **Python 自动化脚本**：内置脚本编辑器与嵌入式 Python 解释器（基于 `pybind11`，多标签页共享同一解释器），支持使用已加载的 DBC 解码与收发总线报文；示例脚本见 [`examples/`](examples/)。
-* **CAN 网关与日志回放**：支持双 CAN 口过滤转发网关（CAN Gateway），以及导入回放日志（Vector ASC、`candump`、PCAP、PCAPng），支持倍速控制、RX/TX 方向过滤与通道映射。
-* **多格式轨迹导出**：支持导出为 Vector ASC、Vector MDF4、Linux `candump`、PCAP 与 Wireshark 兼容 PCAPng 格式。
+* **CAN 网关与日志回放**：支持双 CAN 口过滤转发网关（CAN Gateway），以及导入回放日志（Vector ASC、`candump`、CAN/FD 原始帧 `.csv`、PCAP、PCAPng、Vector MDF4 `.mf4`），统一由纯 QtCore 的 `TraceFileReader` 解析。回放窗口提供 Play / Pause / Resume / Stop / 单步 / 进度条拖动定位，保留原始帧间隔 `Δt`，支持倍速、RX/TX 方向过滤与通道映射，并可 **Load to Trace** 直接载入 Trace/Graph 做离线分析。
+* **大日志分段处理**：导入（**Trace > Import full trace**）或载入超过 `trace/maxSize` 上限的日志时，弹窗提供“分段保存 / 在回放窗口中打开 / 仅加载前 N 帧”三种处理方式；回放窗口的 **Split Save...** 可按帧数拆分为多个文件。
+* **多格式轨迹导出与录制**：支持导出/连续录制为 Vector ASC、Vector MDF4、Linux `candump`、PCAP、Wireshark 兼容 PCAPng 以及 CAN/FD 原始帧 CSV（`Timestamp_s, Epoch_us, Channel, Direction, BusType, ID_Hex, Extended, FD, BRS, ESI, RTR, ErrorFlags, DLC, Data_Hex`）；录制可选择是否在离线回放期间同时录制。
+* **触发捕获（黑匣子）**：**Measurement > Trigger Capture...** 支持硬件总线错误帧、软件帧 ID/字节掩码匹配、看门狗丢帧超时、DBC 信号阈值四类触发规则，触发时导出“触发前 N 秒 + 触发后 M 秒”的切片文件，并在 Graph 时间轴上标注触发线；Trace 视图右键可按所选 CAN ID 快速创建规则。
+* **Graph 双游标测量**：时序图提供 **Cursors (Δt/Δy)** 开关，左键放置游标 A，右键或 Shift+左键放置游标 B，显示 `Δt`、`1/|Δt|` 与首个信号的 `Δy`。
+* **USB 掉线提示与手动重新绑定**：测量中接口异常断开时，主窗口顶部显示提示条并弹出非阻塞提示，不会静默自动重连；重新插好设备后点击 **Rebind & Resume**（顶部提示条或 **Measurement > Hardware...**），按硬件标识（`Hardware Key`，Candle 设备为去除接口后缀的 USB 设备路径 + 通道号；旧工作空间无该字段时按驱动 + 唯一接口名匹配，出现缺失/歧义会明确报错）重新绑定已配置接口并继续测量，已有 Trace 与 Graph 曲线保留。
 * **原生深浅主题与在线更新检测**：兼容 Windows 11 系统原生深/浅色模式与自定义暗色主题；支持通过 **Help > Check for Updates...** 从当前仓库 [`SJTU-RoboMaster-Team/CANgaroo-jl`](https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl) 检测新版本。
 
 <br>![Cangaroo Trace View](docs/view.png)<br>

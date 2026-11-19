@@ -28,6 +28,7 @@
 
 #include "core/BusTrace.h"
 #include "core/TraceRecorder.h"
+#include "core/TriggerCaptureManager.h"
 #include "core/MeasurementSetup.h"
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementInterface.h"
@@ -35,6 +36,8 @@
 #include "driver/BusInterface.h"
 #include "driver/BusListener.h"
 #include "db/dbc/DbcParser.h"
+#include "db/model/CanDbMessage.h"
+#include "db/model/CanDbSignal.h"
 #include "db/model/LinDb.h"
 #include "db/model/LinFrame.h"
 
@@ -54,6 +57,26 @@ Backend::Backend()
     _traceRecorder = new TraceRecorder(
         [this](BusInterfaceId id) { return getInterfaceName(id); },
         [this]() { return isMeasurementRunning(); },
+        this);
+
+    _triggerCaptureManager = new TriggerCaptureManager(
+        [this](BusInterfaceId id) { return getInterfaceName(id); },
+        [this](const BusMessage &msg, const QString &msgName, const QString &sigName, double &outVal) -> bool {
+            CanDbMessage *dbMsg = findDbMessage(msg);
+            if (!dbMsg) {
+                return false;
+            }
+            if (!msgName.isEmpty() && dbMsg->getName() != msgName) {
+                return false;
+            }
+            for (CanDbSignal *sig : dbMsg->getSignals()) {
+                if (sig && sig->name() == sigName && sig->isPresentInMessage(msg)) {
+                    outVal = sig->extractPhysicalFromMessage(msg);
+                    return true;
+                }
+            }
+            return false;
+        },
         this);
 
     connect(_trace, &BusTrace::messageEnqueued, this, &Backend::onMessageEnqueued);
@@ -98,12 +121,15 @@ void Backend::notifyDisplayConfigChanged()
     emit onDisplayConfigChanged();
 }
 
-bool Backend::startMeasurement()
+bool Backend::startMeasurement(bool preserveTrace)
 {
     log_info(tr("Starting measurement"));
 
-    _measurementStartTime = QDateTime::currentMSecsSinceEpoch();
-    _timerSinceStart.start();
+    _preserveTrace = preserveTrace;
+    if (!preserveTrace || _measurementStartTime == 0) {
+        _measurementStartTime = QDateTime::currentMSecsSinceEpoch();
+        _timerSinceStart.start();
+    }
 
     // Before the listeners start, so the recording includes the first frames.
     _traceRecorder->onMeasurementStarting();
@@ -121,6 +147,7 @@ bool Backend::startMeasurement()
             BusInterface *intf = getInterfaceById(mi->busInterface());
             if (intf)
             {
+                mi->setSavedIdentity(getDriverName(mi->busInterface()), intf->getName(), intf->hardwareKey());
                 intf->applyConfig(*mi);
             }
         }
@@ -150,6 +177,8 @@ bool Backend::startMeasurement()
             if (intf) {
                 log_info(QString(tr("Listening on interface: %1")).arg(intf->getName()));
                 BusListener *listener = new BusListener(0, *this, *intf);
+                connect(listener, &BusListener::interfaceDisconnected,
+                        this, &Backend::onListenerDisconnected, Qt::QueuedConnection);
                 listener->startThread();
                 _listeners.append(listener);
             }
@@ -158,6 +187,7 @@ bool Backend::startMeasurement()
 
     _measurementRunning = true;
     emit beginMeasurement();
+    _preserveTrace = false;
     return true;
 }
 
@@ -165,6 +195,7 @@ bool Backend::stopMeasurement()
 {
     if (_measurementRunning) {
         for (auto *listener : _listeners) {
+            listener->disconnect(this);
             listener->requestStop();
         }
 
@@ -193,6 +224,104 @@ bool Backend::isMeasurementRunning() const
     return _measurementRunning;
 }
 
+bool Backend::isPreservingTrace() const
+{
+    return _preserveTrace;
+}
+
+bool Backend::isReplayRunning() const
+{
+    return _replayRunning;
+}
+
+void Backend::setReplayRunning(bool running)
+{
+    bool expected = !running;
+    if (!_replayRunning.compare_exchange_strong(expected, running)) {
+        return;
+    }
+    if (running) {
+        _traceRecorder->onReplayStarting();
+    } else {
+        _traceRecorder->onReplayStopped();
+    }
+    emit replayStateChanged(running);
+}
+
+void Backend::onListenerDisconnected(BusInterfaceId id, const QString &interfaceName, const QString &reason)
+{
+    for (int i = 0; i < _listeners.size(); ++i) {
+        if (_listeners[i]->getInterfaceId() == id) {
+            BusListener *dead = _listeners.takeAt(i);
+            dead->disconnect(this);
+            dead->waitFinish();
+            delete dead;
+            break;
+        }
+    }
+
+    for (auto *network : _setup.getNetworks()) {
+        for (auto *mi : network->interfaces()) {
+            if (mi->busInterface() == id) {
+                mi->setResolved(false);
+            }
+        }
+    }
+
+    emit interfaceConnectionLost(interfaceName, reason);
+
+    if (_measurementRunning && _listeners.isEmpty()) {
+        _traceRecorder->onMeasurementStopped();
+        _measurementRunning = false;
+        log_warning(tr("All active interfaces disconnected. Measurement paused (trace preserved)."));
+        emit endMeasurement();
+    }
+}
+
+bool Backend::rebindAndResume(QString *errorMessage)
+{
+    if (_measurementRunning) {
+        stopMeasurement();
+    }
+
+    refreshInterfaces();
+
+    QVector<InterfaceDescriptor> available;
+    for (auto *driver : _drivers) {
+        for (BusInterfaceId id : driver->getInterfaceIds()) {
+            if (BusInterface *intf = driver->getInterfaceById(id)) {
+                available.append({id, driver->getName(), intf->getName(), intf->hardwareKey()});
+            }
+        }
+    }
+
+    const auto report = _setup.rebindInterfaces(available);
+    emit onSetupChanged();
+
+    if (report.rebound.isEmpty() || !report.missing.isEmpty() || !report.ambiguous.isEmpty()) {
+        QStringList problems;
+        if (!report.missing.isEmpty()) {
+            problems << tr("Missing: %1").arg(report.missing.join(QStringLiteral(", ")));
+        }
+        if (!report.ambiguous.isEmpty()) {
+            problems << tr("Ambiguous: %1").arg(report.ambiguous.join(QStringLiteral(", ")));
+        }
+        if (report.rebound.isEmpty() && problems.isEmpty()) {
+            problems << tr("No configured interfaces found to rebind.");
+        }
+        const QString msg = problems.join(QStringLiteral("; "));
+        log_error(tr("Manual rebind failed: %1").arg(msg));
+        if (errorMessage) {
+            *errorMessage = msg;
+        }
+        if (report.rebound.isEmpty()) {
+            return false;
+        }
+    }
+
+    return startMeasurement(/*preserveTrace=*/true);
+}
+
 void Backend::loadDefaultSetup(MeasurementSetup &setup)
 {
     setup.clear();
@@ -208,8 +337,10 @@ void Backend::loadDefaultSetup(MeasurementSetup &setup)
             mi->setBusInterface(intf);
             mi->setResolved(true);
             BusInterface *canIntf = getInterfaceById(intf);
-            if (canIntf)
+            if (canIntf) {
                 mi->setBusType(canIntf->busType());
+                mi->setSavedIdentity(driver->getName(), canIntf->getName(), canIntf->hardwareKey());
+            }
             mi->setBitrate(500000);
             mi->setFdBitrate(2000000);
             network->addInterface(mi);

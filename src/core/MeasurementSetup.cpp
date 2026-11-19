@@ -243,3 +243,72 @@ QList<MeasurementNetwork *> MeasurementSetup::getNetworks()
     return _networks;
 }
 
+RebindReport MeasurementSetup::rebindInterfaces(const QVector<InterfaceDescriptor> &available)
+{
+    RebindReport report;
+    QSet<BusInterfaceId> claimed;
+
+    for (MeasurementNetwork *network : _networks)
+    {
+        for (MeasurementInterface *mi : network->interfaces())
+        {
+            const QString driverName = mi->savedDriverName();
+            const QString ifaceName  = mi->savedInterfaceName();
+            const QString hwKey      = mi->savedHardwareKey();
+            const QString label      = QStringLiteral("%1/%2").arg(
+                driverName.isEmpty() ? QStringLiteral("?") : driverName,
+                ifaceName.isEmpty() ? QStringLiteral("?") : ifaceName);
+
+            QVector<InterfaceDescriptor> matches;
+            if (!hwKey.isEmpty())
+            {
+                for (const InterfaceDescriptor &cand : available)
+                {
+                    if (claimed.contains(cand.id)) continue;
+                    if (cand.driverName == driverName && cand.hardwareKey == hwKey)
+                    {
+                        matches.append(cand);
+                    }
+                }
+            }
+            else if (!driverName.isEmpty() && !ifaceName.isEmpty())
+            {
+                for (const InterfaceDescriptor &cand : available)
+                {
+                    if (claimed.contains(cand.id)) continue;
+                    if (cand.driverName == driverName && cand.interfaceName == ifaceName)
+                    {
+                        matches.append(cand);
+                    }
+                }
+            }
+
+            if (matches.size() == 1)
+            {
+                const InterfaceDescriptor &chosen = matches.first();
+                mi->setBusInterface(chosen.id);
+                mi->setResolved(true);
+                mi->setSavedIdentity(chosen.driverName, chosen.interfaceName, chosen.hardwareKey);
+                claimed.insert(chosen.id);
+                report.rebound.append(QStringLiteral("%1/%2").arg(chosen.driverName, chosen.interfaceName));
+            }
+            else if (matches.size() > 1)
+            {
+                mi->setBusInterface(InvalidBusInterfaceId);
+                mi->setResolved(false);
+                report.ambiguous.append(label);
+            }
+            else
+            {
+                mi->setBusInterface(InvalidBusInterfaceId);
+                mi->setResolved(false);
+                report.missing.append(label);
+            }
+        }
+    }
+
+    rebuildMessageCache();
+    emit onSetupChanged();
+    return report;
+}
+

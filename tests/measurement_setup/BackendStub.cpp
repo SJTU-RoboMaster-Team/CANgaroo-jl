@@ -8,6 +8,7 @@
 #include "driver/BusInterface.h"
 
 BusInterface *Backend::getInterfaceByDriverAndName(QString, QString) { return nullptr; }
+BusInterface *Backend::getInterfaceById(BusInterfaceId) { return nullptr; }
 pCanDb Backend::loadDbc(QString, QString *) { return {}; }
 pLinDb Backend::loadLdf(QString, QString *) { return {}; }
 

@@ -41,6 +41,8 @@
 #include "core/MeasurementSetup.h"
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementInterface.h"
+#include "core/ThemeManager.h"
+#include "core/TriggerCaptureManager.h"
 #include "db/model/CanDbMessage.h"
 #include "db/model/LinFrame.h"
 #include "db/model/LinSignal.h"
@@ -190,8 +192,14 @@ void SignalDecoderWorker::onTraceAppended()
                 sampleBusLoad(signal, state, t, newPoints);
             } else {
                 if (signal->isPresentInMessage(msg)) {
-                    if (_signalInterfaces.contains(signal) && !_signalInterfaces[signal].contains(msgIfId))
-                        continue;
+                    const auto itIf = _signalInterfaces.constFind(signal);
+                    if (itIf != _signalInterfaces.constEnd() && !itIf->isEmpty()) {
+                        const bool isOfflineMsg = !_measurementActive
+                            || msgIfId == InvalidBusInterfaceId
+                            || _backend.getInterfaceById(msgIfId) == nullptr;
+                        if (!isOfflineMsg && !itIf->contains(msgIfId))
+                            continue;
+                    }
                     double value = signal->extractPhysicalFromMessage(msg);
                     newPoints[signal].interfaceId = msgIfId;
                     newPoints[signal].timestamps.append(t);
@@ -328,6 +336,17 @@ GraphWindow::GraphWindow(QWidget *parent, Backend &backend) :
     connect(ui->zoomInButton, &QPushButton::clicked, this, &GraphWindow::onZoomInClicked);
     connect(ui->zoomOutButton, &QPushButton::clicked, this, &GraphWindow::onZoomOutClicked);
     connect(ui->resetZoomButton, &QPushButton::clicked, this, &GraphWindow::on_resetZoomButton_clicked);
+    connect(ui->cursorsButton, &QPushButton::toggled, this, &GraphWindow::onCursorsToggled);
+
+    _cursorBarLabel = new QLabel(this);
+    _cursorBarLabel->setObjectName(QStringLiteral("cursorBarLabel"));
+    _cursorBarLabel->setVisible(false);
+    _cursorBarLabel->setContentsMargins(6, 2, 6, 2);
+    ui->verticalLayout->insertWidget(1, _cursorBarLabel);
+
+    if (auto *trigMgr = _backend.getTriggerCaptureManager()) {
+        connect(trigMgr, &TriggerCaptureManager::triggered, this, &GraphWindow::onTriggerFired);
+    }
 
     // Setup Background Decoder Thread
     _decoderThread = new QThread(this);
@@ -424,6 +443,18 @@ void GraphWindow::closeEvent(QCloseEvent *event)
 void GraphWindow::retranslateUi()
 {
     ui->retranslateUi(this);
+    if (_columnLabel) {
+        _columnLabel->setText(tr("Columns:"));
+    }
+    const QStringList names = {
+        tr("Graph (Time-series)"),
+        tr("Scatter Chart"),
+        tr("Text"),
+        tr("Gauge")
+    };
+    for (int i = 0; i < names.size() && i < ui->viewSelector->count(); ++i) {
+        ui->viewSelector->setItemText(i, names[i]);
+    }
 }
 
 void GraphWindow::setupVisualizations()
@@ -434,7 +465,7 @@ void GraphWindow::setupVisualizations()
     _visualizations.append(new TextVisualization(ui->stackedWidget, _backend));
     _visualizations.append(new GaugeVisualization(ui->stackedWidget, _backend));
 
-    QStringList names = {"Graph (Time-series)", "Scatter Chart", "Text", "Gauge"};
+    QStringList names = {tr("Graph (Time-series)"), tr("Scatter Chart"), tr("Text"), tr("Gauge")};
     for (int i = 0; i < _visualizations.size(); ++i) {
         ui->stackedWidget->addWidget(_visualizations[i]);
         ui->viewSelector->addItem(names[i]);
@@ -442,6 +473,7 @@ void GraphWindow::setupVisualizations()
         // Connect mouse move for visualizations that support it
         if (auto tsv = qobject_cast<TimeSeriesVisualization*>(_visualizations[i])) {
             connect(tsv, &TimeSeriesVisualization::mouseMoved, this, &GraphWindow::onMouseMove);
+            connect(tsv, &TimeSeriesVisualization::cursorsUpdated, this, &GraphWindow::onCursorsUpdated);
             connectLegendMarkers(tsv);
         } else if (auto sv = qobject_cast<ScatterVisualization*>(_visualizations[i])) {
             connect(sv, &ScatterVisualization::mouseMoved, this, &GraphWindow::onMouseMove);
@@ -556,22 +588,25 @@ void GraphWindow::on_resetZoomButton_clicked()
 
 void GraphWindow::onConditionChanged(bool met)
 {
+    const ThemeColors &tc = ThemeManager::instance().colors();
     if (met) {
         ui->triggerStatusLabel->setText(tr("CONDITION MET - ACTIVE"));
-        ui->triggerStatusLabel->setStyleSheet("color: green; font-weight: bold;");
+        ui->triggerStatusLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(tc.statusSuccess.name()));
 
         if (ui->chkGraphFilter->isChecked()) {
+            QColor tint = tc.statusSuccess;
+            tint.setAlpha(28);
             for (auto v : _visualizations) {
                 if (auto tsv = qobject_cast<TimeSeriesVisualization*>(v)) {
-                    if (tsv->chart()) tsv->chart()->setBackgroundBrush(QBrush(QColor(100, 255, 100, 25)));
+                    if (tsv->chart()) tsv->chart()->setBackgroundBrush(QBrush(tint));
                 } else if (auto sv = qobject_cast<ScatterVisualization*>(v)) {
-                    if (sv->chart()) sv->chart()->setBackgroundBrush(QBrush(QColor(100, 255, 100, 25)));
+                    if (sv->chart()) sv->chart()->setBackgroundBrush(QBrush(tint));
                 }
             }
         }
     } else {
         ui->triggerStatusLabel->setText(tr("Condition not met - Waiting..."));
-        ui->triggerStatusLabel->setStyleSheet("");
+        ui->triggerStatusLabel->setStyleSheet(QString());
 
         for (auto v : _visualizations) {
             v->applyTheme(ThemeManager::instance().currentTheme()); // Reset to default layout
@@ -581,6 +616,7 @@ void GraphWindow::onConditionChanged(bool met)
 
 void GraphWindow::onLiveValuesUpdated(const QMap<CanDbSignal*, double>& values, bool isStale)
 {
+    const ThemeColors &tc = ThemeManager::instance().colors();
     for (int r = 0; r < ui->conditionTable->rowCount(); ++r) {
         QTableWidgetItem *nameItem = ui->conditionTable->item(r, 0);
         if (!nameItem) continue;
@@ -591,11 +627,11 @@ void GraphWindow::onLiveValuesUpdated(const QMap<CanDbSignal*, double>& values, 
             if (values.contains(sig)) {
                 liveLabel->setText(QString::number(values[sig], 'f', 2));
                 if (isStale) {
-                    liveLabel->setStyleSheet("color: red; font-weight: bold;");
+                    liveLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(tc.statusError.name()));
                     ui->triggerStatusLabel->setText(tr("Idle - Signal Lost"));
-                    ui->triggerStatusLabel->setStyleSheet("color: gray; font-style: italic;");
+                    ui->triggerStatusLabel->setStyleSheet(QStringLiteral("color: %1; font-style: italic;").arg(tc.graphAxisText.name()));
                 } else {
-                    liveLabel->setStyleSheet("color: green; font-weight: bold;");
+                    liveLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(tc.statusSuccess.name()));
                 }
             } else {
                 liveLabel->setText("-");
@@ -776,6 +812,11 @@ void GraphWindow::onDecodedDataReady(const QMap<GraphSignal*, DecodedSignalData>
         for (auto v : _visualizations) {
             v->addDecodedData(newPoints);
         }
+        // In offline mode (import / replay without live measurement), timers are
+        // paused, so push decoded points to the active chart immediately.
+        if (!_measurementActive && _activeVisualization) {
+            _activeVisualization->onActivated();
+        }
     }
 }
 
@@ -810,11 +851,17 @@ void GraphWindow::onMouseMove(QMouseEvent *event)
     cursor->setLine(chartPos.x(), chart->plotArea().top(), chartPos.x(), chart->plotArea().bottom());
     cursor->show();
 
-    // Absolute Timestamp
-    uint64_t startUsecs = _backend.getUsecsAtMeasurementStart();
-    uint64_t currentUsecs = startUsecs + static_cast<uint64_t>(t * 1000000.0);
-    QDateTime dt = QDateTime::fromMSecsSinceEpoch(currentUsecs / 1000);
-    QString timeStr = dt.toString("yyyy-MM-dd HH:mm:ss.zzz t");
+    // Absolute or relative timestamp (fixes 1970-01-01 in offline replay/import)
+    const double baseSec = _backend.isMeasurementRunning()
+                               ? _backend.getTimestampAtMeasurementStart()
+                               : _sessionStartTime;
+    QString timeStr;
+    if (baseSec > 1000000000.0) {
+        const qint64 currentMs = static_cast<qint64>((baseSec + t) * 1000.0);
+        timeStr = QDateTime::fromMSecsSinceEpoch(currentMs).toString(QStringLiteral("yyyy-MM-dd HH:mm:ss.zzz t"));
+    } else {
+        timeStr = QStringLiteral("+%1 s").arg(t, 0, 'f', 4);
+    }
 
     const bool darkTip = ThemeManager::instance().isDarkMode();
     const QString tipBg = darkTip ? "#2d2d30" : "#ffffff";
@@ -1031,7 +1078,9 @@ void GraphWindow::applyPendingSignals()
 
 void GraphWindow::onResumeMeasurement()
 {
-    clearGraphData();
+    if (!_backend.isPreservingTrace()) {
+        clearGraphData();
+    }
     _measurementActive = true;
     updateVisualizationActivation();
     emit measurementActiveChanged(true);
@@ -1042,6 +1091,38 @@ void GraphWindow::onPauseMeasurement()
     _measurementActive = false;
     updateVisualizationActivation();
     emit measurementActiveChanged(false);
+}
+
+void GraphWindow::onCursorsToggled(bool enabled)
+{
+    for (auto *v : _visualizations) {
+        if (auto *tsv = qobject_cast<TimeSeriesVisualization*>(v)) {
+            tsv->setCursorsEnabled(enabled);
+        }
+    }
+    if (!enabled && _cursorBarLabel) {
+        _cursorBarLabel->setVisible(false);
+    }
+}
+
+void GraphWindow::onCursorsUpdated(const QString &summary)
+{
+    if (!_cursorBarLabel) return;
+    _cursorBarLabel->setText(summary);
+    _cursorBarLabel->setVisible(!summary.isEmpty());
+}
+
+void GraphWindow::onTriggerFired(const QString &reason, double timestampSec)
+{
+    if (_sessionStartTime < 0.0) {
+        return;
+    }
+    const double relSec = timestampSec - _sessionStartTime;
+    for (auto *v : _visualizations) {
+        if (auto *tsv = qobject_cast<TimeSeriesVisualization*>(v)) {
+            tsv->addTriggerMarker(relSec, reason);
+        }
+    }
 }
 
 // Only the visualization on screen needs its periodic chart sync running.

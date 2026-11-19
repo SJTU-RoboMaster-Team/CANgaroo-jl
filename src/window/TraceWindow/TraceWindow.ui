@@ -112,18 +112,18 @@
         </property>
         <property name="maximumSize">
          <size>
-          <width>150</width>
+          <width>220</width>
           <height>16777215</height>
          </size>
         </property>
         <property name="toolTip">
-         <string/>
+         <string>Filter rows by CAN ID, message name, data, or regular expression</string>
         </property>
         <property name="statusTip">
          <string/>
         </property>
         <property name="placeholderText">
-         <string/>
+         <string>ID / Name / Regex...</string>
         </property>
        </widget>
       </item>

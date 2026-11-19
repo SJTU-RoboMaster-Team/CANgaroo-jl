@@ -15,7 +15,9 @@ SOURCES += \
     $$PWD/TraceLineFormat.cpp \
     $$PWD/PcapNgFormat.cpp \
     $$PWD/TraceFileWriter.cpp \
+    $$PWD/TraceFileReader.cpp \
     $$PWD/TraceRecorder.cpp \
+    $$PWD/TriggerCaptureManager.cpp \
     $$PWD/PythonEngine.cpp \
     $$PWD/UpdateChecker.cpp
 
@@ -35,8 +37,10 @@ HEADERS += \
     $$PWD/TraceLineFormat.h \
     $$PWD/PcapNgFormat.h \
     $$PWD/TraceFileWriter.h \
+    $$PWD/TraceFileReader.h \
     $$PWD/SocketCan.h \
     $$PWD/TraceRecorder.h \
+    $$PWD/TriggerCaptureManager.h \
     $$PWD/PythonEngine.h \
     $$PWD/TraceFileFormat.h \
     $$PWD/UpdateChecker.h

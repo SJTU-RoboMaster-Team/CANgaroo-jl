@@ -45,6 +45,7 @@ class LinFrame;
 class SetupDialog;
 class LogModel;
 class TraceRecorder;
+class TriggerCaptureManager;
 
 class Backend : public QObject
 {
@@ -58,9 +59,13 @@ public:
     void addCanDriver(CanDriver &driver);
     void refreshInterfaces();
 
-    bool startMeasurement();
+    bool startMeasurement(bool preserveTrace = false);
     bool stopMeasurement();
     bool isMeasurementRunning() const;
+    bool isPreservingTrace() const;
+    bool isReplayRunning() const;
+    void setReplayRunning(bool running);
+    bool rebindAndResume(QString *errorMessage = nullptr);
     double getTimestampAtMeasurementStart() const;
     uint64_t getUsecsAtMeasurementStart() const;
     uint64_t getNsecsSinceMeasurementStart() const;
@@ -81,6 +86,7 @@ public:
 
     ConditionalLoggingManager *getConditionalLoggingManager() const { return _conditionalLoggingManager; }
     TraceRecorder *getTraceRecorder() const { return _traceRecorder; }
+    TriggerCaptureManager *getTriggerCaptureManager() const { return _triggerCaptureManager; }
 
     CanDbMessage *findDbMessage(const BusMessage &msg) const;
     LinFrame     *findLinFrame(const BusMessage &msg) const;
@@ -107,6 +113,8 @@ public:
 signals:
     void beginMeasurement();
     void endMeasurement();
+    void replayStateChanged(bool running);
+    void interfaceConnectionLost(const QString &interfaceName, const QString &reason);
 
     void onSetupChanged();
     void onDisplayConfigChanged();
@@ -120,10 +128,15 @@ signals:
 public slots:
     void onMessageEnqueued(int idx);
 
+private slots:
+    void onListenerDisconnected(BusInterfaceId id, const QString &interfaceName, const QString &reason);
+
 private:
     static Backend *_instance;
 
     std::atomic<bool> _measurementRunning;
+    std::atomic<bool> _replayRunning{false};
+    bool _preserveTrace{false};
     uint64_t _measurementStartTime;
     QElapsedTimer _timerSinceStart;
     QList<CanDriver*> _drivers;
@@ -134,4 +147,5 @@ private:
     LogModel *_logModel;
     ConditionalLoggingManager *_conditionalLoggingManager;
     TraceRecorder *_traceRecorder = nullptr;
+    TriggerCaptureManager *_triggerCaptureManager = nullptr;
 };

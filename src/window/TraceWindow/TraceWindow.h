@@ -78,6 +78,7 @@ private slots:
     void on_cbViewMode_currentIndexChanged(int index);
     void on_tabs_currentChanged(int index);
     void openFilterDialog();
+    void onTreeContextMenu(const QPoint &pos);
 
 private slots:
     void doScrollToBottom();

@@ -102,6 +102,10 @@ public:
     /// Optional longer description shown in the setup dialog.
     virtual QString getDetailsStr() const;
 
+    /// Stable hardware identity used to rebind the same physical device/channel
+    /// after USB unplug/replug. Defaults to getName().
+    [[nodiscard]] virtual QString hardwareKey() const;
+
     /// Bus type (CAN or LIN); defaults to CAN.
     virtual BusType busType() const { return BusType::CAN; }
 

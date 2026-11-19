@@ -46,6 +46,18 @@ struct ThemeColors {
     QColor graphGrid;
     QColor graphAxisText;
     QColor graphCursor;
+
+    // Semantic status, banner & measurement tokens
+    QColor statusSuccess;
+    QColor statusWarning;
+    QColor statusError;
+    QColor statusInfo;
+    QColor bannerWarningBg;
+    QColor bannerWarningBorder;
+    QColor bannerWarningText;
+    QColor cursorA;
+    QColor cursorB;
+    QColor triggerMarker;
 };
 
 class ThemeManager : public QObject

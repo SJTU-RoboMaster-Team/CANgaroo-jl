@@ -5,5 +5,6 @@
 #include "core/Backend.h"
 
 BusInterface *Backend::getInterfaceByDriverAndName(QString, QString) { return nullptr; }
+BusInterface *Backend::getInterfaceById(BusInterfaceId) { return nullptr; }
 QString Backend::getDriverName(BusInterfaceId) { return {}; }
 QString Backend::getInterfaceName(BusInterfaceId) { return {}; }

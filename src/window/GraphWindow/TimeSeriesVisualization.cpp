@@ -79,6 +79,18 @@ TimeSeriesVisualization::TimeSeriesVisualization(QWidget *parent, Backend &backe
     _cursorLine->setZValue(1000); // High Z-value to be on top
     _cursorLine->hide();
 
+    // Dual measurement cursors A and B
+    const ThemeColors &tc = ThemeManager::instance().colors();
+    _cursorALine = new QGraphicsLineItem(_chart);
+    _cursorALine->setPen(QPen(tc.cursorA, 2, Qt::DashLine));
+    _cursorALine->setZValue(1100);
+    _cursorALine->hide();
+
+    _cursorBLine = new QGraphicsLineItem(_chart);
+    _cursorBLine->setPen(QPen(tc.cursorB, 2, Qt::DashLine));
+    _cursorBLine->setZValue(1100);
+    _cursorBLine->hide();
+
     // Create Tooltip Box
     _tooltipBox = new QGraphicsRectItem(_chart);
     _tooltipBox->setBrush(QBrush(palette().color(QPalette::ToolTipBase)));
@@ -215,6 +227,7 @@ void TimeSeriesVisualization::onActivated()
     _isUpdatingRange = false;
 
     updateYAxisRange();
+    updateOverlayLines();
 }
 
 void TimeSeriesVisualization::setSignalColor(GraphSignal *signal, const QColor &color)
@@ -299,6 +312,11 @@ void TimeSeriesVisualization::clear()
         _chart->axes(Qt::Vertical).first()->setRange(-10, 10);
     }
     _autoScroll = true;
+    clearCursors();
+    for (auto &tm : _triggerMarkers) {
+        delete tm.line;
+    }
+    _triggerMarkers.clear();
 }
 
 void TimeSeriesVisualization::clearSignals()
@@ -325,6 +343,11 @@ void TimeSeriesVisualization::clearSignals()
         _chart->axes(Qt::Vertical).first()->setRange(-10, 10);
     }
     _autoScroll = true;
+    clearCursors();
+    for (auto &tm : _triggerMarkers) {
+        delete tm.line;
+    }
+    _triggerMarkers.clear();
 }
 
 void TimeSeriesVisualization::wheelEvent(QWheelEvent *event)
@@ -350,8 +373,32 @@ void TimeSeriesVisualization::wheelEvent(QWheelEvent *event)
 
 bool TimeSeriesVisualization::eventFilter(QObject *watched, QEvent *event)
 {
-    if ((watched == _chartView || watched == _chartView->viewport()) && event->type() == QEvent::MouseMove) {
-        emit mouseMoved(static_cast<QMouseEvent*>(event));
+    if (watched == _chartView || watched == _chartView->viewport()) {
+        if (event->type() == QEvent::MouseMove) {
+            emit mouseMoved(static_cast<QMouseEvent*>(event));
+        } else if (_cursorsEnabled && event->type() == QEvent::MouseButtonPress) {
+            auto *me = static_cast<QMouseEvent*>(event);
+            const QPointF scenePos = _chartView->mapToScene(me->pos());
+            const QPointF chartPos = _chart->mapFromScene(scenePos);
+            if (_chart->plotArea().contains(chartPos)) {
+                const double t = _chart->mapToValue(chartPos).x();
+                if (me->button() == Qt::LeftButton && !(me->modifiers() & Qt::ShiftModifier)) {
+                    _cursorAT = t;
+                    _hasCursorA = true;
+                    updateOverlayLines();
+                    emitCursorSummary();
+                    return true;
+                }
+                if (me->button() == Qt::RightButton
+                    || (me->button() == Qt::LeftButton && (me->modifiers() & Qt::ShiftModifier))) {
+                    _cursorBT = t;
+                    _hasCursorB = true;
+                    updateOverlayLines();
+                    emitCursorSummary();
+                    return true;
+                }
+            }
+        }
     }
     return VisualizationWidget::eventFilter(watched, event);
 }
@@ -391,6 +438,7 @@ void TimeSeriesVisualization::zoomOut()
 void TimeSeriesVisualization::resetZoom()
 {
     _autoScroll = true;
+    onActivated();
 }
 
 void TimeSeriesVisualization::setWindowDuration(int seconds)
@@ -436,6 +484,118 @@ void TimeSeriesVisualization::onAxisRangeChanged(qreal min, qreal max)
     if (!_isUpdatingRange) {
         _autoScroll = false;
     }
+    updateOverlayLines();
+}
+
+void TimeSeriesVisualization::setCursorsEnabled(bool enabled)
+{
+    _cursorsEnabled = enabled;
+    _chartView->setRubberBand(enabled ? QChartView::NoRubberBand : QChartView::HorizontalRubberBand);
+    if (!enabled) {
+        clearCursors();
+    } else {
+        emitCursorSummary();
+    }
+}
+
+void TimeSeriesVisualization::clearCursors()
+{
+    _hasCursorA = false;
+    _hasCursorB = false;
+    if (_cursorALine) _cursorALine->hide();
+    if (_cursorBLine) _cursorBLine->hide();
+    emit cursorsUpdated(QString());
+}
+
+void TimeSeriesVisualization::addTriggerMarker(double relSec, const QString &label)
+{
+    const ThemeColors &tc = ThemeManager::instance().colors();
+    auto *line = new QGraphicsLineItem(_chart);
+    line->setPen(QPen(tc.triggerMarker, 2, Qt::DashDotLine));
+    line->setZValue(1050);
+    line->setToolTip(label);
+    _triggerMarkers.append({relSec, label, line});
+    updateOverlayLines();
+}
+
+void TimeSeriesVisualization::updateOverlayLines()
+{
+    const QRectF area = _chart->plotArea();
+    if (area.width() <= 0 || area.height() <= 0 || _chart->axes(Qt::Horizontal).isEmpty()) {
+        return;
+    }
+
+    auto positionVerticalLine = [&](QGraphicsLineItem *line, double t, bool active) {
+        if (!line) return;
+        if (!active) {
+            line->hide();
+            return;
+        }
+        const QPointF p = _chart->mapToPosition(QPointF(t, 0.0));
+        if (p.x() < area.left() || p.x() > area.right()) {
+            line->hide();
+            return;
+        }
+        line->setLine(p.x(), area.top(), p.x(), area.bottom());
+        line->show();
+    };
+
+    positionVerticalLine(_cursorALine, _cursorAT, _cursorsEnabled && _hasCursorA);
+    positionVerticalLine(_cursorBLine, _cursorBT, _cursorsEnabled && _hasCursorB);
+    for (auto &tm : _triggerMarkers) {
+        positionVerticalLine(tm.line, tm.t, true);
+    }
+}
+
+bool TimeSeriesVisualization::sampleSignalAt(QLineSeries *series, double t, double &outY) const
+{
+    if (!series) return false;
+    const QList<QPointF> pts = series->points();
+    if (pts.isEmpty()) return false;
+    int left = 0, right = static_cast<int>(pts.size()) - 1;
+    while (left < right) {
+        const int mid = (left + right) / 2;
+        if (pts[mid].x() < t) left = mid + 1;
+        else right = mid;
+    }
+    const int idx = (left > 0 && qAbs(pts[left - 1].x() - t) < qAbs(pts[left].x() - t)) ? left - 1 : left;
+    outY = pts[idx].y();
+    return true;
+}
+
+void TimeSeriesVisualization::emitCursorSummary()
+{
+    if (!_cursorsEnabled) {
+        emit cursorsUpdated(QString());
+        return;
+    }
+    if (!_hasCursorA && !_hasCursorB) {
+        emit cursorsUpdated(tr("Cursors: Left-click = A, Right-click / Shift+Click = B"));
+        return;
+    }
+
+    QStringList parts;
+    if (_hasCursorA) parts << QStringLiteral("A: %1 s").arg(_cursorAT, 0, 'f', 4);
+    if (_hasCursorB) parts << QStringLiteral("B: %1 s").arg(_cursorBT, 0, 'f', 4);
+    if (_hasCursorA && _hasCursorB) {
+        const double dt = _cursorBT - _cursorAT;
+        parts << QStringLiteral("Δt = %1 s").arg(dt, 0, 'f', 4);
+        if (qAbs(dt) > 1e-6) {
+            parts << QStringLiteral("1/|Δt| = %1 Hz").arg(1.0 / qAbs(dt), 0, 'f', 2);
+        }
+        if (!_seriesMap.isEmpty()) {
+            auto it = _seriesMap.constBegin();
+            double yA = 0.0, yB = 0.0;
+            if (sampleSignalAt(it.value(), _cursorAT, yA) && sampleSignalAt(it.value(), _cursorBT, yB)) {
+                parts << QStringLiteral("%1: yA=%2, yB=%3, Δy=%4")
+                             .arg(it.key()->name())
+                             .arg(yA, 0, 'f', 3)
+                             .arg(yB, 0, 'f', 3)
+                             .arg(yB - yA, 0, 'f', 3);
+            }
+        }
+    }
+    emit cursorsUpdated(parts.join(QStringLiteral("   |   ")));
 }
 
 void TimeSeriesVisualization::setActive(bool active)
@@ -464,6 +624,11 @@ void TimeSeriesVisualization::applyTheme(ThemeManager::Theme theme)
     }
 
     _cursorLine->setPen(QPen(colors.graphCursor, 1, Qt::DashLine));
+    if (_cursorALine) _cursorALine->setPen(QPen(colors.cursorA, 2, Qt::DashLine));
+    if (_cursorBLine) _cursorBLine->setPen(QPen(colors.cursorB, 2, Qt::DashLine));
+    for (auto &tm : _triggerMarkers) {
+        if (tm.line) tm.line->setPen(QPen(colors.triggerMarker, 2, Qt::DashDotLine));
+    }
     _tooltipBox->setBrush(QBrush(colors.toolTipBase));
     _tooltipBox->setPen(QPen(colors.toolTipText, 1));
     _tooltipText->setDefaultTextColor(colors.toolTipText);

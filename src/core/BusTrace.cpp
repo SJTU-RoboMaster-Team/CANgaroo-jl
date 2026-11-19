@@ -29,6 +29,7 @@
 #include "core/Log.h"
 #include "core/TraceFileWriter.h"
 #include "core/TraceRecorder.h"
+#include "core/TriggerCaptureManager.h"
 #include "db/model/CanDbMessage.h"
 #include "db/model/CanDbSignal.h"
 
@@ -92,11 +93,15 @@ QVector<BusMessage> BusTrace::getSnapshot(int maxCount)
 
 void BusTrace::enqueueMessage(const BusMessage &msg, bool more_to_follow)
 {
-    // Outside _mutex: the recorder has its own lock and must see every frame,
-    // including ones later pruned from the in-memory trace.
+    // Outside _mutex: the recorder and trigger capture manager have their own
+    // locks and must see every frame, including ones later pruned from memory.
     if (auto *recorder = _backend.getTraceRecorder())
     {
         recorder->enqueue(msg);
+    }
+    if (auto *trigger = _backend.getTriggerCaptureManager())
+    {
+        trigger->enqueue(msg);
     }
 
     QMutexLocker locker(&_mutex);
@@ -181,10 +186,68 @@ void BusTrace::flushQueue()
     }
 }
 
+void BusTrace::loadMessages(const QVector<BusMessage> &msgs, bool clearFirst)
+{
+    if (clearFirst) {
+        clear();
+    }
+    if (msgs.isEmpty()) {
+        return;
+    }
+
+    {
+        QMutexLocker locker(&_mutex);
+        const int available = qMax(0, _maxSize - (_dataRowsUsed + _newRows));
+        const int toLoad = qMin(static_cast<int>(msgs.size()), available);
+        if (toLoad <= 0) {
+            _pruneWarned = true;
+            return;
+        }
+        if (toLoad < msgs.size()) {
+            _pruneWarned = true;
+        }
+
+        const int startIdx = _dataRowsUsed + _newRows;
+        const int needed = startIdx + toLoad;
+        if (needed > _data.size()) {
+            const int chunks = (needed + pool_chunk_size - 1) / pool_chunk_size;
+            _data.resize(chunks * pool_chunk_size);
+        }
+
+        MeasurementSetup &setup = _backend.getSetup();
+        for (int i = 0; i < toLoad; ++i) {
+            const BusMessage &msg = msgs.at(i);
+            _data[startIdx + i] = msg;
+            CanDbMessage *dbmsg = setup.findDbMessage(msg);
+            if (dbmsg && dbmsg->getMuxer()) {
+                for (auto *signal : dbmsg->getSignals()) {
+                    if (signal->isMuxed() && signal->isPresentInMessage(msg)) {
+                        _muxCache[signal] = signal->extractRawDataFromMessage(msg);
+                    }
+                }
+            }
+        }
+        _dataRowsUsed += _newRows + toLoad;
+        _newRows = 0;
+    }
+
+    emit afterAppend();
+}
+
 void BusTrace::setMaxSize(int maxSize)
 {
     QMutexLocker locker(&_mutex);
     _maxSize = maxSize;
+}
+
+int BusTrace::maxSize() const
+{
+    return _maxSize;
+}
+
+bool BusTrace::hasPruned() const
+{
+    return _pruneWarned;
 }
 
 void BusTrace::startTimer()

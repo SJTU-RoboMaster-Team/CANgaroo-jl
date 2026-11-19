@@ -20,8 +20,21 @@ QSplitter::handle:hover {
 /* Start/Stop measurement buttons are styled per-widget in MainWindow so the
    accent colors apply in native styling mode too (see applyControlButtonStyles). */
 
+QGroupBox {
+  border: 1px solid #d0d4d9;
+  border-radius: 4px;
+  margin-top: 8px;
+  padding-top: 6px;
+}
+QGroupBox::title {
+  subcontrol-origin: margin;
+  left: 8px;
+  padding: 0 4px;
+}
+
 QToolTip {
-  color: black;
-  background-color: white;
-  border: 1px solid gray;
+  color: #1f2328;
+  background-color: #ffffff;
+  border: 1px solid #8c959f;
+  padding: 3px 6px;
 }

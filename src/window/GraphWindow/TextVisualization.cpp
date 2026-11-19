@@ -124,36 +124,37 @@ void TextVisualization::updateUi()
 void TextVisualization::applyTheme(ThemeManager::Theme theme)
 {
     Q_UNUSED(theme);
-    // Refresh colors on all cards
+    const ThemeColors &colors = ThemeManager::instance().colors();
+    QColor base = colors.base;
+    QColor alternate = colors.alternateBase;
+    if (alternate == base) {
+        alternate = (base.lightness() > 128) ? base.darker(105) : base.lighter(115);
+    }
+    QColor border = colors.windowText;
+    border.setAlpha(35);
+
     int index = 0;
     for (auto it = _signalDataMap.begin(); it != _signalDataMap.end(); ++it) {
         QFrame *card = qobject_cast<QFrame*>(it.value().card);
-        
-        bool isEven = (index % 2 == 0);
-        QColor base = palette().color(QPalette::Base);
-        QColor alternate = palette().color(QPalette::AlternateBase);
-        if (alternate == base) {
-            alternate = base.lighter(105);
-            if (base.value() > 200) alternate = base.darker(105);
-        }
-        
-        QColor bg = isEven ? base : alternate;
-        QColor border = palette().color(QPalette::WindowText);
-        border.setAlpha(30);
+        if (!card) continue;
 
+        QColor bg = (index % 2 == 0) ? base : alternate;
         card->setStyleSheet(QString("QFrame { background-color: %1; border-bottom: 1px solid %2; color: %3; }")
-                            .arg(bg.name())
-                            .arg(border.name())
-                            .arg(palette().color(QPalette::Text).name()));
-                            
-        // Update labels within the card
+                            .arg(bg.name(), border.name(QColor::HexArgb), colors.text.name()));
+
+        if (it.value().valueLabel) {
+            it.value().valueLabel->setStyleSheet(
+                QString("font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: %1;")
+                    .arg(colors.text.name()));
+        }
         auto labels = card->findChildren<QLabel*>();
-        for (QLabel* label : labels) {
-             QString currentStyle = label->styleSheet();
-             // Just force color update for labels that don't have hardcoded colors
-             if (!currentStyle.contains("background-color:")) {
-                 label->setStyleSheet(currentStyle + QString("; color: %1;").arg(palette().color(QPalette::Text).name()));
-             }
+        for (QLabel *label : labels) {
+            if (label == it.value().valueLabel) continue;
+            if (label->property("role") == QLatin1String("name")) {
+                label->setStyleSheet(QString("font-weight: bold; font-size: 13px; color: %1;").arg(colors.text.name()));
+            } else if (label->property("role") == QLatin1String("unit")) {
+                label->setStyleSheet(QString("font-size: 12px; font-weight: bold; color: %1;").arg(colors.graphAxisText.name()));
+            }
         }
         index++;
     }
@@ -236,7 +237,8 @@ void TextVisualization::createSignalCard(GraphSignal *signal)
 
     // 2. Signal Name (Expanding)
     QLabel *nameLabel = new QLabel(signal->name(), card);
-    nameLabel->setStyleSheet("font-weight: bold; font-size: 13px;"); 
+    nameLabel->setProperty("role", QStringLiteral("name"));
+    nameLabel->setStyleSheet(QString("font-weight: bold; font-size: 13px; color: %1;").arg(ThemeManager::instance().colors().text.name())); 
     nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     // Elide text if too long
     QFontMetrics fm(nameLabel->font());
@@ -250,14 +252,15 @@ void TextVisualization::createSignalCard(GraphSignal *signal)
     QLabel *valueLabel = new QLabel("0.00", card);
     valueLabel->setFixedWidth(120);
     valueLabel->setMinimumWidth(100);
-    valueLabel->setStyleSheet("font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold;"); 
+    valueLabel->setStyleSheet(QString("font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: %1;").arg(ThemeManager::instance().colors().text.name())); 
     valueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     layout->addWidget(valueLabel);
     
     // 4. Unit (Fixed Width)
     QLabel *unitLabel = new QLabel(signal->unit(), card);
+    unitLabel->setProperty("role", QStringLiteral("unit"));
     unitLabel->setFixedWidth(60);
-    unitLabel->setStyleSheet("font-family: Arial; font-size: 12px; font-weight: bold;"); 
+    unitLabel->setStyleSheet(QString("font-size: 12px; font-weight: bold; color: %1;").arg(ThemeManager::instance().colors().graphAxisText.name())); 
     unitLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     layout->addWidget(unitLabel);
 

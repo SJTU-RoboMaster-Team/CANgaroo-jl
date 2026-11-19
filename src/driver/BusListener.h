@@ -45,6 +45,7 @@ public:
 
 signals:
     void messageReceived(const BusMessage &msg);
+    void interfaceDisconnected(BusInterfaceId id, const QString &interfaceName, const QString &reason);
 
 public slots:
     void run();

@@ -32,6 +32,7 @@
 #include <QDialogButtonBox>
 #include <QComboBox>
 #include "core/Backend.h"
+#include "core/ThemeManager.h"
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementSetup.h"
 #include "core/MeasurementInterface.h"
@@ -800,14 +801,14 @@ void TxGeneratorWindow::updateActiveList()
         item->setFlags(item->flags() & ~Qt::ItemIsUserCheckable); // Explicitly remove checkbox
 
         // Create Status Button
-        QPushButton *btnStatus = new QPushButton(cm.enabled ? "⏹" : "▶");
-        btnStatus->setToolTip(cm.enabled ? "Stop" : "Start");
+        const ThemeColors &colors = ThemeManager::instance().colors();
+        QPushButton *btnStatus = new QPushButton(cm.enabled ? QStringLiteral("■") : QStringLiteral("▶"));
+        btnStatus->setToolTip(cm.enabled ? tr("Stop") : tr("Start"));
         btnStatus->setFixedWidth(40);
-        if (cm.enabled) {
-            btnStatus->setStyleSheet("QPushButton { color: #dc3545; font-weight: bold; background: transparent; border: 1px solid #dc3545; border-radius: 3px; } QPushButton:hover { background: #dc3545; color: white; }");
-        } else {
-            btnStatus->setStyleSheet("QPushButton { color: #28a745; font-weight: bold; background: transparent; border: 1px solid #28a745; border-radius: 3px; } QPushButton:hover { background: #28a745; color: white; }");
-        }
+        const QString accent = cm.enabled ? colors.statusError.name() : colors.statusSuccess.name();
+        btnStatus->setStyleSheet(QStringLiteral(
+            "QPushButton { color: %1; font-weight: bold; background: transparent; border: 1px solid %1; border-radius: 3px; }"
+            "QPushButton:hover { background: %1; color: white; }").arg(accent));
 
         // Starting needs a running measurement; stopping is always allowed.
         btnStatus->setEnabled(cm.enabled || _backend.isMeasurementRunning());
@@ -844,13 +845,13 @@ void TxGeneratorWindow::updateRowUI(int row)
     // Update button in column 0
     QPushButton *btnStatus = qobject_cast<QPushButton*>(ui->treeActive->itemWidget(item, 0));
     if (btnStatus) {
-        btnStatus->setText(cm.enabled ? "⏹" : "▶");
-        btnStatus->setToolTip(cm.enabled ? "Stop" : "Start");
-        if (cm.enabled) {
-            btnStatus->setStyleSheet("QPushButton { color: #dc3545; font-weight: bold; background: transparent; border: 1px solid #dc3545; border-radius: 3px; } QPushButton:hover { background: #dc3545; color: white; }");
-        } else {
-            btnStatus->setStyleSheet("QPushButton { color: #28a745; font-weight: bold; background: transparent; border: 1px solid #28a745; border-radius: 3px; } QPushButton:hover { background: #28a745; color: white; }");
-        }
+        const ThemeColors &colors = ThemeManager::instance().colors();
+        btnStatus->setText(cm.enabled ? QStringLiteral("■") : QStringLiteral("▶"));
+        btnStatus->setToolTip(cm.enabled ? tr("Stop") : tr("Start"));
+        const QString accent = cm.enabled ? colors.statusError.name() : colors.statusSuccess.name();
+        btnStatus->setStyleSheet(QStringLiteral(
+            "QPushButton { color: %1; font-weight: bold; background: transparent; border: 1px solid %1; border-radius: 3px; }"
+            "QPushButton:hover { background: %1; color: white; }").arg(accent));
         btnStatus->setEnabled(cm.enabled || _backend.isMeasurementRunning());
     }
 

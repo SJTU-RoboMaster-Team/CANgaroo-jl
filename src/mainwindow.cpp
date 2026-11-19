@@ -47,7 +47,9 @@
 #include "core/Backend.h"
 #include "core/BusTrace.h"
 #include "core/ThemeManager.h"
+#include "core/TraceFileReader.h"
 #include "core/TraceRecorder.h"
+#include "core/TriggerCaptureManager.h"
 #include "core/UpdateChecker.h"
 #include "window/TraceWindow/TraceWindow.h"
 #include "window/SetupDialog/SetupDialog.h"
@@ -61,6 +63,7 @@
 #include "window/GatewayWindow/GatewayWindow.h"
 #include "window/SettingsDialog/SettingsDialog.h"
 #include "window/RecordingDialog/RecordingDialog.h"
+#include "window/TriggerCaptureDialog/TriggerCaptureDialog.h"
 #include "window/HardwareDialog/HardwareDialog.h"
 #include "helpers/apphelpers.h"
 
@@ -194,6 +197,8 @@ void MainWindow::initActions()
     updateGatewayButton();
 
     initRecording();
+    initTriggerCapture();
+    initDisconnectBanner();
 }
 
 void MainWindow::initDrivers()
@@ -329,6 +334,7 @@ void MainWindow::applyCurrentTheme()
 
     applyTabBackgrounds();
     applyActionIcons();
+    applyDisconnectBannerTheme();
 }
 
 void MainWindow::applyTabBackgrounds()
@@ -537,6 +543,7 @@ static RecordingConfig loadRecordingConfig(QSettings &settings)
         .format = format,
         .splitSizeMb = settings.value("recording/splitSizeMb", defaults.splitSizeMb).toInt(),
         .stayArmed = settings.value("recording/stayArmed", defaults.stayArmed).toBool(),
+        .recordDuringReplay = settings.value("recording/recordDuringReplay", defaults.recordDuringReplay).toBool(),
     };
 }
 
@@ -547,6 +554,7 @@ static void saveRecordingConfig(QSettings &settings, const RecordingConfig &conf
     settings.setValue("recording/format", traceFormatName(config.format));
     settings.setValue("recording/splitSizeMb", config.splitSizeMb);
     settings.setValue("recording/stayArmed", config.stayArmed);
+    settings.setValue("recording/recordDuringReplay", config.recordDuringReplay);
 }
 
 void MainWindow::initRecording()
@@ -668,6 +676,172 @@ void MainWindow::updateRecordingStatus()
     {
         _recordStatusLabel->setVisible(false);
     }
+}
+
+void MainWindow::initTriggerCapture()
+{
+    TriggerCaptureManager *mgr = backend().getTriggerCaptureManager();
+    if (!mgr) return;
+
+    TriggerCaptureConfig defaultCfg = mgr->config();
+    if (defaultCfg.outputFolder.isEmpty()) {
+        defaultCfg.outputFolder = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+                                      .filePath(QStringLiteral("CANgaroo/Triggers"));
+        mgr->setConfig(defaultCfg);
+    }
+
+    _actionTriggerCapture = new QAction(tr("&Trigger Capture (Blackbox)..."), this);
+    _actionTriggerCapture->setToolTip(tr("Configure pre/post-trigger blackbox slice capture"));
+    ui->menuMeasurement->insertAction(ui->actionSetup, _actionTriggerCapture);
+
+    _btnTriggerCapture = new QToolButton(this);
+    _btnTriggerCapture->setText(tr("Trigger"));
+    _btnTriggerCapture->setToolTip(tr("Configure pre/post-trigger blackbox capture"));
+    _btnTriggerCapture->setCursor(Qt::PointingHandCursor);
+    _btnTriggerCapture->setCheckable(true);
+    connect(_btnTriggerCapture, &QToolButton::clicked, this, &MainWindow::showTriggerCaptureDialog);
+    connect(_actionTriggerCapture, &QAction::triggered, this, &MainWindow::showTriggerCaptureDialog);
+
+    _triggerStatusLabel = new QLabel(this);
+    _triggerStatusLabel->setVisible(false);
+
+    ui->horizontalLayoutControls->insertWidget(9, _btnTriggerCapture);
+    ui->horizontalLayoutControls->insertWidget(10, _triggerStatusLabel);
+
+    connect(mgr, &TriggerCaptureManager::armedChanged, this, &MainWindow::updateTriggerStatus);
+    connect(mgr, &TriggerCaptureManager::triggered, this, [this](const QString &reason, double) {
+        updateTriggerStatus();
+        statusBar()->showMessage(tr("Trigger fired: %1 (capturing post-trigger window...)").arg(reason), 5000);
+    });
+    connect(mgr, &TriggerCaptureManager::captureSaved, this, [this](const QString &path, int frames, const QString &reason) {
+        updateTriggerStatus();
+        statusBar()->showMessage(tr("Trigger capture saved (%1 frames): %2 [%3]")
+                                     .arg(frames)
+                                     .arg(QFileInfo(path).fileName(), reason),
+                                 8000);
+    });
+    connect(mgr, &TriggerCaptureManager::captureFailed, this, [this](const QString &err) {
+        updateTriggerStatus();
+        statusBar()->showMessage(tr("Trigger capture failed: %1").arg(err), 8000);
+    });
+
+    updateTriggerStatus();
+}
+
+void MainWindow::showTriggerCaptureDialog()
+{
+    TriggerCaptureManager *mgr = backend().getTriggerCaptureManager();
+    if (!mgr) return;
+
+    TriggerCaptureDialog dlg(mgr->config(), mgr->isArmed(), this);
+    if (dlg.exec() == QDialog::Accepted) {
+        mgr->setConfig(dlg.config());
+        mgr->setArmed(dlg.shouldArm());
+    }
+    updateTriggerStatus();
+}
+
+void MainWindow::updateTriggerStatus()
+{
+    TriggerCaptureManager *mgr = backend().getTriggerCaptureManager();
+    if (!mgr || !_btnTriggerCapture || !_triggerStatusLabel) return;
+
+    const ThemeColors &tc = ThemeManager::instance().colors();
+    const bool armed = mgr->isArmed();
+    _btnTriggerCapture->setChecked(armed);
+
+    if (mgr->isCapturingPostTrigger()) {
+        _triggerStatusLabel->setText(tr("TRIG CAPTURING..."));
+        _triggerStatusLabel->setStyleSheet(QStringLiteral("QLabel { color: %1; font-weight: bold; }").arg(tc.statusError.name()));
+        _triggerStatusLabel->setVisible(true);
+    } else if (armed) {
+        _triggerStatusLabel->setText(tr("TRIG ARMED (%1)").arg(mgr->captureCount()));
+        _triggerStatusLabel->setStyleSheet(QStringLiteral("QLabel { color: %1; font-weight: bold; }").arg(tc.statusWarning.name()));
+        _triggerStatusLabel->setVisible(true);
+    } else {
+        _triggerStatusLabel->setVisible(false);
+    }
+}
+
+void MainWindow::initDisconnectBanner()
+{
+    _disconnectBanner = new QWidget(this);
+    _disconnectBanner->setObjectName(QStringLiteral("disconnectBanner"));
+    _disconnectBanner->setVisible(false);
+
+    auto *row = new QHBoxLayout(_disconnectBanner);
+    row->setContentsMargins(10, 6, 10, 6);
+    row->setSpacing(8);
+
+    _disconnectBannerLabel = new QLabel(this);
+    _disconnectBannerLabel->setWordWrap(true);
+    _btnBannerRebind = new QPushButton(tr("Rebind && Resume"), _disconnectBanner);
+    _btnBannerRebind->setCursor(Qt::PointingHandCursor);
+    _btnBannerDismiss = new QPushButton(tr("Dismiss"), _disconnectBanner);
+    _btnBannerDismiss->setCursor(Qt::PointingHandCursor);
+
+    row->addWidget(_disconnectBannerLabel, 1);
+    row->addWidget(_btnBannerRebind);
+    row->addWidget(_btnBannerDismiss);
+
+    ui->verticalLayout->insertWidget(1, _disconnectBanner);
+
+    connect(_btnBannerRebind, &QPushButton::clicked, this, &MainWindow::onManualRebindClicked);
+    connect(_btnBannerDismiss, &QPushButton::clicked, _disconnectBanner, &QWidget::hide);
+    connect(&backend(), &Backend::interfaceConnectionLost,
+            this, &MainWindow::onInterfaceConnectionLost, Qt::QueuedConnection);
+    connect(&backend(), &Backend::beginMeasurement, _disconnectBanner, &QWidget::hide);
+
+    applyDisconnectBannerTheme();
+}
+
+void MainWindow::applyDisconnectBannerTheme()
+{
+    if (!_disconnectBanner || !_disconnectBannerLabel) return;
+    const ThemeColors &tc = ThemeManager::instance().colors();
+    _disconnectBanner->setStyleSheet(
+        QStringLiteral("QWidget#disconnectBanner { background-color: %1; border-bottom: 1px solid %2; }")
+            .arg(tc.bannerWarningBg.name(), tc.bannerWarningBorder.name()));
+    _disconnectBannerLabel->setStyleSheet(
+        QStringLiteral("QLabel { color: %1; font-weight: bold; }").arg(tc.bannerWarningText.name()));
+}
+
+void MainWindow::onInterfaceConnectionLost(const QString &interfaceName, const QString &reason)
+{
+    const QString detail = reason.isEmpty() ? tr("USB/CAN device disconnected") : reason;
+    _disconnectBannerLabel->setText(
+        tr("Interface '%1' disconnected (%2). Reconnect the USB adapter, then click \"Rebind & Resume\" to restore measurement without losing trace/graph data.")
+            .arg(interfaceName, detail));
+    _disconnectBanner->setVisible(true);
+    statusBar()->showMessage(tr("Interface '%1' disconnected — please manually rebind.").arg(interfaceName), 10000);
+
+    auto *msgBox = new QMessageBox(QMessageBox::Warning,
+                                   tr("USB / CAN Interface Disconnected"),
+                                   tr("Interface '%1' lost connection (%2).\n\n"
+                                      "Existing Trace and Graph data have been preserved.\n"
+                                      "Please reconnect the USB cable and click \"Rebind & Resume\" in the top banner or Hardware dialog.")
+                                       .arg(interfaceName, detail),
+                                   QMessageBox::Ok,
+                                   this);
+    msgBox->setAttribute(Qt::WA_DeleteOnClose);
+    msgBox->setModal(false);
+    msgBox->show();
+}
+
+void MainWindow::onManualRebindClicked()
+{
+    QString err;
+    if (backend().rebindAndResume(&err)) {
+        _disconnectBanner->setVisible(false);
+        statusBar()->showMessage(tr("Interfaces rebound and measurement resumed (trace preserved)."), 5000);
+        return;
+    }
+
+    QMessageBox::warning(this,
+                         tr("Rebind & Resume Failed"),
+                         tr("Could not rebind configured interface(s):\n%1\n\n"
+                            "Please verify the USB adapter is plugged in and try again, or open Measurement Setup.")
+                             .arg(err.isEmpty() ? tr("No matching hardware found.") : err));
 }
 
 Backend &MainWindow::backend()
@@ -1571,7 +1745,9 @@ void MainWindow::stopMeasurement()
 
 void MainWindow::saveTraceToFile()
 {
-    const QString filters("Vector ASC (*.asc);;Vector MDF4 (*.mf4);;Linux candump (*.candump);;PCAP (*.pcap);;PCAPng (*.pcapng)");
+    const QString filters(
+        "Vector ASC (*.asc);;CAN/FD Raw CSV (*.csv);;Vector MDF4 (*.mf4);;"
+        "Linux candump (*.candump);;PCAP (*.pcap);;PCAPng (*.pcapng)");
     const QString defaultFilter = settings.value("ui/preferredSaveFormat", "Vector ASC (*.asc)").toString();
 
     QFileDialog fileDialog(nullptr, tr("Save Trace to file"), QDir::currentPath(), filters);
@@ -1696,14 +1872,139 @@ void MainWindow::createLanguageMenu()
 
 void MainWindow::exportFullTrace()
 {
-    QMessageBox::information(this, tr("Not Implemented"),
-                             tr("Export full trace is not yet implemented."));
+    BusTrace *trace = backend().getTrace();
+    if (!trace || trace->size() == 0) {
+        QMessageBox::information(this, tr("Export Full Trace"), tr("Current trace is empty."));
+        return;
+    }
+    if (trace->hasPruned()) {
+        QMessageBox::warning(
+            this,
+            tr("Trace Was Pruned"),
+            tr("The in-memory trace exceeded %1 frames and older frames were pruned.\n"
+               "For lossless long recordings, enable Continuous Recording (Ctrl+R) before measurement.")
+                .arg(trace->maxSize()));
+    }
+    saveTraceToFile();
 }
 
 void MainWindow::importFullTrace()
 {
-    QMessageBox::information(this, tr("Not Implemented"),
-                             tr("Import full trace is not yet implemented."));
+    const QString filename = QFileDialog::getOpenFileName(
+        this,
+        tr("Import Trace File"),
+        QDir::currentPath(),
+        tr("All Supported (*.asc *.candump *.csv *.pcap *.pcapng *.mf4);;"
+           "Vector ASC (*.asc);;"
+           "CAN/FD Raw CSV (*.csv);;"
+           "Linux candump (*.candump);;"
+           "PCAP (*.pcap);;"
+           "PCAPng (*.pcapng);;"
+           "Vector MDF4 (*.mf4);;"
+           "All Files (*)"));
+    if (filename.isEmpty()) {
+        return;
+    }
+
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    TraceReadResult result = TraceFileReader::readFile(filename);
+    QApplication::restoreOverrideCursor();
+
+    if (!result.ok || result.messages.isEmpty()) {
+        QMessageBox::critical(this,
+                              tr("Import Failed"),
+                              result.errorMessage.isEmpty()
+                                  ? tr("Failed to parse trace file or file is empty.")
+                                  : result.errorMessage);
+        return;
+    }
+
+    BusTrace *trace = backend().getTrace();
+    const int limit = trace->maxSize();
+    if (result.messages.size() > limit) {
+        QMessageBox box(this);
+        box.setIcon(QMessageBox::Warning);
+        box.setWindowTitle(tr("Large Trace File"));
+        box.setText(tr("This file contains %1 frames, exceeding the in-memory Trace limit (%2).")
+                        .arg(result.messages.size())
+                        .arg(limit));
+        box.setInformativeText(tr("Choose how to handle this large trace:"));
+        QPushButton *splitBtn = box.addButton(tr("Split & Save Files..."), QMessageBox::AcceptRole);
+        QPushButton *replayBtn = box.addButton(tr("Open in Replay Window"), QMessageBox::ActionRole);
+        QPushButton *truncBtn = box.addButton(tr("Load First %1 Frames").arg(limit), QMessageBox::ActionRole);
+        box.addButton(QMessageBox::Cancel);
+        box.exec();
+
+        if (box.clickedButton() == splitBtn) {
+            bool ok = false;
+            const int chunkSize = QInputDialog::getInt(
+                this,
+                tr("Split Trace by Frame Count"),
+                tr("Maximum frames per output file:"),
+                limit,
+                100,
+                5000000,
+                10000,
+                &ok);
+            if (!ok) return;
+
+            const QString basePath = QFileDialog::getSaveFileName(
+                this,
+                tr("Save Split Trace Files"),
+                filename,
+                tr("CAN/FD Raw CSV (*.csv);;Vector ASC (*.asc);;Linux candump (*.candump);;PCAPng (*.pcapng);;Vector MDF4 (*.mf4)"));
+            if (basePath.isEmpty()) return;
+
+            const auto fmt = traceFormatFromPath(basePath).value_or(TraceFileFormat::Csv);
+            const QFileInfo fi(basePath);
+            QStringList written;
+            QString err;
+            const bool splitOk = TraceFileReader::writeSplitFiles(
+                result,
+                fi.absolutePath(),
+                fi.completeBaseName(),
+                fmt,
+                chunkSize,
+                &written,
+                &err);
+            if (!splitOk || written.isEmpty()) {
+                QMessageBox::critical(this, tr("Split Save Failed"), err.isEmpty() ? tr("No files written.") : err);
+            } else {
+                QMessageBox::information(this,
+                                         tr("Split Save Complete"),
+                                         tr("Saved %1 split file(s) starting at:\n%2").arg(written.size()).arg(written.first()));
+            }
+            return;
+        }
+        if (box.clickedButton() == replayBtn) {
+            if (QMainWindow *tab = currentTab()) {
+                if (auto *rw = tab->findChild<ReplayWindow *>()) {
+                    rw->loadTraceFile(filename);
+                    if (auto *dock = qobject_cast<QDockWidget *>(rw->parentWidget())) {
+                        dock->show();
+                        dock->raise();
+                    }
+                    return;
+                }
+            }
+            if (QDockWidget *dock = addReplayWidget()) {
+                if (auto *rw = qobject_cast<ReplayWindow *>(dock->widget())) {
+                    rw->loadTraceFile(filename);
+                }
+            }
+            return;
+        }
+        if (box.clickedButton() != truncBtn) {
+            return;
+        }
+    }
+
+    trace->loadMessages(result.messages, true);
+    statusBar()->showMessage(
+        tr("Imported %1 frames from %2")
+            .arg(qMin(static_cast<int>(result.messages.size()), limit))
+            .arg(QFileInfo(filename).fileName()),
+        6000);
 }
 
 void MainWindow::showSettingsDialog()
