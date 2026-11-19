@@ -1970,6 +1970,14 @@ Latest version in %2: %3</source>
         <source>Release Page</source>
         <translation>发布页面</translation>
     </message>
+    <message>
+        <source>&amp;Hardware...</source>
+        <translation>硬件设备(&amp;H)...</translation>
+    </message>
+    <message>
+        <source>Show all available devices with status, version and capabilities</source>
+        <translation>显示所有可用设备的状态、版本与支持能力</translation>
+    </message>
 </context>
 <context>
     <name>QObject</name>
@@ -3567,6 +3575,173 @@ Reason: %2</source>
     <message>
         <source>HTTP %1: %2</source>
         <translation>HTTP %1: %2</translation>
+    </message>
+</context>
+<context>
+    <name>HardwareDialog</name>
+    <message>
+        <source>CAN FD</source>
+        <translation>CAN FD</translation>
+    </message>
+    <message>
+        <source>Listen only</source>
+        <translation>仅监听</translation>
+    </message>
+    <message>
+        <source>Triple sampling</source>
+        <translation>三倍采样</translation>
+    </message>
+    <message>
+        <source>One shot</source>
+        <translation>单次发送</translation>
+    </message>
+    <message>
+        <source>Auto restart</source>
+        <translation>自动重连</translation>
+    </message>
+    <message>
+        <source>Configurable timestamps</source>
+        <translation>可配置时间戳</translation>
+    </message>
+    <message>
+        <source>Custom bitrate</source>
+        <translation>自定义波特率</translation>
+    </message>
+    <message>
+        <source>Custom CAN FD bitrate</source>
+        <translation>自定义 CAN FD 波特率</translation>
+    </message>
+    <message>
+        <source>Bus-off recovery</source>
+        <translation>Bus-Off 恢复</translation>
+    </message>
+    <message>
+        <source>TDC</source>
+        <translation>TDC</translation>
+    </message>
+    <message>
+        <source>LIN master</source>
+        <translation>LIN 主节点</translation>
+    </message>
+    <message>
+        <source>LIN slave</source>
+        <translation>LIN 从节点</translation>
+    </message>
+    <message>
+        <source>LIN monitor</source>
+        <translation>LIN 监听</translation>
+    </message>
+    <message>
+        <source>&amp;Rescan</source>
+        <translation>重新扫描(&amp;R)</translation>
+    </message>
+    <message>
+        <source>Hardware</source>
+        <translation>硬件设备</translation>
+    </message>
+    <message>
+        <source>Device</source>
+        <translation>设备</translation>
+    </message>
+    <message>
+        <source>Bus</source>
+        <translation>总线</translation>
+    </message>
+    <message>
+        <source>Status</source>
+        <translation>状态</translation>
+    </message>
+    <message>
+        <source>Bus State</source>
+        <translation>总线状态</translation>
+    </message>
+    <message>
+        <source>Version</source>
+        <translation>版本</translation>
+    </message>
+    <message>
+        <source>Capabilities</source>
+        <translation>支持能力</translation>
+    </message>
+    <message>
+        <source>Network</source>
+        <translation>所属网络</translation>
+    </message>
+    <message>
+        <source>Ask every driver to look for new or removed devices</source>
+        <translation>通知所有驱动重新扫描新增或移除的设备</translation>
+    </message>
+    <message>
+        <source>&amp;Copy Report</source>
+        <translation>复制报告(&amp;C)</translation>
+    </message>
+    <message>
+        <source>Copy the device list as plain text, e.g. for a bug report</source>
+        <translation>以纯文本复制设备列表（便于反馈问题）</translation>
+    </message>
+    <message>
+        <source>no devices found</source>
+        <translation>未发现设备</translation>
+    </message>
+    <message>
+        <source>Open</source>
+        <translation>已打开</translation>
+    </message>
+    <message>
+        <source>Available</source>
+        <translation>可用</translation>
+    </message>
+    <message>
+        <source>Select an interface to see its details.</source>
+        <translation>请选择一个接口查看详细信息。</translation>
+    </message>
+    <message>
+        <source>Driver</source>
+        <translation>驱动</translation>
+    </message>
+    <message>
+        <source>Description</source>
+        <translation>描述</translation>
+    </message>
+    <message>
+        <source>Bus state</source>
+        <translation>总线状态</translation>
+    </message>
+    <message>
+        <source>Interface ID</source>
+        <translation>接口 ID</translation>
+    </message>
+    <message>
+        <source>, %1 Bd</source>
+        <translation>, %1 Bd</translation>
+    </message>
+    <message>
+        <source>, %1 / %2 kBit/s (FD)</source>
+        <translation>, %1 / %2 kBit/s (FD)</translation>
+    </message>
+    <message>
+        <source>, %1 kBit/s</source>
+        <translation>, %1 kBit/s</translation>
+    </message>
+    <message>
+        <source>, listen only</source>
+        <translation>，仅监听</translation>
+    </message>
+    <message>
+        <source> (disabled)</source>
+        <translation>（已禁用）</translation>
+    </message>
+    <message>
+        <source>Setup</source>
+        <translation>配置</translation>
+    </message>
+    <message>
+        <source>Supported bitrates (%1)</source>
+        <translation>支持的波特率 (%1)</translation>
+    </message>
+    <message>
+        <source>Stop the measurement to rescan</source>
+        <translation>请先停止测量再重新扫描</translation>
     </message>
 </context>
 </TS>

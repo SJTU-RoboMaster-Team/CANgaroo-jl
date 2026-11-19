@@ -61,6 +61,7 @@
 #include "window/GatewayWindow/GatewayWindow.h"
 #include "window/SettingsDialog/SettingsDialog.h"
 #include "window/RecordingDialog/RecordingDialog.h"
+#include "window/HardwareDialog/HardwareDialog.h"
 #include "helpers/apphelpers.h"
 
 #include "driver/SLCANDriver/SLCANDriver.h"
@@ -141,6 +142,7 @@ void MainWindow::initActions()
     connect(ui->btnSetupMeasurement, &QPushButton::released, this, &MainWindow::showSetupDialog);
 
     connect(ui->actionReload_Interfaces, &QAction::triggered, this, &MainWindow::reloadInterfaces);
+    connect(ui->actionHardware, &QAction::triggered, this, &MainWindow::showHardwareDialog);
 
     connect(&backend(), &Backend::beginMeasurement, this, &MainWindow::updateMeasurementActions);
     connect(&backend(), &Backend::endMeasurement, this, &MainWindow::updateMeasurementActions);
@@ -384,6 +386,7 @@ void MainWindow::applyActionIcons()
     setIcon(ui->actionStart_Measurement,  "media-playback-start");
     setIcon(ui->actionStop_Measurement,   "media-playback-stop");
     setIcon(ui->actionReload_Interfaces,  "view-refresh");
+    setIcon(ui->actionHardware,           "drive-harddisk-usb");
     setIcon(ui->actionSetup,              "preferences-other");
     setIcon(ui->actionAbout,              "help-about");
     setIcon(ui->action_TraceClear,        "edit-clear");
@@ -1284,6 +1287,18 @@ bool MainWindow::showSetupDialog()
 void MainWindow::reloadInterfaces()
 {
     backend().refreshInterfaces();
+}
+
+void MainWindow::showHardwareDialog()
+{
+    if (!_hardwareDlg)
+    {
+        _hardwareDlg = new HardwareDialog(backend(), this);
+        _hardwareDlg->setAttribute(Qt::WA_DeleteOnClose);
+    }
+    _hardwareDlg->show();
+    _hardwareDlg->raise();
+    _hardwareDlg->activateWindow();
 }
 
 namespace {

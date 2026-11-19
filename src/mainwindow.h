@@ -57,6 +57,7 @@ class MainWindow;
 
 class ConfigurableWidget;
 class SetupDialog;
+class HardwareDialog;
 class UpdateChecker;
 struct UpdateCheckResult;
 
@@ -112,12 +113,14 @@ private slots:
     void exportFullTrace();
     void importFullTrace();
     void reloadInterfaces();
+    void showHardwareDialog();
     void checkForUpdates();
     void handleUpdateCheckFinished(const UpdateCheckResult &result);
 
 private:
     Ui::MainWindow *ui;
     SetupDialog *_setupDlg = nullptr;
+    QPointer<HardwareDialog> _hardwareDlg;
     QSettings settings;
 
     bool _workspaceModified = false;
