@@ -1,205 +1,156 @@
+# <img src="src/assets/cangaroo.png" width="48" height="48"> CANgaroo-jl
 
-# <img src="src/assets/cangaroo.png" width="48" height="48"> CANgaroo
-**Open-source CAN bus analyzer for Linux 🐧 / Windows 🪟**
+**SJTU RoboMaster 交龙战队（SJTU-RoboMaster-Team）基于 [`Schildkroet/CANgaroo`](https://github.com/Schildkroet/CANgaroo) 二次定制与维护的开源 CAN / CAN-FD 总线分析上位机（Windows / Linux）。**
 
-**🔩 Supported Interfaces & Hardware:**
+## 🔩 支持的接口与硬件
 
-| Interface | Linux | Windows | Notes |
+| 接口 | Linux | Windows | 说明 |
 | :--- | :---: | :---: | :--- |
-| **SocketCAN** | ✅ | — | Any kernel CAN interface (`can0`, `vcan0`, …) |
-| **PEAK PCAN** | ✅ | ✅ | PCAN-USB, PCAN-USB Pro, PCAN-PCIe, … via PCAN-Basic SDK (`CONFIG+=peakcan`) |
-| **Kvaser** | ✅ | ✅ | USB/CAN Leaf and other Kvaser devices via CANlib SDK (`CONFIG+=kvaser`) |
-| **Vector** | — | ✅ | VN-series and other Vector devices via Qt serialbus (XL Driver Library required at runtime), CAN FD supported |
-| **TinyCAN** | ✅ | ✅ | TinyCAN USB adapters via Qt serialbus (enable in Measurement > Driver menu) |
-| **Candlelight / CANable / CANnectivity** | ✅ | ✅ | CANable (Candlelight firmware), MKS CANable, cantact, CANnectivity, and other gs_usb devices. Multi-channel devices supported. CAN FD supported. |
-| **SLCAN** | ✅ | ✅ | CANable (SLCAN firmware), Arduino CAN shields |
-| **CANblaster** | ✅ | ✅ | UDP-based remote CAN via [CANblaster](https://github.com/OpenAutoDiagLabs/CANblaster) |
-| **GrIP** | ✅ | ✅ | GrIP protocol |
-| **lin_usb (LindeAPI)** | ✅ | ✅ | USB LIN adapter (VID `0x1d50` / PID `0x606f`). Multi-channel. Master, slave, and monitor modes. Hardware LIN scheduling via LDF. |
-| **uLC (uCAN USB LIN Converter)** | ✅ | ✅ | Open-source USB LIN adapter ([LinUSBConverter](https://github.com/uCAN-LIN/LinUSBConverter)) on a virtual COM port (VID `0x1209` / PID `0x2779` since firmware 3.5, `0x0483` / `0x5740` before), no extra driver needed. Master, slave, and monitor modes; master schedule from LDF (up to 16 slots). |
-| **aio_usb (aiode)** | ✅ | ✅ | Digital I/O and analog inputs on the same USB adapter (VID `0x1d50` / PID `0x606f`), controlled from the GPIO Control window |
-| **zscanfd** | ✅ | ✅ | Zilogic _USB to CAN Adapter_ and _USB to CAN FD Adapter_ via zscanfd driver (CONFIG+=zscanfd) in windows (zscanfd.dll required at runtime) and Linux support via SocketCAN |
+| **SocketCAN** | ✅ | — | 支持内核 CAN 接口（`can0`、`vcan0` 等），在未开启 `fd on` 前亦可识别控制器的 CAN-FD 能力 |
+| **Candlelight / CANable / CANnectivity** | ✅ | ✅ | CANable（Candlelight 固件）、MKS CANable、CANtact、CANnectivity 等 `gs_usb` 设备；支持多通道、CAN-FD 及固件版本读取 |
+| **SLCAN** | ✅ | ✅ | CANable（SLCAN 固件）、Arduino CAN 等串口设备；支持扫描阶段识别固件版本（含 CANable 2.5） |
+| **Vector** | — | ✅ | VN 系列等 Vector 设备（通过 Qt SerialBus，默认启用；运行时需本机安装 Vector XL Driver Library） |
+| **PEAK PCAN** | — | ✅ | PCAN-USB / PCAN-USB Pro / PCAN-PCIe 等（需通过 `CONFIG+=peakcan` 编译并配置 PCAN-Basic SDK） |
+| **Kvaser** | ✅ | ✅ | USB/CAN Leaf 等 Kvaser 设备（需通过 `CONFIG+=kvaser` 编译并配置 CANlib SDK） |
 
-## ⚙️ Features
+## ⚙️ 主要功能
 
-*   **Real-time CAN/CAN-FD/LIN Decoding**: Support for standard CAN, high-speed CAN-FD, and LIN bus frames.
-*   **Wide Hardware Compatibility**: Works with **SocketCAN** (Linux), **PEAK PCAN**, **Kvaser**, **Vector**, **TinyCAN**, **CANable**, **Candlelight**, **SLCAN**, **CANblaster** (UDP), **GrIP**, **lin_usb** (LIN), **uLC** (LIN) and **Zilogic USB to CAN FD Adaptor**.
-*   **DBC & LDF Database Support**: Load multiple `.dbc` files for CAN signal decoding and `.ldf` files for LIN bus signal decoding.
-*   **Powerful Data Visualization**: Integrated Graphing tools supporting Time-series, Scatter charts, Text-based monitoring, and interactive Gauge views with zoom and live tooltips. Supports both CAN and LIN signals.
-*   **Advanced Filtering & Logging**: Isolate critical data with live filters and export captures for offline analysis.
-*   **Network Rights Management**: Per-network access control for bus interfaces.
-*   **Python Scripting**: Built-in script editor with an embedded Python interpreter (via pybind11). Send and receive CAN and LIN messages, decode signals using loaded DBC/LDF files, and automate tasks. Scripts can be started manually or automatically with the measurement. Ready-to-use example scripts are included in the `examples/` directory.
-*   **GPIO Control**: Configure digital lines as inputs or outputs, switch outputs and watch input levels and analog values live on aio_usb and GrIP devices.
-*   **CAN Gateway**: Forward messages between two CAN interfaces with configurable per-message filter rules. Active during a running measurement.
-*   **LIN Control**: Send LIN Sleep/Wakeup commands, switch schedule tables, and issue LIN diagnostic requests and responses (slave node) on LIN-capable interfaces directly from the UI.
-*   **Trace Replay**: Replay captured CAN logs (Vector ASC, candump, PCAP, and PCAPng formats) with adjustable speed, per-message RX/TX direction filtering, channel mapping to live interfaces, and optional autoplay with the measurement. Supports classic CAN, CAN-FD, RTR, and error frames.
-*   **Multiple Export Formats**: Save traces as Vector ASC, Vector MDF4, Linux candump, PCAP, or PCAPng (Wireshark-compatible).
-*   **Modern Workspace**: A clean, dockable userinterface optimized for multi-monitor setups.
+* **实时 CAN / CAN-FD 解析与 DBC 支持**：支持标准 CAN 与高速 CAN-FD 帧（最高 64 字节载荷）；支持加载多份 `.dbc` 数据库进行实时信号解析与工程量换算。
+* **多视图信号可视化（Graph View）**：支持时序波形（Time-series）、散点图（Scatter）、文本监测（Text）与仪表盘（Gauge）视图，支持缩放、悬浮数值提示与独立弹窗。
+* **总线状态与硬件诊断**：内置 CAN 总线状态监控、多条件报文过滤与触发录制，支持通过 **Measurement > Hardware...** 查看所有已识别驱动、设备状态、总线错误状态、固件版本、能力掩码及支持的波特率，并可一键复制纯文本诊断报告。
+* **报文发送与周期生成器**：支持单帧/手动报文发送（Raw Tx）、多任务周期调度生成（Tx Generator，支持随机载荷填充）。
+* **Python 自动化脚本**：内置脚本编辑器与嵌入式 Python 解释器（基于 `pybind11`，多标签页共享同一解释器），支持使用已加载的 DBC 解码与收发总线报文；示例脚本见 [`examples/`](examples/)。
+* **CAN 网关与日志回放**：支持双 CAN 口过滤转发网关（CAN Gateway），以及导入回放日志（Vector ASC、`candump`、PCAP、PCAPng），支持倍速控制、RX/TX 方向过滤与通道映射。
+* **多格式轨迹导出**：支持导出为 Vector ASC、Vector MDF4、Linux `candump`、PCAP 与 Wireshark 兼容 PCAPng 格式。
+* **原生深浅主题与在线更新检测**：兼容 Windows 11 系统原生深/浅色模式与自定义暗色主题；支持通过 **Help > Check for Updates...** 从当前仓库 [`SJTU-RoboMaster-Team/CANgaroo-jl`](https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl) 检测新版本。
 
 <br>![Cangaroo Trace View](docs/view.png)<br>
 
-## Languages
+## 🌐 界面语言
 
-* 🇩🇪 German
-* 🇺🇸 English
-* 🇪🇸 Spain
-* 🇨🇳 Chinese
+* 🇺🇸 English（默认）
+* 🇨🇳 简体中文
 
-## 🛠️ Building
+## 🛠️ 从源码构建
+
+### 🪟 Windows（MSYS2 UCRT64 + Qt 6）
+
+推荐在 **MSYS2 UCRT64** 环境中构建（与仓库 CI 一致）：
+
+1. 安装依赖包：
+   ```bash
+   pacman -S --needed \
+     mingw-w64-ucrt-x86_64-toolchain \
+     mingw-w64-ucrt-x86_64-qt6 \
+     mingw-w64-ucrt-x86_64-qt6-tools \
+     mingw-w64-ucrt-x86_64-make \
+     mingw-w64-ucrt-x86_64-pkgconf \
+     mingw-w64-ucrt-x86_64-ntldd \
+     mingw-w64-ucrt-x86_64-python \
+     mingw-w64-ucrt-x86_64-pybind11
+   ```
+2. 编译主程序（输出位于 `bin/cangaroo.exe`）：
+   ```bash
+   cd src
+   qmake6 CONFIG+=release
+   mingw32-make -j$(nproc)
+   ```
+3. 独立运行库部署（若需脱离 MSYS2 终端直接双击运行）：
+   - 使用 `windeployqt6 --release --no-system-d3d-compiler bin/cangaroo.exe` 部署 Qt6 DLL 与插件。
+   - 使用 `ntldd -R` 复制所需的 UCRT64 运行库及 `libpython3.*.dll`，并将 Python 标准库放到 `bin/lib/pythonX.Y/`（打包细节可参考 [`.github/workflows/cmake.yml`](.github/workflows/cmake.yml)）。
+
 ### 🐧 Linux
 
-#### Install dependencies
+#### 安装依赖
 
-| Distribution | Command |
+| 发行版 | 命令 |
 | :--- | :--- |
 | **Ubuntu / Debian** | `sudo apt install build-essential qt6-base-dev qt6-charts-dev qt6-serialport-dev qt6-serialbus-dev qt6-svg-dev qt6-tools-dev qt6-l10n-tools libqt6opengl6-dev libnl-3-dev libnl-route-3-dev libusb-1.0-0-dev python3-dev pybind11-dev pkg-config` |
 | **Fedora** | `sudo dnf install gcc-c++ make qt6-qtbase-devel qt6-qtcharts-devel qt6-qtserialport-devel qt6-qtserialbus-devel qt6-qtsvg-devel qt6-qttools-devel libnl3-devel libusb1-devel python3-devel pybind11-devel pkgconfig` |
 | **Arch Linux** | `sudo pacman -S base-devel qt6-base qt6-charts qt6-serialport qt6-serialbus qt6-svg qt6-tools libnl libusb python pybind11 pkgconf` |
 
-#### Build:
+#### 编译
 
 ```bash
 qmake6
 make -j$(nproc)
 ```
-The binary will be in `bin/cangaroo`.
 
-#### SocketCAN privileges
+生成的可执行文件位于 `bin/cangaroo`。
 
-CANgaroo uses `ip link` to configure SocketCAN interfaces (bitrate, sample point, CAN FD), which requires `CAP_NET_ADMIN`. When not running as root it runs them through `pkexec` (polkit), all interfaces in one call so there is at most one prompt per measurement start; it does not use `sudo`, so sudoers rules have no effect.
+#### SocketCAN 权限配置
 
-The `.deb` package installs a polkit rule that lets members of the `netdev` group run exactly the `ip link set <if> down` / `up type can ...` script CANgaroo generates, without a password prompt. The rule and the application must come from the same version. Add yourself to the group:
+CANgaroo 通过 `ip link` 配置 SocketCAN 接口的波特率、采样点与 CAN-FD 参数，非 root 启动时会通过 `pkexec`（polkit）一次合并执行配置脚本（不使用 `sudo`）。
 
-```bash
-sudo usermod -aG netdev $USER
-```
+* 安装 `.deb` 包会自动部署 polkit 规则，将当前用户加入 `netdev` 用户组即可免密配置（需重新登录生效）：
+  ```bash
+  sudo usermod -aG netdev $USER
+  ```
+* 若从源码构建，可手动安装规则：
+  ```bash
+  sudo cp packaging/10-cangaroo-socketcan.rules /etc/polkit-1/rules.d/
+  ```
+* 若接口在 Setup 中勾选 **Configured by OS**，CANgaroo 不会修改系统接口参数，也无需提权。
 
-When building from source, install the rule yourself:
+#### USB 设备权限（`udev` 规则）
 
-```bash
-sudo cp packaging/10-cangaroo-socketcan.rules /etc/polkit-1/rules.d/
-```
+通过 `gs_usb` / Candlelight / CANable 接入设备时，建议配置 `udev` 规则以便普通用户直接打开：
 
-Log out and back in for the group membership to take effect. Without the rule, `pkexec` shows a password prompt instead (a polkit authentication agent must be running). Alternatively, grant `CAP_NET_ADMIN` directly to the `ip` binary (applies to all users, who can then run any `ip` command that needs it):
-```bash
-sudo setcap cap_net_admin+ep /sbin/ip
-```
+创建 `/etc/udev/rules.d/99-cangaroo.rules`：
 
-> **Note:** If the interface is set to *"Configured by OS"* in the setup dialog, CANgaroo will not touch the interface configuration and no elevated privileges are needed.
-
-#### USB device permissions (udev rules)
-
-Devices accessed directly via libusb (gs_usb / Candlelight, lin_usb / LindeAPI, aio_usb) need a udev rule so that regular users can open them without `sudo`.
-
-Create `/etc/udev/rules.d/99-cangaroo.rules`:
-
-```
+```text
 # gs_usb / Candlelight / CANable (gs_usb firmware)
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="606b", MODE="0666", GROUP="plugdev", TAG+="uaccess"
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="606f", MODE="0666", GROUP="plugdev", TAG+="uaccess"
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ca01", MODE="0666", GROUP="plugdev", TAG+="uaccess"
 ```
 
-Then reload and re-plug the device:
+重载规则并重新插拔设备：
 
 ```bash
 sudo udevadm control --reload-rules && sudo udevadm trigger
 ```
 
-> **Note:** Your user must be in the `plugdev` group (`sudo usermod -aG plugdev $USER`, then log out and back in).
+> 注：需确保当前用户在 `plugdev` 组内（`sudo usermod -aG plugdev $USER`，重新登录生效）。
 
-### 🪟 Windows
+### 可选商用硬件驱动编译参数
 
-* Install [Qt 6](https://www.qt.io/download-qt-installer) (Community / Open Source) including the **Qt Serial Bus** component.
-* Install [Python 3](https://www.python.org/downloads/) and [pybind11](https://github.com/pybind/pybind11) (`pip install pybind11`).
-* Open `cangaroo.pro` in Qt Creator and build.
+* **PEAK PCAN（`CONFIG+=peakcan`，Windows）**：
+  1. 下载 [PCAN-Basic SDK](https://www.peak-system.com/fileadmin/media/files/PCAN-Basic.zip) 并解压至 `src/driver/PeakCanDriver/pcan-basic-api/`。
+  2. 使用 `qmake6 CONFIG+=peakcan` 编译。
+  3. 将 `pcan-basic-api/x64/PCANBasic.dll` 复制到可执行文件同级目录。
+* **Kvaser（`CONFIG+=kvaser`，Linux / Windows）**：
+  * **Linux**：下载编译安装 [linuxcan](https://www.kvaser.com/downloads-kvaser/)（V5.51.461 或更新版本）后执行 `qmake6 CONFIG+=kvaser`。
+  * **Windows**：安装 Kvaser CANlib SDK 后使用 `qmake6 CONFIG+=kvaser CANLIB_DIR="C:/path/to/Kvaser/Canlib"` 编译，并将 `Canlib/Bin/canlib32.dll` 放到可执行文件同级目录。
+* **Vector（Windows，默认启用）**：
+  * 无需编译期 SDK；目标机安装 [Vector XL Driver Library](https://www.vector.com/int/en/products/products-a-z/libraries-drivers/xl-driver-library/) 后即可通过 Qt SerialBus 使用。
 
-#### Deployment
+### 运行单元测试
 
-Include the required Qt6 libraries or run `windeployqt` on the `.exe`:
-```
-windeployqt --release cangaroo.exe
-```
-
-### Optional hardware drivers
-
-**PEAK PCAN** (`CONFIG+=peakcan`) — Windows only:
-  1. Download [PCAN-Basic SDK](https://www.peak-system.com/fileadmin/media/files/PCAN-Basic.zip) and extract to `src/driver/PeakCanDriver/pcan-basic-api/`.
-  2. Build with `qmake CONFIG+=peakcan` (or add `peakcan` to the Qt Creator qmake arguments).
-  3. Place `PCANBasic.dll` (from `pcan-basic-api/x64/`) next to the built `.exe`.
-
-**Kvaser** (`CONFIG+=kvaser`) — Linux and Windows:
-
-  *Linux:*
-  1. Download and build [linuxcan](https://www.kvaser.com/downloads-kvaser/) (V5.51.461 or newer):
-     ```bash
-     tar -xf linuxcan.tar.gz
-     make -C linuxcan/canlib
-     sudo make -C linuxcan/canlib install
-     sudo ldconfig
-     ```
-  2. Build with `qmake6 CONFIG+=kvaser`.
-
-  *Windows:*
-  1. Install the [Kvaser CANlib SDK](https://www.kvaser.com/downloads-kvaser/) (V5.51.461 or newer).
-  2. Build with `qmake CONFIG+=kvaser CANLIB_DIR="C:/path/to/Kvaser/Canlib"`.
-  3. Place `canlib32.dll` (from `Canlib/Bin/`) next to the built `.exe`.
-
-**Vector** (always enabled) — Windows only:
-  * Install the [Vector XL Driver Library](https://www.vector.com/int/en/products/products-a-z/libraries-drivers/xl-driver-library/) on the target machine.
-  * No build-time SDK needed — Qt's `serialbus` module handles the integration.
-
-**TinyCAN** (toggle in Measurement > Driver menu) — Linux and Windows:
-  * Install the [TinyCAN](https://www.mhs-elektronik.de/) driver/library on the target machine.
-  * No build-time SDK needed — Qt's `serialbus` module handles the integration.
-  * Enable the driver via **Measurement > Driver > TinyCAN** and restart the application.
-
-**Zilogic USB to CAN FD Adaptor** (`CONFIG+=zscanfd`) — Windows:
-  1. Download the [zscanfd.dll device driver](The download link has been added to the `src.pro` file) on the target machine.
-  2. Download the [qtzscanfdbus.dll Qt plugin](The download link has been added to the `src.pro` file) on the target machine.
-  3. Build with `qmake CONFIG+=zscanfd` (or add `zscanfd` to the Qt Creator qmake arguments).
-  4. Place the `qtzscanfdbus.dll` from `plugin/canbus`
-  5. Place the `zscanfd.dll` from `bin/cangaroo`
-
-## Reference adapter firmware
-
-[`firmware/STM32G4_TinyUSB_CanLinAio/`](firmware/STM32G4_TinyUSB_CanLinAio/README.md)
-is a bare STM32CubeIDE project (STM32G473, TinyUSB) for building your own
-adapter. It implements the device side of all three USB interfaces CANgaroo
-talks to: **gs_usb** (CAN / CAN FD), **lin_usb** (LIN) and **aio_usb** (I/O +
-analog). It contains only the USB transport. Plug your CAN, LIN and GPIO code
-into its weak `gs_engine_*`, `lin_engine_*` and `aio_hw_*` hooks. `SampleApp/`
-inside it is a standalone libusb host program that exercises every request.
-The wire protocol is documented in [`docs/usb_interfaces.md`](docs/usb_interfaces.md).
-
-## ARXML to DBC Conversion
-
-Cangaroo natively supports DBC. If you have ARXML files, you can convert them using `canconvert`:
 ```bash
-# Install canconvert
-pip install canconvert
-
-# Convert ARXML to DBC
-canconvert TCU.arxml TCU.dbc
+cd tests
+qmake6
+make -j$(nproc)   # Windows MSYS2 UCRT64 下使用 mingw32-make
+make check
 ```
 
-## 📥 Download
+## 📥 下载
 
-Download the latest release from the [Releases](https://github.com/Schildkroet/CANgaroo).
+发布包见当前仓库的 [Releases 页面](https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl/releases)。
 
-## 📜 Credits
+## 📜 致谢与许可
 
-Written by Hubert Denkmair <hubert@denkmair.de>
+本软件遵循 **GNU General Public License v2.0 or later（GPLv2+）** 开源协议（见 [`LICENSE`](LICENSE)）。
 
-Further development by:
-* Ethan Zonca <e@ethanzonca.com>
-* WeAct Studio
-* Schildkroet (https://github.com/Schildkroet/CANgaroo)
-* Wikilift (https://github.com/wikilift/CANgaroo)
-* Jayachandran Dharuman (https://github.com/OpenAutoDiagLabs/cangaroo)
+* 原始作者：Hubert Denkmair `<hubert@denkmair.de>`
+* 上游与历史贡献者：
+  * Schildkroet（[https://github.com/Schildkroet/CANgaroo](https://github.com/Schildkroet/CANgaroo)）
+  * Ethan Zonca `<e@ethanzonca.com>`
+  * WeAct Studio
+  * Wikilift（[https://github.com/wikilift/CANgaroo](https://github.com/wikilift/CANgaroo)）
+  * Jayachandran Dharuman（[https://github.com/OpenAutoDiagLabs/cangaroo](https://github.com/OpenAutoDiagLabs/cangaroo)）
+* 二次开发维护：SJTU RoboMaster 交龙战队（[https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl](https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl)）
 
-## DISCLAIMER
+## 免责声明
 
-This software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and non-infringement. In no event shall the authors, maintainers, contributors, or copyright holders be liable for any claim, damages, or other liability, whether in an action of contract, tort, or otherwise, arising from, out of, or in connection with the software or the use or other dealings in the software.
-Use of this software is entirely at your own risk. The authors and maintainers accept no responsibility for any harm, data loss, system damage, legal issues, or any other consequences resulting from the use, misuse, or inability to use this software. It is your sole responsibility to ensure that this software is suitable for your intended use case and complies with all applicable laws and regulations in your jurisdiction.
-This project is not affiliated with, endorsed by, or in any way officially connected to any third-party organizations, products, or services that may be referenced within it.
+本软件按“现状”（AS IS）提供，不附带任何明示或暗示的担保（包括但不限于适销性、特定用途适用性及非侵权担保）。使用本软件调试硬件设备及实车总线所产生的任何风险、数据丢失或设备损坏由使用者自行承担。
