@@ -17,12 +17,8 @@ SUBDIRS += \
     autosar_e2e \
     ldf_parser \
     slcan_codec \
-    ulc_codec \
-    ulc_driver \
     slcan_driver \
     candle_driver \
-    canblaster_driver \
-    lindeapi_driver \
     measurement_setup \
     python_engine \
     update_checker

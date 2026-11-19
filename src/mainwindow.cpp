@@ -58,18 +58,12 @@
 #include "window/TxGeneratorWindow/TxGeneratorWindow.h"
 #include "window/ScriptWindow/ScriptWindow.h"
 #include "window/ReplayWindow/ReplayWindow.h"
-#include "window/LinControlWindow/LinControlWindow.h"
-#include "window/GpioControlWindow/GpioControlWindow.h"
 #include "window/GatewayWindow/GatewayWindow.h"
 #include "window/SettingsDialog/SettingsDialog.h"
 #include "window/RecordingDialog/RecordingDialog.h"
 #include "helpers/apphelpers.h"
 
 #include "driver/SLCANDriver/SLCANDriver.h"
-#include "driver/UlcDriver/UlcDriver.h"
-#include "driver/GrIPDriver/GrIPDriver.h"
-#include "driver/LindeApiDriver/LindeApiDriver.h"
-#include "driver/CANBlastDriver/CANBlasterDriver.h"
 
 #if defined(__linux__)
 #include <unistd.h>
@@ -82,29 +76,12 @@
 #include "driver/VectorDriver/VectorDriver.h"
 #endif
 
-#ifdef TINYCAN_DRIVER
-#include "driver/TinyCanDriver/TinyCanDriver.h"
-#endif
-
 #ifdef PEAKCAN_DRIVER
 #include "driver/PeakCanDriver/PeakCanDriver.h"
 #endif
 
 #ifdef KVASER_DRIVER
 #include "driver/KvaserDriver/KvaserDriver.h"
-#endif
-
-#if defined(_WIN32)
-#ifdef ZSCANFD_DRIVER
-#include "driver/ZsCanFdDriver/ZsCanFdDriver.h"
-#include <QFile>
-#include <QDir>
-#include <QEventLoop>
-#include <QProcess>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#endif
 #endif
 
 
@@ -150,8 +127,6 @@ void MainWindow::initActions()
     connect(ui->actionGenerator_View, &QAction::triggered, this, [this]() { addTxGeneratorWidget(); });
     connect(ui->actionScript_View, &QAction::triggered, this, [this]() { addScriptWidget(); });
     connect(ui->actionReplay_View, &QAction::triggered, this, [this]() { addReplayWidget(); });
-    connect(ui->actionLin_Control_View, &QAction::triggered, this, [this]() { addLinControlWidget(); });
-    connect(ui->actionGpio_Control_View, &QAction::triggered, this, [this]() { addGpioControlWidget(); });
     connect(ui->actionSettings, &QAction::triggered, this, &MainWindow::showSettingsDialog);
 
     auto *actionStandaloneGraph = new QAction(tr("Standalone Graph"), this);
@@ -166,12 +141,6 @@ void MainWindow::initActions()
     connect(ui->btnSetupMeasurement, &QPushButton::released, this, &MainWindow::showSetupDialog);
 
     connect(ui->actionReload_Interfaces, &QAction::triggered, this, &MainWindow::reloadInterfaces);
-
-#if defined(_WIN32) && defined(ZSCANFD_DRIVER)
-    connect(ui->actionDownloadZsCanFdDlls, &QAction::triggered, this, &MainWindow::downloadZsCanFdDlls);
-#else
-    ui->actionDownloadZsCanFdDlls->setEnabled(false);
-#endif
 
     connect(&backend(), &Backend::beginMeasurement, this, &MainWindow::updateMeasurementActions);
     connect(&backend(), &Backend::endMeasurement, this, &MainWindow::updateMeasurementActions);
@@ -227,12 +196,6 @@ void MainWindow::initActions()
 
 void MainWindow::initDrivers()
 {
-    const bool CANblasterEnabled = settings.value("mainWindow/CANblaster", false).toBool();
-    const bool tinyCanEnabled = settings.value("mainWindow/TinyCAN", false).toBool();
-
-    ui->actionCANblaster->setChecked(CANblasterEnabled);
-    ui->actionTinyCAN->setChecked(tinyCanEnabled);
-
     // addCanDriver takes ownership via the reference; the raw pointer is intentionally discarded.
 #if defined(__linux__)
     Backend::instance().addCanDriver(*(new SocketCanDriver(Backend::instance())));
@@ -241,9 +204,6 @@ void MainWindow::initDrivers()
 #endif
 
     Backend::instance().addCanDriver(*(new SLCANDriver(Backend::instance())));
-    Backend::instance().addCanDriver(*(new GrIPDriver(Backend::instance())));
-    Backend::instance().addCanDriver(*(new LindeApiDriver(Backend::instance())));
-    Backend::instance().addCanDriver(*(new UlcDriver(Backend::instance())));
 
 #ifdef PEAKCAN_DRIVER
     Backend::instance().addCanDriver(*(new PeakCanDriver(Backend::instance())));
@@ -255,21 +215,6 @@ void MainWindow::initDrivers()
 
 #ifdef VECTOR_DRIVER
     Backend::instance().addCanDriver(*(new VectorDriver(Backend::instance())));
-#endif
-
-#if defined(_WIN32)
-#ifdef ZSCANFD_DRIVER
-    Backend::instance().addCanDriver(*(new ZsCanFdDriver(Backend::instance())));
-    QTimer::singleShot(0, this, &MainWindow::checkZsCanFdDlls);
-#endif
-#endif
-
-    if (CANblasterEnabled)
-        Backend::instance().addCanDriver(*(new CANBlasterDriver(Backend::instance())));
-
-#ifdef TINYCAN_DRIVER
-    if (tinyCanEnabled)
-        Backend::instance().addCanDriver(*(new TinyCanDriver(Backend::instance())));
 #endif
 }
 
@@ -531,8 +476,6 @@ void MainWindow::closeEvent(QCloseEvent *event)
     settings.setValue("mainWindow/state", saveState());
     settings.setValue("mainWindow/maximized", isMaximized());
     settings.setValue("ui/restoreWindowGeometry", ui->actionRestore_Window->isChecked());
-    settings.setValue("mainWindow/CANblaster", ui->actionCANblaster->isChecked());
-    settings.setValue("mainWindow/TinyCAN", ui->actionTinyCAN->isChecked());
 
     for (int i = 0; i < ui->mainTabs->count(); i++)
     {
@@ -814,21 +757,6 @@ bool MainWindow::loadWorkspaceTab(QDomElement el)
         if (graph && !graphEl.isNull())
             graph->loadXML(backend(), graphEl);
 
-        // Recreate LinControlWindow dock if it was open, and restore diag requests.
-        QDomElement linEl = el.firstChildElement("lincontrolwindow");
-        if (!linEl.isNull())
-        {
-            QDockWidget *linDock = addLinControlWidget(mw);
-            LinControlWindow *lin = linDock ? qobject_cast<LinControlWindow *>(linDock->widget()) : nullptr;
-            if (lin)
-                lin->loadXML(backend(), linEl);
-        }
-
-        // Recreate GpioControlWindow dock if it was open.
-        QDomElement gpioEl = el.firstChildElement("gpiocontrolwindow");
-        if (!gpioEl.isNull())
-            addGpioControlWidget(mw);
-
         // Restore dock layout state (splits, tabification, sizes).
         // Deferred so it runs after the default layout timer from createTraceWindow().
         const QString dockState = el.attribute("dockstate");
@@ -975,24 +903,6 @@ bool MainWindow::saveWorkspaceToFile(const QString &filename)
             QDomElement graphEl = doc.createElement("graphwindow");
             graph->saveXML(backend(), doc, graphEl);
             tabEl.appendChild(graphEl);
-        }
-
-        // Save LinControlWindow dock content (diag requests) if present.
-        LinControlWindow *lin = w->findChild<LinControlWindow *>();
-        if (lin)
-        {
-            QDomElement linEl = doc.createElement("lincontrolwindow");
-            lin->saveXML(backend(), doc, linEl);
-            tabEl.appendChild(linEl);
-        }
-
-        // Save GpioControlWindow dock if present (marks it should be reopened).
-        GpioControlWindow *gpio = w->findChild<GpioControlWindow *>();
-        if (gpio)
-        {
-            QDomElement gpioEl = doc.createElement("gpiocontrolwindow");
-            gpio->saveXML(backend(), doc, gpioEl);
-            tabEl.appendChild(gpioEl);
         }
 
         tabsRoot.appendChild(tabEl);
@@ -1306,18 +1216,6 @@ QDockWidget *MainWindow::addReplayWidget(QMainWindow *parent)
 {
     return makeDock(tr("Replay"), QStringLiteral("dock_replay"),
                     new ReplayWindow(nullptr, backend()), parent);
-}
-
-QDockWidget *MainWindow::addLinControlWidget(QMainWindow *parent)
-{
-    return makeDock(tr("LIN Control"), QStringLiteral("dock_lin_control"),
-                    new LinControlWindow(nullptr, backend()), parent);
-}
-
-QDockWidget *MainWindow::addGpioControlWidget(QMainWindow *parent)
-{
-    return makeDock(tr("GPIO Control"), QStringLiteral("dock_gpio_control"),
-                    new GpioControlWindow(nullptr, backend()), parent);
 }
 
 void MainWindow::setupDockFloatReparent(QDockWidget *dock, QMainWindow *innerParent)
@@ -1757,8 +1655,6 @@ void MainWindow::createLanguageMenu()
     struct LangEntry { const char *label; const char *locale; };
     static constexpr LangEntry langs[] = {
         { QT_TR_NOOP("English"), "en_US" },
-        { QT_TR_NOOP("Español"), "es_ES" },
-        { QT_TR_NOOP("Deutsch"), "de_DE" },
         { QT_TR_NOOP("Chinese"), "zh_cn" },
     };
 
@@ -1874,144 +1770,6 @@ void MainWindow::showSettingsDialog()
     settings.setValue("trace/maxSize", dlg.maxTraceSize());
     backend().getTrace()->setMaxSize(dlg.maxTraceSize());
 }
-
-#if defined(_WIN32)
-#ifdef ZSCANFD_DRIVER
-void MainWindow::checkZsCanFdDlls()
-{
-    if (settings.value("mainWindow/zscanfdDllPromptDisabled", false).toBool())
-        return;
-
-    const QString appDir = QCoreApplication::applicationDirPath();
-    if (QFile::exists(appDir + "/zscanfd.dll") &&
-        QFile::exists(appDir + "/canbus/qtzscanfdbus.dll"))
-        return;
-
-    QMessageBox msgBox(this);
-    msgBox.setWindowTitle(tr("ZsCanFd DLLs not found"));
-    msgBox.setText(tr("The required ZsCanFd DLLs (zilogic.com) "
-                      "were not found (Optional driver).\n\n"
-                      "Would you like to download them now?"));
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    msgBox.setDefaultButton(QMessageBox::No);
-
-    auto *dontAsk = new QCheckBox(tr("Don't ask again"), &msgBox);
-    msgBox.setCheckBox(dontAsk);
-
-    const int result = msgBox.exec();
-
-    if (dontAsk->isChecked())
-        settings.setValue("mainWindow/zscanfdDllPromptDisabled", true);
-
-    if (result == QMessageBox::Yes)
-        downloadZsCanFdDlls();
-}
-
-void MainWindow::downloadZsCanFdDlls()
-{
-    const QString appDir = QCoreApplication::applicationDirPath();
-    const QString tmpDir = QDir::tempPath() + "/cangaroo_zscanfd";
-    QDir().mkpath(tmpDir);
-
-    constexpr auto zscanfdUrl =
-        "https://files-accl.zohoexternal.in/public/workdrive-external/download/"
-        "vg4j6fe5343da544d4d78876807400716c283?x-cli-msg=%7B%22linkId%22%3A%22BHvzgCTCwc-13uP6TI%22"
-        "%2C%22isFileOwner%22%3Afalse%2C%22version%22%3A%221.0%22%2C%22isWDSupport%22%3Afalse%7D";
-    constexpr auto qtPluginUrl =
-        "https://files-accl.zohoexternal.in/public/workdrive-external/download/"
-        "5twqz7da53b7da5804c958ca079ba061bd493?x-cli-msg=%7B%22linkId%22%3A%22BHvzgCTCw7-13uP6TI%22"
-        "%2C%22isFileOwner%22%3Afalse%2C%22version%22%3A%221.0%22%2C%22isWDSupport%22%3Afalse%7D";
-
-    QNetworkAccessManager nam;
-
-    auto downloadFile = [&](const char *url, const QString &destPath) -> bool
-    {
-        QProgressDialog progress(tr("Downloading ZsCanFd DLLs…"), tr("Cancel"), 0, 0, this);
-        progress.setWindowModality(Qt::WindowModal);
-        progress.setMinimumDuration(0);
-        progress.show();
-
-        QNetworkReply *reply = nam.get(QNetworkRequest(QUrl(QString::fromLatin1(url))));
-        QEventLoop loop;
-        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-        connect(reply, &QNetworkReply::downloadProgress,
-                [&](qint64 received, qint64 total)
-                {
-                    if (total > 0)
-                    {
-                        progress.setMaximum(100);
-                        progress.setValue(static_cast<int>(received * 100 / total));
-                    }
-                    QCoreApplication::processEvents();
-                });
-        connect(&progress, &QProgressDialog::canceled, reply, &QNetworkReply::abort);
-        loop.exec();
-
-        if (reply->error() != QNetworkReply::NoError)
-        {
-            QMessageBox::warning(this, tr("Download failed"), reply->errorString());
-            reply->deleteLater();
-            return false;
-        }
-
-        QFile file(destPath);
-        if (!file.open(QIODevice::WriteOnly))
-        {
-            QMessageBox::warning(this, tr("Download failed"),
-                                 tr("Cannot write to: %1").arg(destPath));
-            reply->deleteLater();
-            return false;
-        }
-        file.write(reply->readAll());
-        reply->deleteLater();
-        return true;
-    };
-
-    auto extractZip = [&](const QString &zipPath, const QString &outDir) -> bool
-    {
-        QProcess ps;
-        ps.start("powershell",
-                 {"-Command",
-                  QString("Expand-Archive -Path '%1' -DestinationPath '%2' -Force")
-                      .arg(zipPath, outDir)});
-        if (!ps.waitForFinished(60000) || ps.exitCode() != 0)
-        {
-            QMessageBox::warning(this, tr("Extraction failed"),
-                                 tr("Failed to extract %1").arg(zipPath));
-            return false;
-        }
-        return true;
-    };
-
-    const QString zip1 = tmpDir + "/zscanfd-package.zip";
-    if (!downloadFile(zscanfdUrl, zip1)) return;
-    if (!extractZip(zip1, tmpDir)) return;
-    QFile::remove(appDir + "/zscanfd.dll");
-    if (!QFile::copy(tmpDir + "/zscanfd-package/release/zscanfd.dll", appDir + "/zscanfd.dll"))
-    {
-        QMessageBox::warning(this, tr("Install failed"),
-                             tr("Could not copy zscanfd.dll to application directory."));
-        return;
-    }
-
-    const QString zip2 = tmpDir + "/qt-zscanfd.zip";
-    if (!downloadFile(qtPluginUrl, zip2)) return;
-    if (!extractZip(zip2, tmpDir)) return;
-    QDir().mkpath(appDir + "/canbus");
-    QFile::remove(appDir + "/canbus/qtzscanfdbus.dll");
-    if (!QFile::copy(tmpDir + "/qtzscanfdbus.dll", appDir + "/canbus/qtzscanfdbus.dll"))
-    {
-        QMessageBox::warning(this, tr("Install failed"),
-                             tr("Could not copy qtzscanfdbus.dll to canbus directory."));
-        return;
-    }
-
-    QMessageBox::information(this, tr("Download complete"),
-                             tr("ZsCanFd DLLs installed successfully.\n"
-                                "Please restart CANgaroo to use ZsCanFd devices."));
-}
-#endif
-#endif
 
 void MainWindow::applyFontSize(int pointSize)
 {

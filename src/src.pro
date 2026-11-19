@@ -17,9 +17,7 @@ VERSION = 0.7.2
 DEFINES += VERSION_STRING=\\\"$${VERSION}\\\"
 
 TRANSLATIONS = \
-    translations/i18n_de_DE.ts \
-    translations/i18n_zh_cn.ts \
-    translations/i18n_es_ES.ts
+    translations/i18n_zh_cn.ts
 RC_ICONS = cangaroo.ico
 
 INCLUDEPATH += $$PWD
@@ -65,18 +63,10 @@ unix:PKGCONFIG += libnl-route-3.0
 unix:INCLUDEPATH += /usr/include/libnl3
 unix:include($$PWD/driver/SocketCanDriver/SocketCanDriver.pri)
 
-include($$PWD/driver/CANBlastDriver/CANBlastDriver.pri)
-# Serial port seam for drivers that take a simulated device in tests (uLC).
+# Serial port seam for drivers that take a simulated device in tests (SLCAN).
 # Included once here, not from the driver .pri files.
 include($$PWD/driver/SerialTransport/SerialTransport.pri)
 include($$PWD/driver/SLCANDriver/SLCANDriver.pri)
-include($$PWD/driver/UlcDriver/UlcDriver.pri)
-include($$PWD/driver/GrIPDriver/GrIPDriver.pri)
-# USB transport shared by the Linde and aiode drivers: libusb on Linux/macOS,
-# WinUSB on Windows. Included once here, not from the driver .pri files.
-include($$PWD/driver/UsbVendorInterface/UsbVendorInterface.pri)
-include($$PWD/driver/LindeApiDriver/LindeApiDriver.pri)
-include($$PWD/driver/AiodeDriver/AiodeDriver.pri)
 
 win32:include($$PWD/driver/CandleApiDriver/CandleApiDriver.pri)
 
@@ -99,19 +89,6 @@ kvaser {
 # Vector CAN driver — always enabled via Qt serialbus.
 # Requires the Vector XL Driver Library installed on the target machine at runtime.
 include($$PWD/driver/VectorDriver/VectorDriver.pri)
-
-# TinyCAN driver — always enabled via Qt serialbus.
-# Requires the TinyCAN driver/library installed on the target machine at runtime.
-include($$PWD/driver/TinyCanDriver/TinyCanDriver.pri)
-
-# Pass CONFIG+=zscanfd to qmake to enable the ZsCanFd driver.
-# Requires the ZsCanFd.dll and custom qt_zscanfd canbus plugin on the target machine at runtime.
-# Download zscanfd.dll: "https://files-accl.zohoexternal.in/public/workdrive-external/download/vg4j6fe5343da544d4d78876807400716c283?x-cli-msg=%7B%22linkId%22%3A%22BHvzgCTCwc-13uP6TI%22%2C%22isFileOwner%22%3Afalse%2C%22version%22%3A%221.0%22%2C%22isWDSupport%22%3Afalse%7D"
-# Download qtzscanfdbus.dll: "https://files-accl.zohoexternal.in/public/workdrive-external/download/5twqz7da53b7da5804c958ca079ba061bd493?x-cli-msg=%7B%22linkId%22%3A%22BHvzgCTCw7-13uP6TI%22%2C%22isFileOwner%22%3Afalse%2C%22version%22%3A%221.0%22%2C%22isWDSupport%22%3Afalse%7D"
-win32:zscanfd {
-    DEFINES += ZSCANFD_DRIVER
-    include($$PWD/driver/ZsCanFdDriver/ZsCanFdDriver.pri)
-}
 
 DISTFILES += \
     assets/filter-symbolic.svg

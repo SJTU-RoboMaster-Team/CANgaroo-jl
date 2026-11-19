@@ -89,8 +89,6 @@ public slots:
     QDockWidget *addTxGeneratorWidget(QMainWindow *parent = nullptr);
     QDockWidget *addScriptWidget(QMainWindow *parent = nullptr);
     QDockWidget *addReplayWidget(QMainWindow *parent = nullptr);
-    QDockWidget *addLinControlWidget(QMainWindow *parent = nullptr);
-    QDockWidget *addGpioControlWidget(QMainWindow *parent = nullptr);
 
     bool showSetupDialog();
     void showAboutDialog();
@@ -196,9 +194,6 @@ private:
     void applyFontSize(int pointSize);
     QTranslator m_translator;
     QActionGroup *m_languageActionGroup = nullptr;
-
-    void checkZsCanFdDlls();
-    void downloadZsCanFdDlls();
 
     void showUpdateAvailableDialog(const UpdateCheckResult &result);
     void closeUpdateProgressDialog();
