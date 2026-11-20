@@ -106,9 +106,6 @@ private slots:
     void roundTripCsv();
     void roundTripAsc();
     void roundTripCanDump();
-    void roundTripPcap();
-    void roundTripPcapNg();
-    void roundTripMdf4();
     void rejectsMalformedFiles();
     void writeSplitFilesWorks();
 };
@@ -202,89 +199,8 @@ void TraceFileReaderTest::roundTripCanDump()
     QVERIFY(res.messages[4].errorFlags().testFlag(BusError::Overrun));
 }
 
-void TraceFileReaderTest::roundTripPcap()
-{
-    const QVector<BusMessage> samples = makeSamples();
-    QBuffer buf;
-    QVERIFY(buf.open(QIODevice::ReadWrite));
-    TraceFileWriter::write(buf, TraceFileFormat::Pcap,
-                           std::span<const BusMessage>(samples.constData(), static_cast<std::size_t>(samples.size())),
-                           ifaceName);
-    buf.seek(0);
-
-    const TraceReadResult res = TraceFileReader::read(buf, TraceFileFormat::Pcap, buf.size());
-    QVERIFY2(res.ok, qPrintable(res.errorMessage));
-    QCOMPARE(res.messages.size(), samples.size());
-    QCOMPARE(res.messages[0].getId(), uint32_t(0x201));
-    QCOMPARE(res.messages[1].getId(), uint32_t(0x18DAF110));
-    QVERIFY(res.messages[1].isExtended());
-    QVERIFY(res.messages[2].isFD());
-    QVERIFY(res.messages[2].isBRS());
-    QVERIFY(res.messages[4].isErrorFrame());
-    QVERIFY(res.messages[4].errorFlags().testFlag(BusError::BusOff));
-}
-
-void TraceFileReaderTest::roundTripPcapNg()
-{
-    const QVector<BusMessage> samples = makeSamples();
-    QBuffer buf;
-    QVERIFY(buf.open(QIODevice::ReadWrite));
-    TraceFileWriter::write(buf, TraceFileFormat::PcapNg,
-                           std::span<const BusMessage>(samples.constData(), static_cast<std::size_t>(samples.size())),
-                           ifaceName);
-    buf.seek(0);
-
-    const TraceReadResult res = TraceFileReader::read(buf, TraceFileFormat::PcapNg, buf.size());
-    QVERIFY2(res.ok, qPrintable(res.errorMessage));
-    QCOMPARE(res.messages.size(), samples.size());
-    QCOMPARE(res.interfaceNames[0], QStringLiteral("can0"));
-    QCOMPARE(res.interfaceNames[1], QStringLiteral("can1"));
-    QCOMPARE(res.messages[2].getLength(), uint8_t(12));
-    QVERIFY(res.messages[4].errorFlags().testFlag(BusError::BusOff));
-}
-
-void TraceFileReaderTest::roundTripMdf4()
-{
-    const QVector<BusMessage> samples = makeSamples();
-    QBuffer buf;
-    QVERIFY(buf.open(QIODevice::ReadWrite));
-    TraceFileWriter::write(buf, TraceFileFormat::VectorMdf,
-                           std::span<const BusMessage>(samples.constData(), static_cast<std::size_t>(samples.size())),
-                           ifaceName);
-    buf.seek(0);
-
-    const TraceReadResult res = TraceFileReader::read(buf, TraceFileFormat::VectorMdf, buf.size());
-    QVERIFY2(res.ok, qPrintable(res.errorMessage));
-    QCOMPARE(res.messages.size(), samples.size());
-    QCOMPARE(res.messages[0].getId(), uint32_t(0x201));
-    QCOMPARE(res.messages[0].getTimestamp_us(), samples[0].getTimestamp_us());
-    QCOMPARE(res.messages[1].getId(), uint32_t(0x18DAF110));
-    QVERIFY(res.messages[1].isExtended());
-    QVERIFY(!res.messages[1].isRX());
-    QCOMPARE(res.messages[2].getLength(), uint8_t(12));
-    QVERIFY(res.messages[2].isFD());
-    QCOMPARE(res.messages[2].getByte(11), uint8_t(33));
-    QVERIFY(res.messages[3].isRTR());
-    QVERIFY(res.messages[4].isErrorFrame());
-    QVERIFY(res.messages[4].errorFlags().testFlag(BusError::BusOff));
-}
-
 void TraceFileReaderTest::rejectsMalformedFiles()
 {
-    QByteArray badPcap("not-a-pcap");
-    QBuffer buf(&badPcap);
-    QVERIFY(buf.open(QIODevice::ReadOnly));
-    const TraceReadResult r1 = TraceFileReader::read(buf, TraceFileFormat::Pcap);
-    QVERIFY(!r1.ok);
-    QVERIFY(!r1.errorMessage.isEmpty());
-
-    QByteArray badMdf("MDF     3.00    ");
-    QBuffer buf2(&badMdf);
-    QVERIFY(buf2.open(QIODevice::ReadOnly));
-    const TraceReadResult r2 = TraceFileReader::read(buf2, TraceFileFormat::VectorMdf);
-    QVERIFY(!r2.ok);
-    QVERIFY(!r2.errorMessage.isEmpty());
-
     QByteArray badCsv("ColA,ColB\n1,2\n");
     QBuffer buf3(&badCsv);
     QVERIFY(buf3.open(QIODevice::ReadOnly));

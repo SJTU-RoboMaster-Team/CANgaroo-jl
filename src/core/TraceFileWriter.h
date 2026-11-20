@@ -36,7 +36,7 @@ class QIODevice;
 namespace TraceFileWriter
 {
 
-// Interface label for candump lines and pcapng interface descriptions.
+// Interface label for candump lines.
 using InterfaceNameFn = std::function<QString(BusInterfaceId)>;
 
 void write(QIODevice &out, TraceFileFormat format, std::span<const BusMessage> messages,
@@ -48,19 +48,6 @@ void writeCanDump(QIODevice &out, std::span<const BusMessage> messages, const In
 // Vector ASC; times relative to the first message, channels numbered 1.. in order
 // of first appearance. An empty trace still gets header and footer.
 void writeVectorAsc(QIODevice &out, std::span<const BusMessage> messages);
-
-// ASAM MDF 4.10 with one channel group of fixed-size records:
-//   t (REAL, seconds since the first message, master)
-//   | CAN_ID (canid_t, see core/SocketCan.h: flags, error classes for error frames)
-//   | DLC (payload length) | Dir (0 = Rx, 1 = Tx) | DataBytes (64-byte array)
-void writeVectorMdf(QIODevice &out, std::span<const BusMessage> messages);
-
-// libpcap, microsecond timestamps, LINKTYPE_CAN_SOCKETCAN.
-void writePcap(QIODevice &out, std::span<const BusMessage> messages);
-
-// pcapng: one section, one interface description per interface in order of
-// first appearance, then one enhanced packet per message.
-void writePcapNg(QIODevice &out, std::span<const BusMessage> messages, const InterfaceNameFn &interfaceName);
 
 // Raw CAN/FD frame CSV with relative seconds, exact microsecond epoch, flags and hex payload.
 void writeCsv(QIODevice &out, std::span<const BusMessage> messages, const InterfaceNameFn &interfaceName);

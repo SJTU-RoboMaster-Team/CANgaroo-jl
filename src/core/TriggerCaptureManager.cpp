@@ -424,12 +424,8 @@ void TriggerCaptureManager::finalizeCapture()
     }
 
     const QString path = nextCapturePath();
-    const bool binary = (_config.format == TraceFileFormat::Pcap
-                         || _config.format == TraceFileFormat::PcapNg
-                         || _config.format == TraceFileFormat::VectorMdf);
     QFile file(path);
-    if (!file.open(binary ? (QIODevice::WriteOnly | QIODevice::Truncate)
-                          : (QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)))
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
     {
         const QString err = tr("Trigger capture failed: cannot open '%1': %2").arg(path, file.errorString());
         log_error(err);

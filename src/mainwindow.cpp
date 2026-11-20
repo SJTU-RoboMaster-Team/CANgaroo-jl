@@ -532,10 +532,14 @@ static RecordingConfig loadRecordingConfig(QSettings &settings)
     const QString defaultFolder = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
                                       .filePath(QStringLiteral("CANgaroo"));
 
-    auto format = traceFormatFromName(settings.value("recording/format", traceFormatName(defaults.format)).toString())
-                      .value_or(defaults.format);
-    if (!TraceRecorder::isFormatSupported(format))
-        format = defaults.format;
+    const QString storedFormat = settings.value("recording/format", traceFormatName(defaults.format)).toString();
+    const auto parsedFormat = traceFormatFromName(storedFormat);
+    if (!parsedFormat.has_value())
+    {
+        log_warning(QStringLiteral("Recording format '%1' is no longer supported, using '%2'")
+                        .arg(storedFormat, traceFormatName(defaults.format)));
+    }
+    const TraceFileFormat format = parsedFormat.value_or(defaults.format);
 
     return RecordingConfig{
         .folder = settings.value("recording/folder", defaultFolder).toString(),
@@ -1746,8 +1750,7 @@ void MainWindow::stopMeasurement()
 void MainWindow::saveTraceToFile()
 {
     const QString filters(
-        "Vector ASC (*.asc);;CAN/FD Raw CSV (*.csv);;Vector MDF4 (*.mf4);;"
-        "Linux candump (*.candump);;PCAP (*.pcap);;PCAPng (*.pcapng)");
+        "Vector ASC (*.asc);;CAN/FD Raw CSV (*.csv);;Linux candump (*.candump)");
     const QString defaultFilter = settings.value("ui/preferredSaveFormat", "Vector ASC (*.asc)").toString();
 
     QFileDialog fileDialog(nullptr, tr("Save Trace to file"), QDir::currentPath(), filters);
@@ -1894,13 +1897,10 @@ void MainWindow::importFullTrace()
         this,
         tr("Import Trace File"),
         QDir::currentPath(),
-        tr("All Supported (*.asc *.candump *.csv *.pcap *.pcapng *.mf4);;"
+        tr("All Supported (*.asc *.candump *.csv);;"
            "Vector ASC (*.asc);;"
            "CAN/FD Raw CSV (*.csv);;"
            "Linux candump (*.candump);;"
-           "PCAP (*.pcap);;"
-           "PCAPng (*.pcapng);;"
-           "Vector MDF4 (*.mf4);;"
            "All Files (*)"));
     if (filename.isEmpty()) {
         return;
@@ -1952,7 +1952,7 @@ void MainWindow::importFullTrace()
                 this,
                 tr("Save Split Trace Files"),
                 filename,
-                tr("CAN/FD Raw CSV (*.csv);;Vector ASC (*.asc);;Linux candump (*.candump);;PCAPng (*.pcapng);;Vector MDF4 (*.mf4)"));
+                tr("CAN/FD Raw CSV (*.csv);;Vector ASC (*.asc);;Linux candump (*.candump)"));
             if (basePath.isEmpty()) return;
 
             const auto fmt = traceFormatFromPath(basePath).value_or(TraceFileFormat::Csv);

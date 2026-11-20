@@ -144,10 +144,8 @@ SettingsDialog::SettingsDialog(QSettings &settings, QActionGroup *languageGroup,
     m_saveFormatCombo = new QComboBox(grpTrace);
     const QStringList saveFormats = {
         "Vector ASC (*.asc)",
-        "Vector MDF4 (*.mf4)",
-        "Linux candump (*.candump)",
-        "PCAP (*.pcap)",
-        "PCAPng (*.pcapng)"
+        "CAN/FD Raw CSV (*.csv)",
+        "Linux candump (*.candump)"
     };
     m_saveFormatCombo->addItems(saveFormats);
     const QString savedFormat = settings.value("ui/preferredSaveFormat", saveFormats.first()).toString();

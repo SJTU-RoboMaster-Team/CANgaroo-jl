@@ -62,7 +62,6 @@ RecordingDialog::RecordingDialog(const RecordingConfig &config, QWidget *parent)
     m_formatCombo->addItem(tr("Vector ASC (*.asc)"), static_cast<int>(TraceFileFormat::VectorAsc));
     m_formatCombo->addItem(tr("CAN/FD Raw CSV (*.csv)"), static_cast<int>(TraceFileFormat::Csv));
     m_formatCombo->addItem(tr("Linux candump (*.candump)"), static_cast<int>(TraceFileFormat::CanDump));
-    m_formatCombo->addItem(tr("PCAPng (*.pcapng)"), static_cast<int>(TraceFileFormat::PcapNg));
     m_formatCombo->setCurrentIndex(std::max(m_formatCombo->findData(static_cast<int>(config.format)), 0));
     formOutput->addRow(tr("Format:"), m_formatCombo);
 

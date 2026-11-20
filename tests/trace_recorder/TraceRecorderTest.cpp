@@ -22,9 +22,9 @@
 // TraceRecorder: arming, file naming, splitting and the structure of every part.
 //
 // Structure checks follow the formats themselves (Vector ASC header and footer,
-// candump -L line shape, pcapng block framing with interfaces described before
+// candump -L line shape
 // use) and the input frames. Line and block encoding is covered separately by
-// trace_line_format and pcapng_format; tests/format_compat reads recorder output
+// trace_line_format
 // back with python-can and scapy.
 
 #include <QtTest>
@@ -89,11 +89,6 @@ QByteArray readAll(const QString &path)
     return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
 }
 
-quint32 le32(const QByteArray &bytes, qsizetype offset)
-{
-    return qFromLittleEndian<quint32>(bytes.constData() + offset);
-}
-
 // Frame count of a Vector ASC file, or -1 if header or footer are broken.
 int ascFrames(const QByteArray &content)
 {
@@ -125,45 +120,24 @@ int canDumpFrames(const QByteArray &content)
     return static_cast<int>(lines.size());
 }
 
-// Enhanced packet count of a pcapng file, or -1 for broken block framing, a
-// missing section header, or a packet whose interface was not described first.
-int pcapngFrames(const QByteArray &content)
+// Frame count of a raw CSV file, or -1 if the header row is missing or crooked.
+// The header is rewritten for every new part, so a split file with no frames
+// still has one line.
+int csvFrames(const QByteArray &content)
 {
-    if (content.size() < 12 || le32(content, 0) != 0x0A0D0D0A)
+    const QStringList lines = QString::fromUtf8(content).split(QLatin1Char('\n'), Qt::SkipEmptyParts);
+    if (lines.isEmpty() || !lines[0].startsWith(QLatin1String("Timestamp_s,Epoch_us,")))
     {
         return -1;
     }
-    qsizetype pos = 0;
-    quint32 interfaces = 0;
-    int packets = 0;
-    while (pos < content.size())
+    for (int i = 1; i < lines.size(); ++i)
     {
-        if (pos + 12 > content.size())
+        if (lines[i].count(QLatin1Char(',')) < 10)
         {
             return -1;
         }
-        const quint32 type = le32(content, pos);
-        const quint32 length = le32(content, pos + 4);
-        if (length < 12 || length % 4 != 0 || pos + length > content.size()
-            || le32(content, pos + length - 4) != length)
-        {
-            return -1;
-        }
-        if (type == 1)
-        {
-            ++interfaces;
-        }
-        else if (type == 6)
-        {
-            if (le32(content, pos + 8) >= interfaces)
-            {
-                return -1;
-            }
-            ++packets;
-        }
-        pos += length;
     }
-    return packets;
+    return static_cast<int>(lines.size()) - 1;
 }
 
 int framesIn(TraceFileFormat format, const QByteArray &content)
@@ -171,7 +145,7 @@ int framesIn(TraceFileFormat format, const QByteArray &content)
     switch (format)
     {
         case TraceFileFormat::VectorAsc: return ascFrames(content);
-        case TraceFileFormat::PcapNg:    return pcapngFrames(content);
+        case TraceFileFormat::Csv:       return csvFrames(content);
         default:                         return canDumpFrames(content);
     }
 }
@@ -194,7 +168,6 @@ private slots:
     void neverOverwrites();
     void stayArmed();
     void unusableFolderDisarms();
-    void unsupportedFormatDisarms();
     void recordsCsvAndSplits();
     void recordsDuringOfflineReplay();
 };
@@ -209,12 +182,11 @@ void TraceRecorderTest::fileNameFor_data()
 
     const int asc = static_cast<int>(TraceFileFormat::VectorAsc);
     const int candump = static_cast<int>(TraceFileFormat::CanDump);
-    const int pcapng = static_cast<int>(TraceFileFormat::PcapNg);
 
     QTest::newRow("date and time") << "trace_{date}_{time}" << asc << 0 << 1 << "trace_20260913_140509.asc";
     QTest::newRow("split adds index") << "trace_{date}_{time}" << asc << 100 << 2 << "trace_20260913_140509_002.asc";
     QTest::newRow("explicit index") << "run_{index}" << candump << 100 << 12 << "run_012.candump";
-    QTest::newRow("path separators") << "a/b\\c" << pcapng << 0 << 1 << "a_b_c.pcapng";
+    QTest::newRow("path separators") << "a/b\\c" << candump << 0 << 1 << "a_b_c.candump";
     QTest::newRow("empty pattern") << "" << asc << 0 << 1 << "trace_20260913_140509.asc";
 }
 
@@ -298,7 +270,7 @@ void TraceRecorderTest::emptyRecordingIsValid_data()
     QTest::addColumn<int>("format");
     QTest::newRow("asc") << static_cast<int>(TraceFileFormat::VectorAsc);
     QTest::newRow("candump") << static_cast<int>(TraceFileFormat::CanDump);
-    QTest::newRow("pcapng") << static_cast<int>(TraceFileFormat::PcapNg);
+    QTest::newRow("csv") << static_cast<int>(TraceFileFormat::Csv);
 }
 
 void TraceRecorderTest::emptyRecordingIsValid()
@@ -324,7 +296,7 @@ void TraceRecorderTest::splitsIntoValidParts_data()
     QTest::addColumn<int>("format");
     QTest::newRow("asc") << static_cast<int>(TraceFileFormat::VectorAsc);
     QTest::newRow("candump") << static_cast<int>(TraceFileFormat::CanDump);
-    QTest::newRow("pcapng") << static_cast<int>(TraceFileFormat::PcapNg);
+    QTest::newRow("csv") << static_cast<int>(TraceFileFormat::Csv);
 }
 
 void TraceRecorderTest::splitsIntoValidParts()
@@ -434,21 +406,6 @@ void TraceRecorderTest::unusableFolderDisarms()
 
     QVERIFY(!recorder.isRecording());
     QVERIFY(!recorder.isArmed());
-}
-
-void TraceRecorderTest::unsupportedFormatDisarms()
-{
-    QTemporaryDir dir;
-    QVERIFY(dir.isValid());
-
-    TraceRecorder recorder(interfaceName, []() { return false; });
-    recorder.setConfig(config(dir.path(), TraceFileFormat::VectorMdf));
-    recorder.setArmed(true);
-    recorder.onMeasurementStarting();
-
-    QVERIFY(!recorder.isRecording());
-    QVERIFY(!recorder.isArmed());
-    QVERIFY(filesIn(dir.path()).isEmpty());
 }
 
 void TraceRecorderTest::recordsCsvAndSplits()

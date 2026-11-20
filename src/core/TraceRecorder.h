@@ -58,13 +58,11 @@ public:
     using InterfaceNameFn = std::function<QString(BusInterfaceId)>;
     using MeasurementRunningFn = std::function<bool()>;
 
-    // `interfaceName` labels candump lines and pcapng interfaces;
-    // `measurementRunning` decides whether arming starts recording immediately.
+    // `interfaceName` labels candump lines; `measurementRunning` decides whether
+    // arming starts recording immediately.
     // Taking these instead of Backend keeps the recorder unit-testable.
     TraceRecorder(InterfaceNameFn interfaceName, MeasurementRunningFn measurementRunning, QObject *parent = nullptr);
     ~TraceRecorder() override;
-
-    [[nodiscard]] static bool isFormatSupported(TraceFileFormat format) noexcept;
 
     // File name (without folder) of part `index` (1-based) of a recording that
     // started at `start`. Placeholders: {date}, {time}, {index}.
@@ -126,7 +124,6 @@ private:
     QString _lastError;
     QDateTime _sessionStart;
     QMap<BusInterfaceId, int> _channelMap;
-    QMap<BusInterfaceId, quint32> _pcapInterfaces;  // IDB index per interface in the current file
     double _fileStartTimestamp = 0.0;
     int _fileIndex = 0;
     qint64 _fileBytes = 0;

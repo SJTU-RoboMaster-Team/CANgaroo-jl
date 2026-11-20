@@ -217,13 +217,10 @@ void ReplayWindow::onLoadClicked()
         this,
         tr("Load Trace File"),
         _traceFilePath,
-        tr("All Supported (*.asc *.candump *.csv *.pcap *.pcapng *.mf4);;"
+        tr("All Supported (*.asc *.candump *.csv);;"
            "Vector ASC (*.asc);;"
            "Linux candump (*.candump);;"
            "CAN/FD Raw CSV (*.csv);;"
-           "PCAP (*.pcap);;"
-           "PCAPng (*.pcapng);;"
-           "Vector MDF4 (*.mf4);;"
            "All Files (*)"));
     if (filename.isEmpty()) {
         return;
@@ -700,9 +697,7 @@ void ReplayWindow::onSplitSaveClicked()
         _traceFilePath,
         tr("CAN/FD Raw CSV (*.csv);;"
            "Vector ASC (*.asc);;"
-           "Linux candump (*.candump);;"
-           "PCAPng (*.pcapng);;"
-           "Vector MDF4 (*.mf4)"));
+           "Linux candump (*.candump)"));
     if (basePath.isEmpty()) {
         return;
     }

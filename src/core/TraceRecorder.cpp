@@ -27,7 +27,6 @@
 #include <QMutexLocker>
 
 #include "core/Log.h"
-#include "core/PcapNgFormat.h"
 #include "core/TraceLineFormat.h"
 
 TraceRecorder::TraceRecorder(InterfaceNameFn interfaceName, MeasurementRunningFn measurementRunning, QObject *parent)
@@ -47,14 +46,6 @@ TraceRecorder::~TraceRecorder()
     {
         [[maybe_unused]] const bool ok = writeMessages(takePending()) && finishFile();
     }
-}
-
-bool TraceRecorder::isFormatSupported(TraceFileFormat format) noexcept
-{
-    return format == TraceFileFormat::VectorAsc
-        || format == TraceFileFormat::CanDump
-        || format == TraceFileFormat::PcapNg
-        || format == TraceFileFormat::Csv;
 }
 
 QString TraceRecorder::fileNameFor(const RecordingConfig &config, const QDateTime &start, int index)
@@ -181,11 +172,6 @@ bool TraceRecorder::startRecording()
     }
 
     _active = _config;
-    if (!isFormatSupported(_active.format))
-    {
-        reportFailure(tr("%1 cannot be recorded continuously").arg(traceFormatName(_active.format)));
-        return false;
-    }
 
     {
         QMutexLocker locker(&_pendingMutex);
@@ -301,25 +287,6 @@ bool TraceRecorder::writeMessages(const QVector<BusMessage> &messages)
                 chunk += '\n';
                 break;
 
-            case TraceFileFormat::PcapNg:
-            {
-                if (_fileFrames == 0)
-                {
-                    chunk += PcapNgFormat::sectionHeaderBlock();
-                }
-                // Each file is its own section: interfaces are described the first
-                // time they appear in it, before their first packet.
-                const BusInterfaceId id = msg.getInterfaceId();
-                auto it = _pcapInterfaces.constFind(id);
-                if (it == _pcapInterfaces.cend())
-                {
-                    it = _pcapInterfaces.insert(id, static_cast<quint32>(_pcapInterfaces.size()));
-                    chunk += PcapNgFormat::interfaceDescriptionBlock(_interfaceName(id));
-                }
-                chunk += PcapNgFormat::enhancedPacketBlock(msg, it.value());
-                break;
-            }
-
             case TraceFileFormat::Csv:
                 if (_fileFrames == 0)
                 {
@@ -388,7 +355,6 @@ bool TraceRecorder::openNextFile()
 
     _fileBytes = 0;
     _fileFrames = 0;
-    _pcapInterfaces.clear();
     return true;
 }
 
@@ -409,11 +375,6 @@ bool TraceRecorder::finishFile()
         }
         tail += TraceLineFormat::ascFooter().toUtf8();
         tail += '\n';
-    }
-    else if (_active.format == TraceFileFormat::PcapNg && _fileFrames == 0)
-    {
-        // A pcapng file must at least contain its section header.
-        tail += PcapNgFormat::sectionHeaderBlock();
     }
     else if (_active.format == TraceFileFormat::Csv && _fileFrames == 0)
     {

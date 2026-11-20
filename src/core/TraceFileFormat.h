@@ -1,5 +1,4 @@
 /*
-
   Copyright (c) 2026 Schildkroet
 
   This file is part of cangaroo.
@@ -35,9 +34,6 @@ enum class TraceFileFormat
 {
     CanDump,    // Linux candump text
     VectorAsc,  // Vector ASCII
-    VectorMdf,  // Vector MDF4
-    Pcap,       // pcap, LINKTYPE_CAN_SOCKETCAN
-    PcapNg,     // pcapng, LINKTYPE_CAN_SOCKETCAN
     Csv         // Raw CAN/FD frame CSV
 };
 
@@ -48,9 +44,6 @@ enum class TraceFileFormat
     {
         case TraceFileFormat::CanDump:   return QStringLiteral("candump");
         case TraceFileFormat::VectorAsc: return QStringLiteral("asc");
-        case TraceFileFormat::VectorMdf: return QStringLiteral("mf4");
-        case TraceFileFormat::Pcap:      return QStringLiteral("pcap");
-        case TraceFileFormat::PcapNg:    return QStringLiteral("pcapng");
         case TraceFileFormat::Csv:       return QStringLiteral("csv");
     }
     return {};
@@ -63,9 +56,6 @@ enum class TraceFileFormat
     {
         case TraceFileFormat::CanDump:   return QStringLiteral("candump");
         case TraceFileFormat::VectorAsc: return QStringLiteral("asc");
-        case TraceFileFormat::VectorMdf: return QStringLiteral("mdf");
-        case TraceFileFormat::Pcap:      return QStringLiteral("pcap");
-        case TraceFileFormat::PcapNg:    return QStringLiteral("pcapng");
         case TraceFileFormat::Csv:       return QStringLiteral("csv");
     }
     return {};
@@ -73,8 +63,7 @@ enum class TraceFileFormat
 
 [[nodiscard]] inline QStringList supportedTraceFormatNames()
 {
-    return { QStringLiteral("candump"), QStringLiteral("asc"), QStringLiteral("mdf"),
-             QStringLiteral("pcap"), QStringLiteral("pcapng"), QStringLiteral("csv") };
+    return { QStringLiteral("candump"), QStringLiteral("asc"), QStringLiteral("csv") };
 }
 
 // Resolves an explicit format name. Accepts the canonical names above plus a few
@@ -92,19 +81,6 @@ enum class TraceFileFormat
     {
         return TraceFileFormat::VectorAsc;
     }
-    if (key == QStringLiteral("mdf") || key == QStringLiteral("mf4")
-        || key == QStringLiteral("mdf4"))
-    {
-        return TraceFileFormat::VectorMdf;
-    }
-    if (key == QStringLiteral("pcap"))
-    {
-        return TraceFileFormat::Pcap;
-    }
-    if (key == QStringLiteral("pcapng"))
-    {
-        return TraceFileFormat::PcapNg;
-    }
     if (key == QStringLiteral("csv"))
     {
         return TraceFileFormat::Csv;
@@ -113,8 +89,7 @@ enum class TraceFileFormat
     return std::nullopt;
 }
 
-// Infers the format from a file name's extension. Note that "pcapng" must be
-// tested before "pcap", since the latter is a suffix of the former.
+// Infers the format from a file name's extension.
 [[nodiscard]] inline std::optional<TraceFileFormat> traceFormatFromPath(const QString &path)
 {
     const int dot = path.lastIndexOf(QLatin1Char('.'));
@@ -123,19 +98,12 @@ enum class TraceFileFormat
     const QString suffix = path.mid(dot + 1).toLower();
     if (suffix.isEmpty()) { return std::nullopt; }
 
-    if (suffix == QStringLiteral("pcapng")) { return TraceFileFormat::PcapNg; }
-    if (suffix == QStringLiteral("pcap"))   { return TraceFileFormat::Pcap; }
     if (suffix == QStringLiteral("candump") || suffix == QStringLiteral("log"))
     {
         return TraceFileFormat::CanDump;
     }
     if (suffix == QStringLiteral("asc")) { return TraceFileFormat::VectorAsc; }
     if (suffix == QStringLiteral("csv")) { return TraceFileFormat::Csv; }
-    if (suffix == QStringLiteral("mf4") || suffix == QStringLiteral("mdf")
-        || suffix == QStringLiteral("mdf4"))
-    {
-        return TraceFileFormat::VectorMdf;
-    }
 
     return std::nullopt;
 }

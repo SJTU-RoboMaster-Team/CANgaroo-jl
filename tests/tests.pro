@@ -10,7 +10,6 @@ SUBDIRS += \
     can_db \
     trace_file_format \
     trace_line_format \
-    pcapng_format \
     trace_file_writer \
     trace_file_reader \
     trace_recorder \
