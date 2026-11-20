@@ -1,423 +1,22 @@
-name: Build CANgaroo
-
+# CANgaroo-jl is a Windows-only CAN/CAN-FD analyzer for candleLight (gs_usb)
+# adapter development. CI therefore builds and tests on Windows only: the
+# MSYS2/UCRT64 job creates the release archive, and a version tag publishes it.
 on:
   workflow_dispatch:  # enables manual trigger
   push:
     branches: [ "main", "master" ]
     # A version tag (V0.7.2, as the existing tags, or v0.7.2) also publishes a
-    # draft release with the DEB, AppImage and Windows zip, see "release" below.
+    # draft release with the Windows zip, see "release" below.
     tags: [ "V*", "v*" ]
   pull_request:
     branches: [ "main", "master" ]
 
 jobs:
-  unit-tests:
-    name: Unit tests (Qt Test)
-    runs-on: ubuntu-24.04
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
-
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        # The tests link individual source files rather than the whole app, so
-        # QtCore, QtXml (CanDb) and Qt Test are enough -- no charts/serialbus.
-        # python3-dev + pybind11-dev: python_engine embeds the interpreter.
-        sudo apt install -y build-essential qt6-base-dev pkg-config python3-dev pybind11-dev
-
-    - name: Build and run tests
-      run: |
-        cd tests
-        qmake6
-        make -j$(nproc)
-        # "check" is provided by qmake's testcase config and runs every binary.
-        make check
-
-  format-compat:
-    name: Trace format compatibility (python-can, scapy, asammdf)
-    runs-on: ubuntu-24.04
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
-
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y build-essential qt6-base-dev python3-venv
-
-    - name: Install reference readers
-      run: |
-        python3 -m venv .venv
-        .venv/bin/pip install -r tests/format_compat/requirements.txt
-
-    - name: Build sample writer
-      run: |
-        cd tests/format_compat
-        qmake6
-        make -j$(nproc)
-
-    - name: Write samples and read them back
-      run: |
-        # Every export format and split recorder output, checked by readers that
-        # share no code with cangaroo. See tests/format_compat/validate.py.
-        build/tests/trace_format_samples build/format_compat
-        .venv/bin/python tests/format_compat/validate.py build/format_compat
-
-  build-ubuntu:
-    name: Build CANgaroo DEB (Ubuntu / Qt6)
-    runs-on: ubuntu-24.04
-    outputs:
-      artifact_id: ${{ steps.upload.outputs.artifact-id }}
-
-    env:
-      # Kvaser linuxcan version — update here when a newer SDK is released.
-      KVASER_VERSION: "5.51.461"
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
-
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y build-essential git cmake \
-          qt6-base-dev qt6-base-private-dev qt6-tools-dev \
-          qt6-serialport-dev qt6-serialbus-dev qt6-charts-dev qt6-svg-dev \
-          adwaita-qt6 libadwaitaqt6-1 pybind11-dev \
-          libnl-3-dev libnl-route-3-dev libusb-1.0-0-dev libgl1-mesa-dev fuse libfuse2 wget
-
-    - name: Verify Qt6 and Adwaita installation
-      run: |
-        echo "=== Qt6 Version ==="
-        qmake6 --version
-
-        echo "=== Qt6 Plugin Path ==="
-        QT6_PLUGIN_PATH=$(qmake6 -query QT_INSTALL_PLUGINS)
-        echo "Qt6 Plugins: $QT6_PLUGIN_PATH"
-
-        echo "=== Available Styles ==="
-        ls -la $QT6_PLUGIN_PATH/styles/ || echo "No styles directory"
-
-        echo "=== Platform Themes ==="
-        ls -la $QT6_PLUGIN_PATH/platformthemes/ || echo "No platformthemes directory"
-
-        echo "=== Adwaita Libraries ==="
-        ls -la /usr/lib/x86_64-linux-gnu/libadwaitaqt6*.so* || echo "No Adwaita libraries found"
-
-    - name: Install Kvaser CANlib (Linux)
-      run: |
-        VER_US="${{ env.KVASER_VERSION }}"
-        VER_US="${VER_US//./_}"
-        wget -q "https://pim.kvaser.com/var/assets/Product_Resources/7330130980754/${{ env.KVASER_VERSION }}/linuxcan_${VER_US}.tar.gz" \
-          -O /tmp/linuxcan.tar.gz
-        mkdir -p /tmp/linuxcan
-        tar -xf /tmp/linuxcan.tar.gz -C /tmp/linuxcan --strip-components=1
-        # Build only the userspace canlib — no kernel modules required
-        make -C /tmp/linuxcan/canlib
-        sudo make -C /tmp/linuxcan/canlib install
-        sudo ldconfig
-
-    - name: Run qmake6 and make
-      run: |
-        qmake6 CONFIG+=kvaser
-        make -j$(nproc)
-
-    - name: Build DEB package
-      run: |
-          PKG_NAME=cangaroo
-          PKG_VERSION=$(grep '^VERSION' src/src.pro | sed 's/VERSION\s*=\s*//')
-          PKG_ARCH=amd64
-
-          DEB_DIR="${PKG_NAME}_${PKG_VERSION}_${PKG_ARCH}"
-          mkdir -p "${DEB_DIR}/DEBIAN"
-          mkdir -p "${DEB_DIR}/usr/bin"
-          mkdir -p "${DEB_DIR}/usr/share/applications"
-          mkdir -p "${DEB_DIR}/usr/share/icons/hicolor/256x256/apps"
-          mkdir -p "${DEB_DIR}/usr/share/polkit-1/rules.d"
-
-          cp bin/cangaroo "${DEB_DIR}/usr/bin/"
-          chmod 755 "${DEB_DIR}/usr/bin/cangaroo"
-
-          cp cangaroo.desktop "${DEB_DIR}/usr/share/applications/"
-          cp src/assets/cangaroo.png "${DEB_DIR}/usr/share/icons/hicolor/256x256/apps/"
-          cp packaging/10-cangaroo-socketcan.rules "${DEB_DIR}/usr/share/polkit-1/rules.d/"
-
-          # Bundle libcanlib (built from Kvaser linuxcan source above)
-          mkdir -p "${DEB_DIR}/usr/lib/x86_64-linux-gnu"
-          find /usr/lib /usr/local/lib -maxdepth 2 -name "libcanlib*.so*" 2>/dev/null | while IFS= read -r f; do
-            cp -Pv "$f" "${DEB_DIR}/usr/lib/x86_64-linux-gnu/"
-          done
-
-          # preinst: enable universe so apt can resolve libqt6serialbus6 / libqt6charts6
-          {
-            printf '#!/bin/sh\nset -e\n'
-            printf 'if command -v add-apt-repository >/dev/null 2>&1; then\n'
-            printf '  add-apt-repository -y universe 2>/dev/null || true\n'
-            printf '  apt-get update -qq 2>/dev/null || true\n'
-            printf 'fi\n'
-          } > "${DEB_DIR}/DEBIAN/preinst"
-          chmod 755 "${DEB_DIR}/DEBIAN/preinst"
-
-          printf '#!/bin/sh\nset -e\nldconfig\n' > "${DEB_DIR}/DEBIAN/postinst"
-          chmod 755 "${DEB_DIR}/DEBIAN/postinst"
-
-          cat > "${DEB_DIR}/DEBIAN/control" << EOF
-          Package: ${PKG_NAME}
-          Version: ${PKG_VERSION}
-          Section: utils
-          Priority: optional
-          Architecture: ${PKG_ARCH}
-          Depends: libqt6core6t64 | libqt6core6, libqt6gui6t64 | libqt6gui6, libqt6widgets6t64 | libqt6widgets6, libqt6serialport6, libqt6serialbus6, libqt6charts6, libnl-3-200, libnl-route-3-200, libusb-1.0-0, polkitd | policykit-1, pkexec | policykit-1, iproute2
-          Maintainer: Schildkroet <https://github.com/Schildkroet>
-          Description: CAN bus analyzer and visualization tool
-           CANgaroo is an open-source CAN bus analyzer with support for
-           SocketCAN interfaces, DBC file parsing, trace recording,
-           and Python scripting.
-          EOF
-
-          # Remove leading whitespace from control file (heredoc indentation)
-          sed -i 's/^          //' "${DEB_DIR}/DEBIAN/control"
-
-          dpkg-deb --build --root-owner-group "${DEB_DIR}"
-
-    # A single file, uploaded as it is (archive: false), so the release can
-    # attach it directly
-    - name: Upload DEB package
-      id: upload
-      uses: actions/upload-artifact@v7
-      with:
-          path: "*.deb"
-          archive: false
-          if-no-files-found: error
-
-  build-appimage:
-    name: Build CANgaroo AppImage (Qt 6.8 + Adwaita decorations)
-    runs-on: ubuntu-24.04
-    outputs:
-      artifact_id: ${{ steps.upload.outputs.artifact-id }}
-
-    env:
-      # Kvaser linuxcan version — keep in sync with the DEB job above.
-      KVASER_VERSION: "5.51.461"
-      # Qt version used for the AppImage. Must be >= 6.5 (QAdwaitaDecorations
-      # requirement). Newer than the distro Qt so we can bundle a native
-      # Adwaita Wayland decoration that matches the bundled Qt's private API.
-      QT_VERSION: "6.8.2"
-      # QAdwaitaDecorations release to build from source.
-      QADWAITA_VERSION: "0.1.7"
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v6
-
-    - name: Install system build dependencies
-      run: |
-        sudo apt update
-        # Qt itself comes from aqt (see next step). These are the non-Qt build
-        # deps plus the Adwaita QStyle (forward-compatible: a 6.4 style plugin
-        # loads under the bundled 6.8) and Wayland dev libs for the decoration.
-        sudo apt install -y build-essential git cmake ninja-build pkg-config \
-          libnl-3-dev libnl-route-3-dev libusb-1.0-0-dev libgl1-mesa-dev pybind11-dev \
-          libwayland-dev wayland-protocols libxkbcommon-dev \
-          adwaita-qt6 libadwaitaqt6-1 \
-          fuse libfuse2 wget patchelf
-
-    - name: Install Qt ${{ env.QT_VERSION }}
-      uses: jurplel/install-qt-action@v4
-      with:
-        version: ${{ env.QT_VERSION }}
-        host: linux
-        target: desktop
-        arch: linux_gcc_64
-        # qtwayland is NOT a separate aqt module — it ships in the base install
-        # for linux_gcc_64 (incl. the QtWaylandClient private headers the
-        # decoration plugin needs and the wayland platform plugin), so only the
-        # genuine add-on modules are listed here.
-        modules: 'qtcharts qtserialport qtserialbus'
-        cache: true
-
-    - name: Show Qt environment
-      run: |
-        qmake -query QT_VERSION
-        qmake -query QT_INSTALL_PREFIX
-        qmake -query QT_INSTALL_PLUGINS
-
-    - name: Install Kvaser CANlib (Linux)
-      run: |
-        VER_US="${{ env.KVASER_VERSION }}"
-        VER_US="${VER_US//./_}"
-        wget -q "https://pim.kvaser.com/var/assets/Product_Resources/7330130980754/${{ env.KVASER_VERSION }}/linuxcan_${VER_US}.tar.gz" \
-          -O /tmp/linuxcan.tar.gz
-        mkdir -p /tmp/linuxcan
-        tar -xf /tmp/linuxcan.tar.gz -C /tmp/linuxcan --strip-components=1
-        make -C /tmp/linuxcan/canlib
-        sudo make -C /tmp/linuxcan/canlib install
-        sudo ldconfig
-
-    - name: Build CANgaroo (Qt ${{ env.QT_VERSION }})
-      run: |
-        qmake CONFIG+=kvaser
-        make -j$(nproc)
-
-    - name: Build QAdwaitaDecorations (Wayland decoration plugin)
-      run: |
-        git clone --depth 1 --branch "${QADWAITA_VERSION}" \
-          https://github.com/FedoraQt/QAdwaitaDecorations.git /tmp/qadwaita
-        cmake -S /tmp/qadwaita -B /tmp/qadwaita/build -G Ninja \
-          -DCMAKE_BUILD_TYPE=Release -DUSE_QT6=ON
-        cmake --build /tmp/qadwaita/build
-        echo "=== built decoration plugin(s) ==="
-        find /tmp/qadwaita/build -name '*.so'
-
-    - name: Prepare AppDir
-      run: |
-        mkdir -p AppDir/usr/bin \
-                 AppDir/usr/share/applications \
-                 AppDir/usr/share/icons/hicolor/256x256/apps \
-                 AppDir/usr/plugins/styles \
-                 AppDir/usr/plugins/wayland-decoration-client \
-                 AppDir/usr/lib
-
-        sed -i 's|Exec=/usr/bin/cangaroo %f|Exec=cangaroo %f|' cangaroo.desktop
-
-        cp bin/cangaroo AppDir/usr/bin/
-        cp cangaroo.desktop AppDir/usr/share/applications/
-        cp src/assets/cangaroo.png AppDir/usr/share/icons/hicolor/256x256/apps/
-
-    - name: Bundle Python runtime
-      run: |
-        # The libpython we linked against gets bundled by linuxdeploy, but its
-        # compiled-in prefix points at this runner's Python installation. Ship
-        # the matching stdlib under AppDir/usr/lib/pythonX.Y so PythonEngine
-        # can point PYTHONHOME at the AppDir instead of relying on the host
-        # happening to have the very same Python version installed.
-        PY_PREFIX=$(pkg-config --variable=prefix python3-embed)
-        PYVER=$(pkg-config --modversion python3-embed | cut -d. -f1,2)
-        echo "linked against Python ${PYVER} in ${PY_PREFIX}"
-
-        SRC="${PY_PREFIX}/lib/python${PYVER}"
-        test -f "${SRC}/os.py" || { echo "ERROR: stdlib not found at ${SRC}"; exit 1; }
-
-        DST="AppDir/usr/lib/python${PYVER}"
-        mkdir -p "${DST}"
-        cp -r "${SRC}"/. "${DST}"/
-        # Trim what the embedded interpreter never needs.
-        rm -rf "${DST}/test" "${DST}/idlelib" "${DST}/tkinter" "${DST}/turtledemo"
-        find "${DST}" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-        find "${DST}" -type d -name tests -exec rm -rf {} + 2>/dev/null || true
-
-        # pybind11 needs the encodings codec at startup; lib-dynload carries the
-        # C extension modules (_socket, zlib, ...) and must come along.
-        test -f "${DST}/encodings/__init__.py"
-        ls "${DST}/lib-dynload" >/dev/null
-
-    - name: Bundle Adwaita style and decoration plugin
-      run: |
-        DISTRO_PLUGINS=/usr/lib/x86_64-linux-gnu/qt6/plugins
-
-        echo "=== Adwaita QStyle (from distro adwaita-qt6) ==="
-        if [ -f "$DISTRO_PLUGINS/styles/adwaita.so" ]; then
-          cp -v "$DISTRO_PLUGINS/styles/adwaita.so" AppDir/usr/plugins/styles/
-        else
-          echo "ERROR: Adwaita style not found"; exit 1
-        fi
-        for lib in /usr/lib/x86_64-linux-gnu/libadwaitaqt6*.so*; do
-          [ -f "$lib" ] && cp -Pv "$lib" AppDir/usr/lib/
-        done
-
-        # The distro plugin has no RUNPATH and AppRun is a plain symlink to the
-        # binary (no LD_LIBRARY_PATH), so without this the loader looks for
-        # libadwaitaqt6*.so.1 in the system paths only: the style silently fails
-        # to load on any host that does not happen to have adwaita-qt6
-        # installed, and "adwaita"/"adwaita-dark" disappear from the theme list.
-        # linuxdeploy only rewrites usr/lib and usr/bin, not usr/plugins.
-        patchelf --set-rpath '$ORIGIN/../../lib' AppDir/usr/plugins/styles/adwaita.so
-        readelf -d AppDir/usr/plugins/styles/adwaita.so | grep -E 'RPATH|RUNPATH'
-
-        echo "=== Adwaita Wayland decoration (built against bundled Qt) ==="
-        DECO_SO=$(find /tmp/qadwaita/build -name '*adwaita*.so' | head -n1)
-        if [ -z "$DECO_SO" ]; then
-          DECO_SO=$(find /tmp/qadwaita/build -name '*.so' | head -n1)
-        fi
-        if [ -n "$DECO_SO" ]; then
-          cp -v "$DECO_SO" AppDir/usr/plugins/wayland-decoration-client/
-        else
-          echo "ERROR: decoration plugin .so not found"; exit 1
-        fi
-
-    - name: Download linuxdeploy
-      run: |
-        wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-        wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
-        chmod +x linuxdeploy*.AppImage
-
-    - name: Build AppImage
-      env:
-        QMAKE: qmake
-        # Force the Wayland platform plugin into the bundle (linuxdeploy-plugin-qt
-        # bundles xcb by default); the decoration plugin is already in AppDir and
-        # linuxdeploy resolves its library dependencies.
-        EXTRA_PLATFORM_PLUGINS: "libqwayland-generic.so;libqwayland-egl.so"
-      run: |
-        ./linuxdeploy-x86_64.AppImage \
-          --appdir AppDir \
-          --plugin qt \
-          --output appimage
-
-    - name: Verify Adwaita style resolves inside the AppImage
-      run: |
-        # Regression guard: the style must resolve its libraries from the bundle,
-        # not from the build host (which has adwaita-qt6 installed and would
-        # therefore hide a broken bundle until someone runs it on a clean system).
-        rm -rf verify && mkdir verify
-        APPIMAGE=$(ls CAN*.AppImage | head -n1)
-        (cd verify && "../${APPIMAGE}" --appimage-extract >/dev/null)
-        ROOT="$PWD/verify/squashfs-root"
-        PLUGIN="$ROOT/usr/plugins/styles/adwaita.so"
-
-        test -f "$PLUGIN" || { echo "ERROR: adwaita.so missing from AppImage"; exit 1; }
-        readelf -d "$PLUGIN" | grep -qE 'RPATH|RUNPATH' \
-          || { echo "ERROR: adwaita.so has no RUNPATH — libraries would be looked up on the host"; exit 1; }
-
-        ldd "$PLUGIN"
-        for lib in libadwaitaqt6.so.1 libadwaitaqt6priv.so.1; do
-          resolved=$(ldd "$PLUGIN" | awk -v l="$lib" '$1 == l { print $3 }')
-          case "$resolved" in
-            "$ROOT"/*) echo "OK: $lib -> $resolved" ;;
-            *) echo "ERROR: $lib resolves to '$resolved', expected a path inside the AppImage"; exit 1 ;;
-          esac
-        done
-
-    - name: Name AppImage after the version
-      run: |
-        VERSION=$(grep '^VERSION' src/src.pro | sed 's/VERSION\s*=\s*//')
-        mv "$(ls CAN*.AppImage | head -n1)" "CANgaroo-${VERSION}-x86_64.AppImage"
-
-    - name: Upload AppImage
-      id: upload
-      uses: actions/upload-artifact@v7
-      with:
-          path: "CANgaroo-*-x86_64.AppImage"
-          archive: false
-          if-no-files-found: error
-
   build-windows:
-    name: Build CANgaroo (Windows / MinGW / Qt6)
+    name: Build and test CANgaroo (Windows / MinGW / Qt6)
     runs-on: windows-2022
     outputs:
       artifact_id: ${{ steps.upload.outputs.artifact-id }}
-
-    env:
-      # Kvaser CANlib Windows SDK version — update here when a newer SDK is released.
-      KVASER_VERSION: "5.51.461"
-      # Default install path used by the Kvaser SDK installer
-      CANLIB_DIR_HEADER: "C:/Program Files (x86)/Kvaser/Canlib/INC"
-      CANLIB_DIR_BIN: "C:/Program Files (x86)/Kvaser/Canlib/bin_x64"
-      CANLIB_DIR_LIB: "C:/Program Files (x86)/Kvaser/Canlib/Lib/x64"
-      CANLIB_DIR: "C:/Program Files (x86)/Kvaser/Canlib/"
 
     defaults:
       run:
@@ -433,67 +32,13 @@ jobs:
           msystem: UCRT64
           update: true
           cache: true
-          # pkgconf: qmake's PKGCONFIG (python3-embed) needs it; it used to come
-          # in only as a dependency of another package. No comments inside the
-          # folded list below: they would become package names.
           install: >-
             mingw-w64-ucrt-x86_64-toolchain
             mingw-w64-ucrt-x86_64-qt6
             mingw-w64-ucrt-x86_64-qt6-tools
             mingw-w64-ucrt-x86_64-make
-            mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-ntldd
-            mingw-w64-ucrt-x86_64-python
-            mingw-w64-ucrt-x86_64-pybind11
             git
-
-      - name: Download PCAN-Basic SDK
-        shell: pwsh
-        run: |
-          Invoke-WebRequest `
-            -Uri "https://www.peak-system.com/fileadmin/media/files/PCAN-Basic.zip" `
-            -OutFile "$env:TEMP\PCAN-Basic.zip"
-          Expand-Archive -Path "$env:TEMP\PCAN-Basic.zip" `
-            -DestinationPath "src/driver/PeakCanDriver/pcan-basic-api" `
-            -Force
-
-      - name: Download and install Kvaser CANlib SDK (Windows)
-        shell: pwsh
-        run: |
-          $installer = "$env:TEMP\kvaser_canlib_sdk.exe"
-          $verUs = $env:KVASER_VERSION -replace '\.', '_'
-          Invoke-WebRequest `
-            -Uri "https://pim.kvaser.com/var/assets/Product_Resources/7330130980150/$env:KVASER_VERSION/canlib_${verUs}.exe" `
-            -OutFile $installer
-          # Run the NSIS installer silently; default target is C:\Program Files\Kvaser\Drivers
-          Start-Process -FilePath $installer -ArgumentList "/S" -Wait
-
-          # Copy SDK into source tree so KvaserDriver.pri finds it automatically
-          $SDK_DEST = "src\driver\KvaserDriver\canlib-sdk"
-          New-Item -ItemType Directory -Force -Path "$SDK_DEST\INC"
-          New-Item -ItemType Directory -Force -Path "$SDK_DEST\Bin"
-          New-Item -ItemType Directory -Force -Path "$SDK_DEST\Lib"
-
-          try {
-            Write-Host "=== Copy headers ==="
-            Copy-Item "$env:CANLIB_DIR_HEADER\*.h" "$SDK_DEST\INC\" -ErrorAction Stop
-          } catch {
-            Write-Warning "Failed to copy headers: $_"
-          }
-
-          try {
-            Write-Host "=== Copy canlib32.dll ==="
-            Copy-Item "$env:CANLIB_DIR_BIN\canlib32.dll" "$SDK_DEST\Bin\" -ErrorAction Stop
-          } catch {
-            Write-Warning "Failed to copy canlib32.dll: $_"
-          }
-
-          try {
-            Write-Host "=== Copy $env:CANLIB_DIR_LIB ==="
-            Copy-Item "$env:CANLIB_DIR_LIB\canlib32.lib" "$SDK_DEST\Lib\" -ErrorAction Stop
-          } catch {
-            Write-Warning "Failed to copy canlib32.lib: $_"
-          }
 
       - name: Verify Qt6 installation
         run: |
@@ -502,11 +47,29 @@ jobs:
 
       - name: Configure build (Qt6 qmake)
         run: |
-          qmake6 CONFIG+=release CONFIG+=kvaser CONFIG+=peakcan
+          qmake6 CONFIG+=release
 
       - name: Build
         run: |
           mingw32-make -j$(nproc)
+
+      # "make check" uses qmake's testcase wrapper, whose shell script does not
+      # run under cmd; the binaries themselves are plain QtTest executables.
+      - name: Configure and build unit tests
+        run: |
+          cd tests
+          qmake6
+          mingw32-make -j$(nproc)
+
+      - name: Run unit tests
+        run: |
+          cd build/tests
+          status=0
+          for test in *_test.exe; do
+            echo "==== $test ===="
+            ./"$test" -silent || status=1
+          done
+          exit $status
 
       - name: List build output
         run: |
@@ -547,17 +110,6 @@ jobs:
           cp /ucrt64/bin/libicuuc78.dll dist/
           cp /ucrt64/bin/libpcre2-16-0.dll dist/
 
-      - name: Add Python runtime
-        run: |
-          PYVER=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('VERSION'))")
-          cp /ucrt64/bin/libpython${PYVER}.dll dist/
-          # Bundle the stdlib under lib/pythonX.Y/ — Python finds it when PYTHONHOME=<appdir>
-          mkdir -p dist/lib/python${PYVER}
-          cp -r /ucrt64/lib/python${PYVER}/* dist/lib/python${PYVER}/ 2>/dev/null || true
-          # Remove test and __pycache__ dirs to save space
-          find dist/lib/python${PYVER} -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-          find dist/lib/python${PYVER} -type d -name test -exec rm -rf {} + 2>/dev/null || true
-
       - name: Deploy MinGW runtime dependencies
         run: |
           EXE=$(ls dist/*.exe | head -n 1)
@@ -575,16 +127,6 @@ jobs:
               echo "Copying $linux_path"
               cp "$linux_path" dist/ || echo "Skipped $linux_path"
               done
-
-      - name: Bundle runtime DLLs
-        run: |
-          cp src/driver/KvaserDriver/canlib-sdk/Bin/canlib32.dll dist/
-          cp src/driver/PeakCanDriver/pcan-basic-api/x64/PCANBasic.dll dist/
-
-      - name: Bundle example scripts
-        run: |
-          mkdir -p dist/examples
-          cp examples/*.py dist/examples/ || true
 
       - name: Verify missing DLLs
         run: |
@@ -612,7 +154,7 @@ jobs:
 
   release:
     name: Release (tags only)
-    needs: [unit-tests, format-compat, build-ubuntu, build-appimage, build-windows]
+    needs: [build-windows]
     if: startsWith(github.ref, 'refs/tags/V') || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:
@@ -621,8 +163,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      # The packages are named after VERSION in src/src.pro: a tag that does not
-      # match it would publish files with another version than the release
+      # The package is named after VERSION in src/src.pro: a tag that does not
+      # match it would publish a file with another version than the release
       - name: Check tag against src/src.pro
         run: |
           VERSION=$(grep '^VERSION' src/src.pro | sed 's/VERSION\s*=\s*//')
@@ -634,7 +176,7 @@ jobs:
 
       - uses: actions/download-artifact@v8
         with:
-          artifact-ids: ${{ needs.build-ubuntu.outputs.artifact_id }}, ${{ needs.build-appimage.outputs.artifact_id }}, ${{ needs.build-windows.outputs.artifact_id }}
+          artifact-ids: ${{ needs.build-windows.outputs.artifact_id }}
           path: artifacts
           merge-multiple: true
           skip-decompress: true     # the Windows zip stays a zip (it would be unpacked into a folder, which the upload skips)

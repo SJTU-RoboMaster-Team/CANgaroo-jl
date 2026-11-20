@@ -1,32 +1,29 @@
 # <img src="src/assets/cangaroo.png" width="48" height="48"> CANgaroo-jl
 
-**SJTU RoboMaster 交龙战队（SJTU-RoboMaster-Team）基于 [`Schildkroet/CANgaroo`](https://github.com/Schildkroet/CANgaroo) 二次定制与维护的开源 CAN / CAN-FD 总线分析上位机（Windows / Linux）。**
+**SJTU RoboMaster 交龙战队（SJTU-RoboMaster-Team）基于 [`Schildkroet/CANgaroo`](https://github.com/Schildkroet/CANgaroo) 二次定制与维护的 CAN / CAN-FD 总线分析上位机，只面向 Windows + candleLight（`gs_usb`）固件开发。**
 
 ## 🔩 支持的接口与硬件
 
-| 接口 | Linux | Windows | 说明 |
-| :--- | :---: | :---: | :--- |
-| **SocketCAN** | ✅ | — | 支持内核 CAN 接口（`can0`、`vcan0` 等），在未开启 `fd on` 前亦可识别控制器的 CAN-FD 能力 |
-| **Candlelight / CANable / CANnectivity** | ✅ | ✅ | CANable（Candlelight 固件）、MKS CANable、CANtact、CANnectivity 等 `gs_usb` 设备；支持多通道、CAN-FD 及固件版本读取 |
-| **SLCAN** | ✅ | ✅ | CANable（SLCAN 固件）、Arduino CAN 等串口设备；支持扫描阶段识别固件版本（含 CANable 2.5） |
-| **Vector** | — | ✅ | VN 系列等 Vector 设备（通过 Qt SerialBus，默认启用；运行时需本机安装 Vector XL Driver Library） |
-| **PEAK PCAN** | — | ✅ | PCAN-USB / PCAN-USB Pro / PCAN-PCIe 等（需通过 `CONFIG+=peakcan` 编译并配置 PCAN-Basic SDK） |
-| **Kvaser** | ✅ | ✅ | USB/CAN Leaf 等 Kvaser 设备（需通过 `CONFIG+=kvaser` 编译并配置 CANlib SDK） |
+| 接口 | Windows | 说明 |
+| :--- | :---: | :--- |
+| **candleLight / CANable / CANnectivity** | ✅ | 走 WinUSB 的 `gs_usb` 设备：candleLight 固件的 STM32 适配器、CANable、MKS CANable、CANtact、CANnectivity 等；支持多通道、CAN-FD 与固件版本读取 |
+
+仓库不再包含 SocketCAN、SLCAN、Vector、PEAK、Kvaser 驱动，也不再有 Linux 构建路径。
 
 ## ⚙️ 主要功能
 
-* **实时 CAN / CAN-FD 解析与 DBC 支持**：支持标准 CAN 与高速 CAN-FD 帧（最高 64 字节载荷）；支持加载多份 `.dbc` 数据库进行实时信号解析与工程量换算。
-* **多视图信号可视化（Graph View）**：支持时序波形（Time-series）、散点图（Scatter）、文本监测（Text）与仪表盘（Gauge）视图，支持缩放、悬浮数值提示与独立弹窗。
-* **总线状态与硬件诊断**：内置 CAN 总线状态监控、多条件报文过滤与触发录制，支持通过 **Measurement > Hardware...** 查看所有已识别驱动、设备状态、总线错误状态、固件版本、能力掩码及支持的波特率，并可一键复制纯文本诊断报告。
-* **报文发送与周期生成器**：支持单帧/手动报文发送（Raw Tx）、多任务周期调度生成（Tx Generator，支持随机载荷填充）。
-* **Python 自动化脚本**：内置脚本编辑器与嵌入式 Python 解释器（基于 `pybind11`，多标签页共享同一解释器），支持使用已加载的 DBC 解码与收发总线报文；示例脚本见 [`examples/`](examples/)。
-* **CAN 网关与日志回放**：支持双 CAN 口过滤转发网关（CAN Gateway），以及导入回放日志（Vector ASC、`candump`、CAN/FD 原始帧 `.csv`、PCAP、PCAPng、Vector MDF4 `.mf4`），统一由纯 QtCore 的 `TraceFileReader` 解析。回放窗口提供 Play / Pause / Resume / Stop / 单步 / 进度条拖动定位，保留原始帧间隔 `Δt`，支持倍速、RX/TX 方向过滤与通道映射，并可 **Load to Trace** 直接载入 Trace/Graph 做离线分析。
-* **大日志分段处理**：导入（**Trace > Import full trace**）或载入超过 `trace/maxSize` 上限的日志时，弹窗提供“分段保存 / 在回放窗口中打开 / 仅加载前 N 帧”三种处理方式；回放窗口的 **Split Save...** 可按帧数拆分为多个文件。
-* **多格式轨迹导出与录制**：支持导出/连续录制为 Vector ASC、Vector MDF4、Linux `candump`、PCAP、Wireshark 兼容 PCAPng 以及 CAN/FD 原始帧 CSV（`Timestamp_s, Epoch_us, Channel, Direction, BusType, ID_Hex, Extended, FD, BRS, ESI, RTR, ErrorFlags, DLC, Data_Hex`）；录制可选择是否在离线回放期间同时录制。
-* **触发捕获（黑匣子）**：**Measurement > Trigger Capture...** 支持硬件总线错误帧、软件帧 ID/字节掩码匹配、看门狗丢帧超时、DBC 信号阈值四类触发规则，触发时导出“触发前 N 秒 + 触发后 M 秒”的切片文件，并在 Graph 时间轴上标注触发线；Trace 视图右键可按所选 CAN ID 快速创建规则。
-* **Graph 双游标测量**：时序图提供 **Cursors (Δt/Δy)** 开关，左键放置游标 A，右键或 Shift+左键放置游标 B，显示 `Δt`、`1/|Δt|` 与首个信号的 `Δy`。
-* **USB 掉线提示与手动重新绑定**：测量中接口异常断开时，主窗口顶部显示提示条并弹出非阻塞提示，不会静默自动重连；重新插好设备后点击 **Rebind & Resume**（顶部提示条或 **Measurement > Hardware...**），按硬件标识（`Hardware Key`，Candle 设备为去除接口后缀的 USB 设备路径 + 通道号；旧工作空间无该字段时按驱动 + 唯一接口名匹配，出现缺失/歧义会明确报错）重新绑定已配置接口并继续测量，已有 Trace 与 Graph 曲线保留。
-* **原生深浅主题与在线更新检测**：兼容 Windows 11 系统原生深/浅色模式与自定义暗色主题；支持通过 **Help > Check for Updates...** 从当前仓库 [`SJTU-RoboMaster-Team/CANgaroo-jl`](https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl) 检测新版本。
+* **实时 CAN / CAN-FD 解析与 DBC 支持**：标准帧与高速 CAN-FD 帧（最高 64 字节载荷）；可加载多份 `.dbc` 做实时信号解析与工程量换算。
+* **多视图信号可视化（Graph View）**：时序波形、散点图、文本监测与仪表盘视图，支持缩放、悬浮数值提示与独立弹窗。
+* **Trace 视图**：单一报文列表，可在「聚合」与「滚动日志」之间切换；支持绝对 / UTC / 相对 / 增量时间戳、按 ID/名称/正则过滤、方向与接口过滤，右键可直接按所选 CAN ID 创建触发规则。
+* **总线状态与硬件诊断**：内置 CAN 总线状态监控；**Measurement > Hardware...** 显示所有已识别设备、总线状态、固件版本、能力掩码与可用波特率，可一键复制纯文本诊断报告。
+* **报文发送与周期生成器**：单帧手动发送（Raw Tx）与多任务周期调度（Tx Generator，支持随机载荷）。
+* **日志回放**：导入 Vector ASC、Linux `candump`、CAN/FD 原始帧 `.csv` 三种文本格式，统一由纯 QtCore 的 `TraceFileReader` 解析；回放窗口提供 Play / Pause / Resume / Stop / 单步 / 进度条定位，保留原始帧间隔 `Δt`，支持倍速、RX/TX 方向过滤与通道映射，并可 **Load to Trace** 直接载入 Trace/Graph 做离线分析。
+* **大日志分段处理**：**Trace > Import full trace** 或回放载入超过 `trace/maxSize` 上限的日志时，弹窗提供「分段保存 / 在回放窗口中打开 / 仅加载前 N 帧」三种处理方式；回放窗口的 **Split Save...** 可按帧数拆分。
+* **轨迹导出与连续录制**：三种格式 —— Vector ASC、Linux `candump`、CAN/FD 原始帧 CSV（`Timestamp_s, Epoch_us, Channel, Direction, BusType, ID_Hex, Extended, FD, BRS, ESI, RTR, ErrorFlags, DLC, Data_Hex`）；录制支持按大小分卷，可选择是否在离线回放期间同时录制。
+* **触发捕获（黑匣子）**：**Measurement > Trigger Capture...** 支持总线错误帧、帧 ID/字节掩码匹配、看门狗丢帧超时、DBC 信号阈值四类触发规则；触发时导出「触发前 N 秒 + 触发后 M 秒」的切片文件，并在 Graph 时间轴上标注触发线。
+* **Graph 双游标测量**：**Cursors (Δt/Δy)** 开关，左键放置游标 A，右键或 Shift+左键放置游标 B，显示 `Δt`、`1/|Δt|` 与首个信号的 `Δy`。
+* **USB 掉线提示与手动重新绑定**：测量中接口异常断开时，主窗口顶部显示提示条并弹出非阻塞提示，不会静默自动重连；重新插好设备后点击 **Rebind & Resume**（顶部提示条或 **Measurement > Hardware...**），按 `Hardware Key`（Candle 设备为去掉接口后缀的 USB 设备路径 + 通道号；旧工作空间无该字段时按驱动 + 唯一接口名匹配，缺失或歧义会明确报错）重新绑定并继续测量，已有 Trace 与 Graph 曲线保留。
+* **原生深浅主题与在线更新检测**：跟随 Windows 11 系统原生深/浅色模式，也可强制自定义主题；**Help > Check for Updates...** 从本仓库检测新版本。
 
 <br>![Cangaroo Trace View](docs/view.png)<br>
 
@@ -37,106 +34,60 @@
 
 ## 🛠️ 从源码构建
 
-### 🪟 Windows（MSYS2 UCRT64 + Qt 6）
+### 依赖
 
-推荐在 **MSYS2 UCRT64** 环境中构建（与仓库 CI 一致）：
-
-1. 安装依赖包：
-   ```bash
-   pacman -S --needed \
-     mingw-w64-ucrt-x86_64-toolchain \
-     mingw-w64-ucrt-x86_64-qt6 \
-     mingw-w64-ucrt-x86_64-qt6-tools \
-     mingw-w64-ucrt-x86_64-make \
-     mingw-w64-ucrt-x86_64-pkgconf \
-     mingw-w64-ucrt-x86_64-ntldd \
-     mingw-w64-ucrt-x86_64-python \
-     mingw-w64-ucrt-x86_64-pybind11
-   ```
-2. 编译主程序（输出位于 `bin/cangaroo.exe`）：
-   ```bash
-   cd src
-   qmake6 CONFIG+=release
-   mingw32-make -j$(nproc)
-   ```
-3. 独立运行库部署（若需脱离 MSYS2 终端直接双击运行）：
-   - 使用 `windeployqt6 --release --no-system-d3d-compiler bin/cangaroo.exe` 部署 Qt6 DLL 与插件。
-   - 使用 `ntldd -R` 复制所需的 UCRT64 运行库及 `libpython3.*.dll`，并将 Python 标准库放到 `bin/lib/pythonX.Y/`（打包细节可参考 [`.github/workflows/cmake.yml`](.github/workflows/cmake.yml)）。
-
-### 🐧 Linux
-
-#### 安装依赖
-
-| 发行版 | 命令 |
-| :--- | :--- |
-| **Ubuntu / Debian** | `sudo apt install build-essential qt6-base-dev qt6-charts-dev qt6-serialport-dev qt6-serialbus-dev qt6-svg-dev qt6-tools-dev qt6-l10n-tools libqt6opengl6-dev libnl-3-dev libnl-route-3-dev libusb-1.0-0-dev python3-dev pybind11-dev pkg-config` |
-| **Fedora** | `sudo dnf install gcc-c++ make qt6-qtbase-devel qt6-qtcharts-devel qt6-qtserialport-devel qt6-qtserialbus-devel qt6-qtsvg-devel qt6-qttools-devel libnl3-devel libusb1-devel python3-devel pybind11-devel pkgconfig` |
-| **Arch Linux** | `sudo pacman -S base-devel qt6-base qt6-charts qt6-serialport qt6-serialbus qt6-svg qt6-tools libnl libusb python pybind11 pkgconf` |
-
-#### 编译
+**Windows + MSYS2 UCRT64**（与 CI 一致）：
 
 ```bash
-qmake6
-make -j$(nproc)
+pacman -S --needed \
+  mingw-w64-ucrt-x86_64-toolchain \
+  mingw-w64-ucrt-x86_64-qt6 \
+  mingw-w64-ucrt-x86_64-qt6-tools \
+  mingw-w64-ucrt-x86_64-make \
+  mingw-w64-ucrt-x86_64-ntldd
 ```
 
-生成的可执行文件位于 `bin/cangaroo`。
+Qt 模块：`core gui widgets xml charts svg network`。驱动额外链接 `-lSetupApi -lOle32 -lwinusb`，无需第三方 SDK，也不依赖 Python。
 
-#### SocketCAN 权限配置
-
-CANgaroo 通过 `ip link` 配置 SocketCAN 接口的波特率、采样点与 CAN-FD 参数，非 root 启动时会通过 `pkexec`（polkit）一次合并执行配置脚本（不使用 `sudo`）。
-
-* 安装 `.deb` 包会自动部署 polkit 规则，将当前用户加入 `netdev` 用户组即可免密配置（需重新登录生效）：
-  ```bash
-  sudo usermod -aG netdev $USER
-  ```
-* 若从源码构建，可手动安装规则：
-  ```bash
-  sudo cp packaging/10-cangaroo-socketcan.rules /etc/polkit-1/rules.d/
-  ```
-* 若接口在 Setup 中勾选 **Configured by OS**，CANgaroo 不会修改系统接口参数，也无需提权。
-
-#### USB 设备权限（`udev` 规则）
-
-通过 `gs_usb` / Candlelight / CANable 接入设备时，建议配置 `udev` 规则以便普通用户直接打开：
-
-创建 `/etc/udev/rules.d/99-cangaroo.rules`：
-
-```text
-# gs_usb / Candlelight / CANable (gs_usb firmware)
-SUBSYSTEMS=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="606b", MODE="0666", GROUP="plugdev", TAG+="uaccess"
-SUBSYSTEMS=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="606f", MODE="0666", GROUP="plugdev", TAG+="uaccess"
-SUBSYSTEMS=="usb", ATTRS{idVendor}=="1209", ATTRS{idProduct}=="ca01", MODE="0666", GROUP="plugdev", TAG+="uaccess"
-```
-
-重载规则并重新插拔设备：
+### 编译
 
 ```bash
-sudo udevadm control --reload-rules && sudo udevadm trigger
+cd src
+qmake6 CONFIG+=release
+mingw32-make -j$(nproc)
 ```
 
-> 注：需确保当前用户在 `plugdev` 组内（`sudo usermod -aG plugdev $USER`，重新登录生效）。
+产物为 `bin/cangaroo.exe`。
 
-### 可选商用硬件驱动编译参数
+### 独立运行库部署
 
-* **PEAK PCAN（`CONFIG+=peakcan`，Windows）**：
-  1. 下载 [PCAN-Basic SDK](https://www.peak-system.com/fileadmin/media/files/PCAN-Basic.zip) 并解压至 `src/driver/PeakCanDriver/pcan-basic-api/`。
-  2. 使用 `qmake6 CONFIG+=peakcan` 编译。
-  3. 将 `pcan-basic-api/x64/PCANBasic.dll` 复制到可执行文件同级目录。
-* **Kvaser（`CONFIG+=kvaser`，Linux / Windows）**：
-  * **Linux**：下载编译安装 [linuxcan](https://www.kvaser.com/downloads-kvaser/)（V5.51.461 或更新版本）后执行 `qmake6 CONFIG+=kvaser`。
-  * **Windows**：安装 Kvaser CANlib SDK 后使用 `qmake6 CONFIG+=kvaser CANLIB_DIR="C:/path/to/Kvaser/Canlib"` 编译，并将 `Canlib/Bin/canlib32.dll` 放到可执行文件同级目录。
-* **Vector（Windows，默认启用）**：
-  * 无需编译期 SDK；目标机安装 [Vector XL Driver Library](https://www.vector.com/int/en/products/products-a-z/libraries-drivers/xl-driver-library/) 后即可通过 Qt SerialBus 使用。
+若要从资源管理器直接双击（不经过 MSYS2 终端）：
+
+```bash
+windeployqt6 --release --no-system-d3d-compiler bin/cangaroo.exe
+ntldd -R bin/cangaroo.exe   # 复制未覆盖的 UCRT64 运行库到 bin/
+```
+
+CI 的 `build-windows` 作业执行同样的步骤，可参考 [`.github/workflows/cmake.yml`](.github/workflows/cmake.yml)。
+
+### 设备驱动（WinUSB）
+
+candleLight 设备在 Windows 上使用 WinUSB 驱动。烧录固件后如未被识别，可用 [Zadig](https://zadig.akeo.ie/) 将设备的驱动替换为 WinUSB（设备 VID/PID 为 `1d50:606f` 等 `gs_usb` 标识）。
 
 ### 运行单元测试
 
 ```bash
 cd tests
 qmake6
-make -j$(nproc)   # Windows MSYS2 UCRT64 下使用 mingw32-make
-make check
+mingw32-make -j$(nproc)
 ```
+
+然后逐个运行 `build/tests/*_test.exe`（`make check` 依赖 qmake 生成的 `target_wrapper.sh`，在 Windows `cmd` 下不可用）。
+
+## 🔁 CI
+
+* `build-windows`：MSYS2 UCRT64 上编译主程序与单元测试、跑完所有测试，并打包 `CANgaroo-<version>-windows-x64.zip`。
+* `release`：仅在打 `V*` / `v*` 标签时运行，校验标签与 `src/src.pro` 的 `VERSION` 一致后发布草稿 Release。
 
 ## 📥 下载
 
