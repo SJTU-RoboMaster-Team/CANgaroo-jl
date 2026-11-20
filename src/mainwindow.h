@@ -88,6 +88,7 @@ public slots:
     QDockWidget *addStatusWidget(QMainWindow *parent = nullptr);
     QDockWidget *addTxGeneratorWidget(QMainWindow *parent = nullptr);
     QDockWidget *addReplayWidget(QMainWindow *parent = nullptr);
+    QDockWidget *addMotorWidget(QMainWindow *parent = nullptr);
 
     bool showSetupDialog();
     void showAboutDialog();

@@ -63,6 +63,7 @@
 #include "window/RecordingDialog/RecordingDialog.h"
 #include "window/TriggerCaptureDialog/TriggerCaptureDialog.h"
 #include "window/HardwareDialog/HardwareDialog.h"
+#include "window/MotorView/MotorView.h"
 #include "helpers/apphelpers.h"
 
 #include "driver/CandleApiDriver/CandleApiDriver.h"
@@ -115,6 +116,11 @@ void MainWindow::initActions()
     actionStandaloneGraph->setShortcut(QKeySequence("Ctrl+Shift+B"));
     ui->menuWindow->addAction(actionStandaloneGraph);
     connect(actionStandaloneGraph, &QAction::triggered, this, &MainWindow::createStandaloneGraphWindow);
+
+    auto *actionMotorView = new QAction(tr("Motor View"), this);
+    actionMotorView->setShortcut(QKeySequence("Ctrl+Shift+M"));
+    ui->menu_New->addAction(actionMotorView);
+    connect(actionMotorView, &QAction::triggered, this, [this]() { addMotorWidget(); });
 
     connect(ui->actionStart_Measurement, &QAction::triggered, this, &MainWindow::startMeasurement);
     connect(ui->btnStartMeasurement, &QPushButton::released, this, &MainWindow::startMeasurement);
@@ -878,6 +884,12 @@ bool MainWindow::loadWorkspaceTab(QDomElement el)
         if (graph && !graphEl.isNull())
             graph->loadXML(backend(), graphEl);
 
+        // Load MotorView dock content (configured motors) if present.
+        MotorView *motors = mw->findChild<MotorView *>();
+        QDomElement motorEl = el.firstChildElement("motorview");
+        if (motors && !motorEl.isNull())
+            motors->loadXML(backend(), motorEl);
+
         // Restore dock layout state (splits, tabification, sizes).
         // Deferred so it runs after the default layout timer from createTraceWindow().
         const QString dockState = el.attribute("dockstate");
@@ -1011,6 +1023,15 @@ bool MainWindow::saveWorkspaceToFile(const QString &filename)
             QDomElement graphEl = doc.createElement("graphwindow");
             graph->saveXML(backend(), doc, graphEl);
             tabEl.appendChild(graphEl);
+        }
+
+        // Save MotorView dock content (configured motors).
+        MotorView *motors = w->findChild<MotorView *>();
+        if (motors)
+        {
+            QDomElement motorEl = doc.createElement("motorview");
+            motors->saveXML(backend(), doc, motorEl);
+            tabEl.appendChild(motorEl);
         }
 
         tabsRoot.appendChild(tabEl);
@@ -1151,6 +1172,7 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     QDockWidget *dockGeneratorWidget = addTxGeneratorWidget(mm);
     QDockWidget *dockGraphWidget    = addGraphWidget(mm);
     QDockWidget *dockReplayWidget   = addReplayWidget(mm);
+    QDockWidget *dockMotorWidget    = addMotorWidget(mm);
 
     auto *gen = qobject_cast<TxGeneratorWindow *>(dockGeneratorWidget->widget());
     if (gen)
@@ -1161,23 +1183,25 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     mm->splitDockWidget(dockGeneratorWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockGraphWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockReplayWidget, dockLogWidget, Qt::Horizontal);
+    mm->splitDockWidget(dockMotorWidget, dockLogWidget, Qt::Horizontal);
     mm->tabifyDockWidget(dockGeneratorWidget, dockGraphWidget);
     mm->tabifyDockWidget(dockGraphWidget, dockReplayWidget);
+    mm->tabifyDockWidget(dockReplayWidget, dockMotorWidget);
     mm->splitDockWidget(dockStatusWidget, dockLogWidget, Qt::Horizontal);
     mm->tabifyDockWidget(dockStatusWidget, dockLogWidget);
 
     // Deferred resize so it runs after the event loop settles.
-    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget]()
+    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget]()
     {
         dockStatusWidget->show();
         dockStatusWidget->raise();
         dockGeneratorWidget->show();
         dockGeneratorWidget->raise();
 
-        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget},
-                        {600, 600, 600, 600}, Qt::Vertical);
-        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget},
-                        {1200, 1200, 1200, 1200}, Qt::Horizontal);
+        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget},
+                        {600, 600, 600, 600, 600}, Qt::Vertical);
+        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget},
+                        {1200, 1200, 1200, 1200, 1200}, Qt::Horizontal);
     });
 
     ui->mainTabs->setCurrentWidget(mm);
@@ -1276,6 +1300,12 @@ QDockWidget *MainWindow::addReplayWidget(QMainWindow *parent)
 {
     return makeDock(tr("Replay"), QStringLiteral("dock_replay"),
                     new ReplayWindow(nullptr, backend()), parent);
+}
+
+QDockWidget *MainWindow::addMotorWidget(QMainWindow *parent)
+{
+    return makeDock(tr("Motor View"), QStringLiteral("dock_motor"),
+                    new MotorView(nullptr, backend()), parent);
 }
 
 void MainWindow::setupDockFloatReparent(QDockWidget *dock, QMainWindow *innerParent)
