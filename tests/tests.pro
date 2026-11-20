@@ -14,7 +14,6 @@ SUBDIRS += \
     trace_file_reader \
     trace_recorder \
     trigger_capture \
-    decoders \
     ldf_parser \
     candle_driver \
     measurement_setup \

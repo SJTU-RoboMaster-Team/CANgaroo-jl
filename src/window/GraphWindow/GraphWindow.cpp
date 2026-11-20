@@ -48,7 +48,6 @@
 #include "db/model/LinSignal.h"
 
 #include "TimeSeriesVisualization.h"
-#include "window/ConditionalLoggingDialog/ConditionalLoggingDialog.h"
 #include "ScatterVisualization.h"
 #include "TextVisualization.h"
 #include "GaugeVisualization.h"
@@ -366,17 +365,6 @@ GraphWindow::GraphWindow(QWidget *parent, Backend &backend) :
 
     _decoderThread->start();
 
-    // Conditional Logging Panel
-    connect(ui->chkGraphFilter, &QCheckBox::toggled, this, &GraphWindow::onConditionToggled);
-
-    ConditionalLoggingManager *mgr = _backend.getConditionalLoggingManager();
-    connect(mgr, &ConditionalLoggingManager::conditionChanged, this, &GraphWindow::onConditionChanged);
-    connect(mgr, &ConditionalLoggingManager::liveValuesUpdated, this, &GraphWindow::onLiveValuesUpdated);
-
-    ui->chkGraphFilter->setChecked(mgr->isEnabled());
-    onConditionChanged(mgr->isConditionMet());
-    updateConditionalSignals();
-
     // Dynamic Column Selector for Gauges (Grouped in a container)
     _columnContainer = new QWidget(this);
     QHBoxLayout *colLayout = new QHBoxLayout(_columnContainer);
@@ -402,7 +390,6 @@ GraphWindow::GraphWindow(QWidget *parent, Backend &backend) :
     connect(ui->signalSearchEdit, &QLineEdit::textChanged, this, &GraphWindow::onSearchTextChanged);
     connect(ui->btnAddGraph, &QPushButton::clicked, this, &GraphWindow::onAddGraphClicked);
     connect(ui->signalTree, &QTreeWidget::itemChanged, this, &GraphWindow::onSignalItemChanged);
-    connect(ui->btnAddCondition, &QPushButton::clicked, this, &GraphWindow::onAddToConditionClicked);
     connect(&_backend, &Backend::onSetupChanged, this, &GraphWindow::populateSignalTree);
 
     populateSignalTree();
@@ -551,17 +538,10 @@ void GraphWindow::resetGraphView()
 {
     clearGraphData();
 
-    // Reset Conditional Logging (Signals, conditions, triggers)
-    ConditionalLoggingManager *mgr = _backend.getConditionalLoggingManager();
-    mgr->reset();
-
     // Clear signals from ALL visualizations
     for (auto v : _visualizations) {
         v->clearSignals();
     }
-
-    // Reset UI state
-    ui->chkGraphFilter->setChecked(false);
 
     if (_activeVisualization) _activeVisualization->resetZoom();
 }
@@ -584,200 +564,6 @@ void GraphWindow::onFullResetClicked()
 void GraphWindow::on_resetZoomButton_clicked()
 {
     if (_activeVisualization) _activeVisualization->resetZoom();
-}
-
-void GraphWindow::onConditionChanged(bool met)
-{
-    const ThemeColors &tc = ThemeManager::instance().colors();
-    if (met) {
-        ui->triggerStatusLabel->setText(tr("CONDITION MET - ACTIVE"));
-        ui->triggerStatusLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(tc.statusSuccess.name()));
-
-        if (ui->chkGraphFilter->isChecked()) {
-            QColor tint = tc.statusSuccess;
-            tint.setAlpha(28);
-            for (auto v : _visualizations) {
-                if (auto tsv = qobject_cast<TimeSeriesVisualization*>(v)) {
-                    if (tsv->chart()) tsv->chart()->setBackgroundBrush(QBrush(tint));
-                } else if (auto sv = qobject_cast<ScatterVisualization*>(v)) {
-                    if (sv->chart()) sv->chart()->setBackgroundBrush(QBrush(tint));
-                }
-            }
-        }
-    } else {
-        ui->triggerStatusLabel->setText(tr("Condition not met - Waiting..."));
-        ui->triggerStatusLabel->setStyleSheet(QString());
-
-        for (auto v : _visualizations) {
-            v->applyTheme(ThemeManager::instance().currentTheme()); // Reset to default layout
-        }
-    }
-}
-
-void GraphWindow::onLiveValuesUpdated(const QMap<CanDbSignal*, double>& values, bool isStale)
-{
-    const ThemeColors &tc = ThemeManager::instance().colors();
-    for (int r = 0; r < ui->conditionTable->rowCount(); ++r) {
-        QTableWidgetItem *nameItem = ui->conditionTable->item(r, 0);
-        if (!nameItem) continue;
-        auto *sig = static_cast<CanDbSignal*>(nameItem->data(Qt::UserRole).value<void*>());
-
-        QLabel *liveLabel = qobject_cast<QLabel*>(ui->conditionTable->cellWidget(r, 3));
-        if (liveLabel && sig) {
-            if (values.contains(sig)) {
-                liveLabel->setText(QString::number(values[sig], 'f', 2));
-                if (isStale) {
-                    liveLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(tc.statusError.name()));
-                    ui->triggerStatusLabel->setText(tr("Idle - Signal Lost"));
-                    ui->triggerStatusLabel->setStyleSheet(QStringLiteral("color: %1; font-style: italic;").arg(tc.graphAxisText.name()));
-                } else {
-                    liveLabel->setStyleSheet(QStringLiteral("color: %1; font-weight: bold;").arg(tc.statusSuccess.name()));
-                }
-            } else {
-                liveLabel->setText("-");
-                liveLabel->setStyleSheet("");
-            }
-        }
-    }
-}
-
-void GraphWindow::onConditionToggled()
-{
-    bool graphFilter = ui->chkGraphFilter->isChecked();
-
-    ConditionalLoggingManager *mgr = _backend.getConditionalLoggingManager();
-    mgr->setEnabled(graphFilter);
-
-    onConditionChanged(mgr->isConditionMet());
-}
-
-void GraphWindow::onAddToConditionClicked()
-{
-    // Iterate over whole tree to find checked signals
-    QTreeWidgetItemIterator it(ui->signalTree);
-    while (*it) {
-        if ((*it)->checkState(0) == Qt::Checked) {
-            void* sigPtr = (*it)->data(0, Qt::UserRole).value<void*>();
-            if (sigPtr) {
-                GraphSignal *gs = static_cast<GraphSignal*>(sigPtr);
-
-                // Condition table only supports CAN signals
-                if (gs->isLin()) {
-                    ++it;
-                    continue;
-                }
-
-                CanDbSignal *sig = gs->asCanSignal();
-
-                // Ensure it's not already in the table
-                bool alreadyAdded = false;
-                for (int r = 0; r < ui->conditionTable->rowCount(); ++r) {
-                    QTableWidgetItem *existingItem = ui->conditionTable->item(r, 0);
-                    if (existingItem && existingItem->data(Qt::UserRole).value<void*>() == static_cast<void*>(sig)) {
-                        alreadyAdded = true;
-                        break;
-                    }
-                }
-
-                if (!alreadyAdded) {
-                    int row = ui->conditionTable->rowCount();
-                    ui->conditionTable->insertRow(row);
-
-                    QString parentMsgName = gs->parentName();
-                    if (parentMsgName.isEmpty()) parentMsgName = "MSG";
-                    QTableWidgetItem *nameItem = new QTableWidgetItem(QString("[%1] %2").arg(parentMsgName).arg(gs->name()));
-                    nameItem->setData(Qt::UserRole, QVariant::fromValue(static_cast<void*>(sig)));
-
-                    BusInterfaceIdList ifaces = (*it)->data(0, Qt::UserRole + 1).value<BusInterfaceIdList>();
-                    nameItem->setData(Qt::UserRole + 1, QVariant::fromValue(ifaces));
-
-                    ui->conditionTable->setItem(row, 0, nameItem);
-
-                    QComboBox *opCombo = new QComboBox();
-                    opCombo->addItems({">", "<", "==", ">=", "<=", "!="});
-                    ui->conditionTable->setCellWidget(row, 1, opCombo);
-
-                    QLineEdit *valEdit = new QLineEdit("0");
-                    ui->conditionTable->setCellWidget(row, 2, valEdit);
-
-                    QLabel *liveLabel = new QLabel("-");
-                    liveLabel->setAlignment(Qt::AlignCenter);
-                    ui->conditionTable->setCellWidget(row, 3, liveLabel);
-
-                    QPushButton *removeBtn = new QPushButton("Remove");
-                    connect(removeBtn, &QPushButton::clicked, this, [this, removeBtn]() {
-                        for (int r = 0; r < ui->conditionTable->rowCount(); ++r) {
-                            if (ui->conditionTable->cellWidget(r, 4) == removeBtn) {
-                                ui->conditionTable->removeRow(r);
-                                buildConditionsFromTable();
-                                break;
-                            }
-                        }
-                    });
-                    ui->conditionTable->setCellWidget(row, 4, removeBtn);
-
-                    connect(opCombo, &QComboBox::currentIndexChanged, this, [this]() { buildConditionsFromTable(); });
-                    connect(valEdit, &QLineEdit::textChanged, this, [this]() { buildConditionsFromTable(); });
-                }
-            }
-        }
-        ++it;
-    }
-
-    buildConditionsFromTable();
-}
-
-void GraphWindow::buildConditionsFromTable()
-{
-    QList<LoggingCondition> conds;
-    QList<CanDbSignal*> sigs;
-    QMap<CanDbSignal*, BusInterfaceIdList> interfaces;
-
-    for (int r = 0; r < ui->conditionTable->rowCount(); ++r) {
-        QTableWidgetItem *nameItem = ui->conditionTable->item(r, 0);
-        if (!nameItem) continue;
-        auto *sig = static_cast<CanDbSignal*>(nameItem->data(Qt::UserRole).value<void*>());
-        BusInterfaceIdList ifaces = nameItem->data(Qt::UserRole + 1).value<BusInterfaceIdList>();
-
-        QComboBox *opCombo = qobject_cast<QComboBox*>(ui->conditionTable->cellWidget(r, 1));
-        QLineEdit *valEdit = qobject_cast<QLineEdit*>(ui->conditionTable->cellWidget(r, 2));
-
-        if (sig && opCombo && valEdit) {
-            LoggingCondition lc;
-            lc.signal = sig;
-            lc.threshold = valEdit->text().toDouble();
-            switch (opCombo->currentIndex()) {
-                case 0: lc.op = ConditionOperator::Greater; break;
-                case 1: lc.op = ConditionOperator::Less; break;
-                case 2: lc.op = ConditionOperator::Equal; break;
-                case 3: lc.op = ConditionOperator::GreaterEqual; break;
-                case 4: lc.op = ConditionOperator::LessEqual; break;
-                case 5: lc.op = ConditionOperator::NotEqual; break;
-            }
-            conds.append(lc);
-            if (!sigs.contains(sig)) {
-                sigs.append(sig);
-                interfaces[sig] = ifaces;
-            }
-        }
-    }
-
-    ConditionalLoggingManager *mgr = _backend.getConditionalLoggingManager();
-    mgr->setConditions(conds, true); // use AND logic
-    mgr->setLogSignals(sigs);
-    mgr->setSignalInterfaces(interfaces);
-
-    ui->chkGraphFilter->setEnabled(conds.size() > 0);
-    if (conds.isEmpty()) {
-        ui->chkGraphFilter->setChecked(false);
-    }
-
-    updateConditionalSignals();
-}
-
-void GraphWindow::updateConditionalSignals()
-{
-    notifyWorkerActiveSignals();
 }
 
 void GraphWindow::notifyWorkerActiveSignals()
@@ -804,19 +590,13 @@ void GraphWindow::onDecodedDataReady(const QMap<GraphSignal*, DecodedSignalData>
         }
     }
 
-    // Live visualizations
-    bool triggerEnabled = ui->chkGraphFilter->isChecked();
-    bool conditionMet = _backend.getConditionalLoggingManager()->isConditionMet();
-
-    if (!triggerEnabled || conditionMet) {
-        for (auto v : _visualizations) {
-            v->addDecodedData(newPoints);
-        }
-        // In offline mode (import / replay without live measurement), timers are
-        // paused, so push decoded points to the active chart immediately.
-        if (!_measurementActive && _activeVisualization) {
-            _activeVisualization->onActivated();
-        }
+    for (auto v : _visualizations) {
+        v->addDecodedData(newPoints);
+    }
+    // In offline mode (import / replay without live measurement), timers are
+    // paused, so push decoded points to the active chart immediately.
+    if (!_measurementActive && _activeVisualization) {
+        _activeVisualization->onActivated();
     }
 }
 

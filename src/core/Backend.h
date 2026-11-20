@@ -35,7 +35,6 @@
 #include "db/model/LinDb.h"
 #include "core/MeasurementSetup.h"
 #include "core/Log.h"
-#include "core/ConditionalLoggingManager.h"
 
 class MeasurementNetwork;
 class BusTrace;
@@ -84,7 +83,6 @@ public:
     BusTrace *getTrace();
     void clearTrace();
 
-    ConditionalLoggingManager *getConditionalLoggingManager() const { return _conditionalLoggingManager; }
     TraceRecorder *getTraceRecorder() const { return _traceRecorder; }
     TriggerCaptureManager *getTriggerCaptureManager() const { return _triggerCaptureManager; }
 
@@ -104,7 +102,6 @@ public:
     pCanDb loadDbc(QString filename, QString *errorMsg = nullptr);
     pLinDb loadLdf(QString filename, QString *errorMsg = nullptr);
 
-    void notifyDecoderConfigChanged();
     void notifyDisplayConfigChanged();
 
     void clearLog();
@@ -145,7 +142,6 @@ private:
     QList<BusListener*> _listeners;
 
     LogModel *_logModel;
-    ConditionalLoggingManager *_conditionalLoggingManager;
     TraceRecorder *_traceRecorder = nullptr;
     TriggerCaptureManager *_triggerCaptureManager = nullptr;
 };

@@ -53,7 +53,6 @@ Backend::Backend()
 
     setDefaultSetup();
     _trace = new BusTrace(*this, this, 50);
-    _conditionalLoggingManager = new ConditionalLoggingManager(*this, this);
     _traceRecorder = new TraceRecorder(
         [this](BusInterfaceId id) { return getInterfaceName(id); },
         [this]() { return isMeasurementRunning(); },
@@ -108,11 +107,6 @@ void Backend::refreshInterfaces()
     for (auto *driver : _drivers) {
         driver->update();
     }
-    emit onSetupChanged();
-}
-
-void Backend::notifyDecoderConfigChanged()
-{
     emit onSetupChanged();
 }
 
@@ -517,7 +511,5 @@ void Backend::logMessage(const QDateTime dt, const log_level_t level, const QStr
 
 void Backend::onMessageEnqueued(int idx)
 {
-    if (_conditionalLoggingManager->isEnabled()) {
-        _conditionalLoggingManager->processMessage(_trace->getMessage(idx));
-    }
+    Q_UNUSED(idx);
 }

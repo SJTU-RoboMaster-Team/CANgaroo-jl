@@ -11,7 +11,6 @@ SOURCES += \
     $$PWD/ConfigurableWidget.cpp \
     $$PWD/Log.cpp \
     $$PWD/ThemeManager.cpp \
-    $$PWD/ConditionalLoggingManager.cpp \
     $$PWD/TraceLineFormat.cpp \
     $$PWD/TraceFileWriter.cpp \
     $$PWD/TraceFileReader.cpp \
@@ -31,7 +30,6 @@ HEADERS += \
     $$PWD/ConfigurableWidget.h \
     $$PWD/Log.h \
     $$PWD/ThemeManager.h \
-    $$PWD/ConditionalLoggingManager.h \
     $$PWD/TraceLineFormat.h \
     $$PWD/TraceFileWriter.h \
     $$PWD/TraceFileReader.h \

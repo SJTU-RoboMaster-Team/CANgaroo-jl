@@ -166,16 +166,6 @@ SettingsDialog::SettingsDialog(QSettings &settings, QActionGroup *languageGroup,
 
     mainLayout->addWidget(grpTrace);
 
-    // ── Decoders ──────────────────────────────────────────────────────────────
-    auto *grpDecoders = new QGroupBox(tr("Decoders"), this);
-    auto *formDecoders = new QFormLayout(grpDecoders);
-
-    m_uds29BitCheck = new QCheckBox(tr("Decode UDS on 29-bit (extended) CAN IDs"), grpDecoders);
-    m_uds29BitCheck->setChecked(settings.value("decoder/uds29Bit", true).toBool());
-    formDecoders->addRow(m_uds29BitCheck);
-
-    mainLayout->addWidget(grpDecoders);
-
     mainLayout->addSpacing(10);
 
     // --- Buttons ---
@@ -213,11 +203,6 @@ bool SettingsDialog::clearTraceOnStart() const
 int SettingsDialog::selectedFontSize() const
 {
     return m_fontSizeSpin->value();
-}
-
-bool SettingsDialog::uds29BitEnabled() const
-{
-    return m_uds29BitCheck->isChecked();
 }
 
 bool SettingsDialog::skipSaveWorkspacePrompt() const

@@ -117,11 +117,6 @@ private slots:
     void onZoomInClicked();
     void onZoomOutClicked();
     void on_resetZoomButton_clicked();
-    void onConditionChanged(bool met);
-    void onLiveValuesUpdated(const QMap<CanDbSignal*, double>& values, bool isStale);
-    void onConditionToggled();
-    void onAddToConditionClicked();
-    void buildConditionsFromTable();
     void onDecodedDataReady(const QMap<GraphSignal*, DecodedSignalData>& newPoints, double globalStartTime);
     void onMouseMove(QMouseEvent *event);
     void onLegendMarkerClicked();
@@ -162,7 +157,6 @@ private:
 
     void setupVisualizations();
     void updateVisualizationActivation();
-    void updateConditionalSignals();
     void clearGraphData();
     void resetGraphView();
     void notifyWorkerActiveSignals();

@@ -40,7 +40,6 @@ public:
     bool restoreWindowEnabled() const;
     bool clearTraceOnStart() const;
     int selectedFontSize() const;
-    bool uds29BitEnabled() const;
     bool skipSaveWorkspacePrompt() const;
     QString preferredSaveFormat() const;
     int defaultTraceViewMode() const;
@@ -58,7 +57,6 @@ private:
     QCheckBox *m_nativeStylingCheck;
     QCheckBox *m_restoreWindowCheck;
     QCheckBox *m_clearTraceOnStartCheck;
-    QCheckBox *m_uds29BitCheck;
     QCheckBox *m_skipSaveWorkspacePromptCheck;
     QSpinBox *m_fontSizeSpin;
     QSpinBox *m_maxTraceSizeSpin;

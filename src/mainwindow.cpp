@@ -59,7 +59,6 @@
 #include "window/RawTxWindow/RawTxWindow.h"
 #include "window/TxGeneratorWindow/TxGeneratorWindow.h"
 #include "window/ReplayWindow/ReplayWindow.h"
-#include "window/GatewayWindow/GatewayWindow.h"
 #include "window/SettingsDialog/SettingsDialog.h"
 #include "window/RecordingDialog/RecordingDialog.h"
 #include "window/TriggerCaptureDialog/TriggerCaptureDialog.h"
@@ -155,25 +154,6 @@ void MainWindow::initActions()
     _btnOpenGraph->setCursor(Qt::PointingHandCursor);
     ui->horizontalLayoutControls->insertWidget(4, _btnOpenGraph);
     connect(_btnOpenGraph, &QPushButton::clicked, this, &MainWindow::createStandaloneGraphWindow);
-
-    // Gateway Button
-    auto *btnGateway = new QPushButton(tr("Gateway"), this);
-    btnGateway->setCursor(Qt::PointingHandCursor);
-    ui->horizontalLayoutControls->insertWidget(5, btnGateway);
-    connect(btnGateway, &QPushButton::clicked, this, &MainWindow::createGatewayWindow);
-
-    auto updateGatewayButton = [btnGateway, this]() {
-        int canIfCount = 0;
-        for (auto *net : backend().getSetup().getNetworks())
-            for (auto *mi : net->interfaces()) {
-                BusInterface *intf = backend().getInterfaceById(mi->busInterface());
-                if (intf && intf->busType() == BusType::CAN)
-                    ++canIfCount;
-            }
-        btnGateway->setEnabled(canIfCount >= 2);
-    };
-    connect(&backend(), &Backend::onSetupChanged, this, updateGatewayButton);
-    updateGatewayButton();
 
     initRecording();
     initTriggerCapture();
@@ -558,7 +538,7 @@ void MainWindow::initRecording()
     _recordStatusLabel = new QLabel(this);
     _recordStatusLabel->setVisible(false);
 
-    // Controls layout: Start, Stop, spacer, Setup, Graph, Gateway, [here], stretch
+    // Controls layout: Start, Stop, spacer, Setup, Graph, [here], stretch
     ui->horizontalLayoutControls->insertSpacing(6, 30);
     ui->horizontalLayoutControls->insertWidget(7, _btnRecord);
     ui->horizontalLayoutControls->insertWidget(8, _recordStatusLabel);
@@ -856,8 +836,6 @@ void MainWindow::clearWorkspace()
             gw->close();
     }
 
-    delete _gatewayWindow;
-    _gatewayWindow = nullptr;
 
     _workspaceFileName.clear();
     _setupFromWorkspace = false;
@@ -974,15 +952,11 @@ void MainWindow::loadWorkspaceFromFile(const QString &filename)
         log_error(QString(tr("Unable to read measurement setup from workspace config file: %1")).arg(filename));
     }
 
-    QDomElement gwEl = root.firstChildElement("gatewaywindow");
-    if (!gwEl.isNull())
+    // Workspaces from before the CAN gateway window was dropped still carry a
+    // <gatewaywindow> element; it is ignored rather than failing the load.
+    if (!root.firstChildElement("gatewaywindow").isNull())
     {
-        if (!_gatewayWindow)
-        {
-            _gatewayWindow = new GatewayWindow(nullptr, backend());
-            _gatewayWindow->setWindowTitle(tr("CAN Gateway"));
-        }
-        _gatewayWindow->loadXML(backend(), gwEl);
+        log_info(QString(tr("Ignoring gatewaywindow section from workspace; the CAN gateway is no longer available")));
     }
 
     if (ui->mainTabs->count() > 0)
@@ -1049,13 +1023,6 @@ bool MainWindow::saveWorkspaceToFile(const QString &filename)
         return false;
     }
     root.appendChild(setupRoot);
-
-    if (_gatewayWindow)
-    {
-        QDomElement gwEl = doc.createElement("gatewaywindow");
-        _gatewayWindow->saveXML(backend(), doc, gwEl);
-        root.appendChild(gwEl);
-    }
 
     QFile outFile(filename);
     if (!outFile.open(QIODevice::WriteOnly | QIODevice::Text))
@@ -1223,17 +1190,6 @@ QMainWindow *MainWindow::createGraphWindow(const QString &title)
     mm->setCentralWidget(new GraphWindow(mm, backend()));
     addLogWidget(mm);
     return mm;
-}
-
-void MainWindow::createGatewayWindow()
-{
-    if (!_gatewayWindow) {
-        _gatewayWindow = new GatewayWindow(nullptr, backend());
-        _gatewayWindow->setWindowTitle(tr("CAN Gateway"));
-    }
-    _gatewayWindow->show();
-    _gatewayWindow->raise();
-    _gatewayWindow->activateWindow();
 }
 
 void MainWindow::createStandaloneGraphWindow()
@@ -1967,10 +1923,6 @@ void MainWindow::showSettingsDialog()
 
     // Apply clear trace on start setting.
     settings.setValue("ui/clearTraceOnStart", dlg.clearTraceOnStart());
-
-    // Apply UDS 29-bit decoding setting.
-    settings.setValue("decoder/uds29Bit", dlg.uds29BitEnabled());
-    backend().notifyDecoderConfigChanged();
 
     // Apply skip-save-prompt setting.
     settings.setValue("ui/skipSaveWorkspacePrompt", dlg.skipSaveWorkspacePrompt());
