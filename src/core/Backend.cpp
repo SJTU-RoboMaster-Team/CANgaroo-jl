@@ -134,8 +134,7 @@ bool Backend::startMeasurement(bool preserveTrace)
     // Before the listeners start, so the recording includes the first frames.
     _traceRecorder->onMeasurementStarting();
 
-    // Configure every interface first, then let each backend finish deferred
-    // work once (SocketCAN runs all ip commands under a single privilege prompt).
+    // Configure every enabled interface before any listener opens one.
     for (auto *network : _setup.getNetworks())
     {
         for (auto *mi : network->interfaces())
@@ -149,21 +148,6 @@ bool Backend::startMeasurement(bool preserveTrace)
             {
                 mi->setSavedIdentity(getDriverName(mi->busInterface()), intf->getName(), intf->hardwareKey());
                 intf->applyConfig(*mi);
-            }
-        }
-    }
-    for (auto *network : _setup.getNetworks())
-    {
-        for (auto *mi : network->interfaces())
-        {
-            if (!mi->isEnabled())
-            {
-                continue;
-            }
-            BusInterface *intf = getInterfaceById(mi->busInterface());
-            if (intf)
-            {
-                intf->flushPendingConfig();
             }
         }
     }

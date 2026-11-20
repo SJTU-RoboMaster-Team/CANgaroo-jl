@@ -4,7 +4,6 @@ QT += core gui
 QT += widgets
 QT += xml
 QT += charts
-QT += serialport
 QT += svg
 QT += network
 
@@ -58,37 +57,7 @@ win32 {
     INCLUDEPATH += $$PYBIND11_INCLUDE
 }
 
-unix:PKGCONFIG += libnl-3.0
-unix:PKGCONFIG += libnl-route-3.0
-unix:INCLUDEPATH += /usr/include/libnl3
-unix:include($$PWD/driver/SocketCanDriver/SocketCanDriver.pri)
-
-# Serial port seam for drivers that take a simulated device in tests (SLCAN).
-# Included once here, not from the driver .pri files.
-include($$PWD/driver/SerialTransport/SerialTransport.pri)
-include($$PWD/driver/SLCANDriver/SLCANDriver.pri)
-
 win32:include($$PWD/driver/CandleApiDriver/CandleApiDriver.pri)
-
-# Pass CONFIG+=peakcan to qmake to enable the PEAK PCAN driver.
-# Requires the PCAN-Basic SDK extracted to src/driver/PeakCanDriver/pcan-basic-api/.
-# Download: https://www.peak-system.com/fileadmin/media/files/PCAN-Basic.zip
-win32:peakcan {
-    DEFINES += PEAKCAN_DRIVER
-    include($$PWD/driver/PeakCanDriver/PeakCanDriver.pri)
-}
-
-# Pass CONFIG+=kvaser to qmake to enable the Kvaser CANlib driver.
-# Requires the Kvaser CANlib SDK (canlib.h + libcanlib / canlib32.dll).
-# On Windows also set CANLIB_DIR=<path to SDK> (see KvaserDriver.pri).
-kvaser {
-    DEFINES += KVASER_DRIVER
-    include($$PWD/driver/KvaserDriver/KvaserDriver.pri)
-}
-
-# Vector CAN driver — always enabled via Qt serialbus.
-# Requires the Vector XL Driver Library installed on the target machine at runtime.
-include($$PWD/driver/VectorDriver/VectorDriver.pri)
 
 DISTFILES += \
     assets/filter-symbolic.svg

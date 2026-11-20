@@ -67,26 +67,7 @@
 #include "window/HardwareDialog/HardwareDialog.h"
 #include "helpers/apphelpers.h"
 
-#include "driver/SLCANDriver/SLCANDriver.h"
-
-#if defined(__linux__)
-#include <unistd.h>
-#include "driver/SocketCanDriver/SocketCanDriver.h"
-#else
 #include "driver/CandleApiDriver/CandleApiDriver.h"
-#endif
-
-#ifdef VECTOR_DRIVER
-#include "driver/VectorDriver/VectorDriver.h"
-#endif
-
-#ifdef PEAKCAN_DRIVER
-#include "driver/PeakCanDriver/PeakCanDriver.h"
-#endif
-
-#ifdef KVASER_DRIVER
-#include "driver/KvaserDriver/KvaserDriver.h"
-#endif
 
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
@@ -204,25 +185,7 @@ void MainWindow::initActions()
 void MainWindow::initDrivers()
 {
     // addCanDriver takes ownership via the reference; the raw pointer is intentionally discarded.
-#if defined(__linux__)
-    Backend::instance().addCanDriver(*(new SocketCanDriver(Backend::instance())));
-#else
     Backend::instance().addCanDriver(*(new CandleApiDriver(Backend::instance())));
-#endif
-
-    Backend::instance().addCanDriver(*(new SLCANDriver(Backend::instance())));
-
-#ifdef PEAKCAN_DRIVER
-    Backend::instance().addCanDriver(*(new PeakCanDriver(Backend::instance())));
-#endif
-
-#ifdef KVASER_DRIVER
-    Backend::instance().addCanDriver(*(new KvaserDriver(Backend::instance())));
-#endif
-
-#ifdef VECTOR_DRIVER
-    Backend::instance().addCanDriver(*(new VectorDriver(Backend::instance())));
-#endif
 }
 
 void MainWindow::initGeometry()
@@ -1431,24 +1394,6 @@ bool MainWindow::showSetupDialog()
         backend().setSetup(new_setup);
     else
         new_setup.cloneFrom(backend().getSetup());
-
-#if defined(__linux__)
-    // Default SocketCAN interfaces to "configured by OS" when not running as root.
-    // Only as the initial default: once the setup was confirmed or came from a
-    // workspace file, the stored choice for "configured by OS" must stick.
-    if (geteuid() != 0 && !_hasConfirmedSetup && !_setupFromWorkspace)
-    {
-        for (auto *network : new_setup.getNetworks())
-        {
-            for (auto *mi : network->interfaces())
-            {
-                BusInterface *intf = backend().getInterfaceById(mi->busInterface());
-                if (intf && intf->getDriver()->getName() == "SocketCAN")
-                    mi->setDoConfigure(false);
-            }
-        }
-    }
-#endif
 
     if (_setupDlg->showSetupDialog(new_setup))
     {
