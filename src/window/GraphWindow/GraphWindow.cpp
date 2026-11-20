@@ -957,6 +957,42 @@ void GraphWindow::populateSignalTree()
 
     QTreeWidgetItem *virtRoot = nullptr;
 
+    auto addDatabaseToTree = [&](QTreeWidgetItem *root, const pCanDb &db,
+                                 const QVariant &interfaceData)
+    {
+        for (CanDbMessage *msg : db->getMessageList().values()) {
+            QString msgName = msg->getName().trimmed();
+            if (msgName.isEmpty())
+                msgName = "MSG_" + QString::number(msg->getRaw_id(), 16).toUpper();
+
+            QTreeWidgetItem *msgItem = new QTreeWidgetItem(root);
+            msgItem->setText(0, QString("%1 (0x%2)").arg(msgName).arg(msg->getRaw_id(), 0, 16));
+            msgItem->setText(3, "MSG");
+            msgItem->setCheckState(0, Qt::Unchecked);
+
+            QPixmap msgPix(12, 12);
+            msgPix.fill(QColor("#607d8b"));
+            msgItem->setIcon(0, QIcon(msgPix));
+
+            for (CanDbSignal *sig : msg->getSignals()) {
+                auto *gs = new GraphSignal(sig);
+                _ownedSignals.append(gs);
+
+                QString sigName = sig->name().trimmed();
+                if (sigName.isEmpty()) sigName = "Signal";
+
+                QString details = QString("%1 | %2..%3 %4")
+                    .arg(sig->isUnsigned() ? tr("Unsigned") : tr("Signed"))
+                    .arg(sig->getMinimumValue())
+                    .arg(sig->getMaximumValue())
+                    .arg(sig->getUnit());
+
+                addSignalItem(msgItem, gs, sigName, msgName,
+                              details, sig->comment(), interfaceData);
+            }
+        }
+    };
+
     for (MeasurementNetwork *network : setup.getNetworks()) {
         BusInterfaceIdList interfaces = network->getReferencedBusInterfaces();
         QVariant interfaceData = QVariant::fromValue(interfaces);
@@ -968,37 +1004,7 @@ void GraphWindow::populateSignalTree()
             canRoot->setExpanded(true);
 
             for (pCanDb db : network->_canDbs) {
-                for (CanDbMessage *msg : db->getMessageList().values()) {
-                    QString msgName = msg->getName().trimmed();
-                    if (msgName.isEmpty())
-                        msgName = "MSG_" + QString::number(msg->getRaw_id(), 16).toUpper();
-
-                    QTreeWidgetItem *msgItem = new QTreeWidgetItem(canRoot);
-                    msgItem->setText(0, QString("%1 (0x%2)").arg(msgName).arg(msg->getRaw_id(), 0, 16));
-                    msgItem->setText(3, "MSG");
-                    msgItem->setCheckState(0, Qt::Unchecked);
-
-                    QPixmap msgPix(12, 12);
-                    msgPix.fill(QColor("#607d8b"));
-                    msgItem->setIcon(0, QIcon(msgPix));
-
-                    for (CanDbSignal *sig : msg->getSignals()) {
-                        auto *gs = new GraphSignal(sig);
-                        _ownedSignals.append(gs);
-
-                        QString sigName = sig->name().trimmed();
-                        if (sigName.isEmpty()) sigName = "Signal";
-
-                        QString details = QString("%1 | %2..%3 %4")
-                            .arg(sig->isUnsigned() ? tr("Unsigned") : tr("Signed"))
-                            .arg(sig->getMinimumValue())
-                            .arg(sig->getMaximumValue())
-                            .arg(sig->getUnit());
-
-                        addSignalItem(msgItem, gs, sigName, msgName,
-                                      details, sig->comment(), interfaceData);
-                    }
-                }
+                addDatabaseToTree(canRoot, db, interfaceData);
             }
         }
 
@@ -1032,6 +1038,15 @@ void GraphWindow::populateSignalTree()
             pix.fill(QColor("#ff8f00"));
             sigItem->setIcon(0, QIcon(pix));
         }
+    }
+
+    // ── Built-in motor database (generated from the Motor View configuration) ──
+    if (pCanDb motorDb = _backend.getMotorDb()) {
+        QTreeWidgetItem *motorRoot = new QTreeWidgetItem(ui->signalTree);
+        motorRoot->setText(0, tr("Motor (built-in)"));
+        motorRoot->setExpanded(true);
+        // Motor frames are not bound to one network: accept every interface.
+        addDatabaseToTree(motorRoot, motorDb, QVariant::fromValue(BusInterfaceIdList{}));
     }
 
     ui->signalTree->blockSignals(false);

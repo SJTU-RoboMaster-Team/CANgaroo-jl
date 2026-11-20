@@ -86,6 +86,11 @@ public:
     TriggerCaptureManager *getTriggerCaptureManager() const { return _triggerCaptureManager; }
     MotorManager *getMotorManager() const { return _motorManager; }
 
+    /// Built-in database generated from the Motor View configuration. It is
+    /// regenerated whenever the motor list changes and is not part of the
+    /// measurement setup (so it is never written to a workspace file).
+    [[nodiscard]] pCanDb getMotorDb() const;
+
     CanDbMessage *findDbMessage(const BusMessage &msg) const;
 
     [[nodiscard]] const QList<CanDriver*> &getDrivers() const noexcept { return _drivers; }
@@ -122,6 +127,7 @@ signals:
 
 private slots:
     void onListenerDisconnected(BusInterfaceId id, const QString &interfaceName, const QString &reason);
+    void onMotorConfigChanged();
 
 private:
     static Backend *_instance;
@@ -140,4 +146,12 @@ private:
     TraceRecorder *_traceRecorder = nullptr;
     TriggerCaptureManager *_triggerCaptureManager = nullptr;
     MotorManager *_motorManager = nullptr;
+
+    mutable QMutex _motorDbMutex;
+    pCanDb _motorDb;
+    // Old databases are kept alive for a while: the trigger evaluator runs on
+    // the bus listener thread and may still use a CanDbMessage pointer handed
+    // out just before a configuration change. Config changes are UI driven and
+    // rare, so a bounded history is enough and prevents a use-after-free.
+    QList<pCanDb> _motorDbRetired;
 };

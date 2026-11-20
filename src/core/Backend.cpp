@@ -30,6 +30,7 @@
 #include "core/TraceRecorder.h"
 #include "core/TriggerCaptureManager.h"
 #include "core/MotorManager.h"
+#include "decoders/motor/MotorDbc.h"
 #include "core/MeasurementSetup.h"
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementInterface.h"
@@ -78,6 +79,7 @@ Backend::Backend()
         this);
 
     _motorManager = new MotorManager(this);
+    connect(_motorManager, &MotorManager::configChanged, this, &Backend::onMotorConfigChanged);
 
     connect(&_setup, &MeasurementSetup::onSetupChanged, this, &Backend::onSetupChanged);
 }
@@ -360,7 +362,52 @@ void Backend::clearTrace()
 
 CanDbMessage *Backend::findDbMessage(const BusMessage &msg) const
 {
-    return _setup.findDbMessage(msg);
+    if (CanDbMessage *dbMsg = _setup.findDbMessage(msg)) {
+        return dbMsg;
+    }
+
+    // Fall back to the built-in motor database so the decoded motor frames get
+    // Trace child rows and can be used by trigger rules without a user supplied
+    // DBC. Motor frames use classical 11-bit identifiers.
+    if (msg.isExtended() || msg.isErrorFrame()) {
+        return nullptr;
+    }
+    QMutexLocker locker(&_motorDbMutex);
+    if (!_motorDb) {
+        return nullptr;
+    }
+    return _motorDb->getMessageById(msg.getId());
+}
+
+pCanDb Backend::getMotorDb() const
+{
+    QMutexLocker locker(&_motorDbMutex);
+    return _motorDb;
+}
+
+void Backend::onMotorConfigChanged()
+{
+    QString error;
+    const pCanDb database = MotorDbc::buildDatabase(_motorManager->motors(), &error);
+    if (!error.isEmpty()) {
+        log_error(QStringLiteral("Motor database: %1").arg(error));
+    }
+
+    // The same handshake as MeasurementSetup::beginDatabaseReload()/endDatabaseReload():
+    // let every consumer drop raw CanDbSignal/CanDbMessage pointers before the new
+    // database replaces the old one, then rebuild their views from it.
+    emit onSetupChanged();
+    {
+        QMutexLocker locker(&_motorDbMutex);
+        if (_motorDb) {
+            _motorDbRetired.append(_motorDb);
+            while (_motorDbRetired.size() > 32) {
+                _motorDbRetired.removeFirst();
+            }
+        }
+        _motorDb = database;
+    }
+    emit onSetupChanged();
 }
 
 BusInterfaceIdList Backend::getInterfaceList()
