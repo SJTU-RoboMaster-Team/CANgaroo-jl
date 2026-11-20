@@ -4,7 +4,9 @@
 on:
   workflow_dispatch:  # enables manual trigger
   push:
-    branches: [ "main", "master" ]
+    # main/master for integration; feat/** so a feature branch gets CI before a
+    # pull request is opened (the fork works on long living feature branches).
+    branches: [ "main", "master", "feat/**" ]
     # A version tag (V0.7.2, as the existing tags, or v0.7.2) also publishes a
     # draft release with the Windows zip, see "release" below.
     tags: [ "V*", "v*" ]
