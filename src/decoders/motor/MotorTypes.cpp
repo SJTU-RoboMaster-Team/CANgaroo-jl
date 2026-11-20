@@ -85,6 +85,14 @@ bool djiCurrentConversionValid(MotorModel model)
     return model == MotorModel::DjiM3508 || model == MotorModel::DjiGM6020;
 }
 
+int64_t offlineTimeoutMsForModel(MotorModel model)
+{
+    // DJI ESCs broadcast their feedback periodically (default 1 kHz); DAMIAO
+    // only answers a control frame or a refresh request, so a silent motor is
+    // not necessarily a fault.
+    return isDamiaoModel(model) ? 2000 : 500;
+}
+
 double djiCurrentPerRaw(MotorModel model)
 {
     constexpr double rawScale = 16384.0;

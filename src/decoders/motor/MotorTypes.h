@@ -101,4 +101,9 @@ namespace MotorProtocols {
 /// Whether the DJI manual documents a physical conversion for the feedback current.
 [[nodiscard]] bool djiCurrentConversionValid(MotorModel model);
 
+/// How long a motor may stay silent before the UI marks it offline.
+/// DAMIAO motors only answer after a control frame or refresh request, so
+/// passive listening produces sparse feedback; they get a longer window.
+[[nodiscard]] int64_t offlineTimeoutMsForModel(MotorModel model);
+
 } // namespace MotorProtocols

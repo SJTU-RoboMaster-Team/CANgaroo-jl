@@ -68,6 +68,7 @@ private slots:
     void publishesStateUpdates();
     void resetsDecodedValues();
     void marksMotorOfflineWhenFeedbackStops();
+    void keepsDamiaoOnlineForLongerSilence();
     void invertFlipsAngleSpeedAndCurrent();
 };
 
@@ -173,6 +174,28 @@ void MotorManagerTest::marksMotorOfflineWhenFeedbackStops()
     const QVector<MotorState> states = manager.states();
     QVERIFY(states.at(0).hasData);
     QVERIFY(!states.at(0).online);
+}
+
+void MotorManagerTest::keepsDamiaoOnlineForLongerSilence()
+{
+    QCOMPARE(MotorProtocols::offlineTimeoutMsForModel(MotorModel::DjiM3508), qint64(500));
+    QCOMPARE(MotorProtocols::offlineTimeoutMsForModel(MotorModel::DamiaoMit), qint64(2000));
+
+    MotorManager manager;
+    MotorConfig config;
+    config.name = QStringLiteral("DM");
+    config.model = MotorModel::DamiaoMit;
+    config.feedbackId = 0x005;
+    manager.setMotors({config});
+
+    // DAMIAO only answers control/refresh frames, so 0.7 s of silence must not
+    // make the UI report it as offline.
+    manager.enqueue(makeFrame(0x005, 0x13, 0xFF, 0xFF, 0xFF, 0xF0, 0x00, 0x2A, 0x41));
+    QTest::qWait(80);
+    QVERIFY(manager.states().at(0).online);
+
+    QTest::qWait(700);
+    QVERIFY(manager.states().at(0).online);
 }
 
 void MotorManagerTest::invertFlipsAngleSpeedAndCurrent()

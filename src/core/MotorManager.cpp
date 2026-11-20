@@ -131,9 +131,13 @@ void MotorManager::onRefreshTimer()
     {
         QMutexLocker locker(&_mutex);
         const qint64 now = QDateTime::currentMSecsSinceEpoch();
-        for (MotorState &state : _states) {
+        for (int i = 0; i < _states.size(); ++i) {
+            MotorState &state = _states[i];
+            const int64_t timeoutMs = i < _config.size()
+                ? MotorProtocols::offlineTimeoutMsForModel(_config.at(i).model)
+                : offlineTimeoutMs;
             const bool online = state.hasData
-                && (now - state.lastSeenMs) <= offlineTimeoutMs;
+                && (now - state.lastSeenMs) <= timeoutMs;
             if (state.online != online) {
                 state.online = online;
                 changed = true;
