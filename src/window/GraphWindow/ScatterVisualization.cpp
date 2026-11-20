@@ -459,8 +459,8 @@ void ScatterVisualization::handleHover(QPointF pos)
 void ScatterVisualization::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
-    QAction *actCsv = menu.addAction("Export to CSV");
-    QAction *actImg = menu.addAction("Export to Image");
+    QAction *actCsv = menu.addAction(tr("Export to CSV"));
+    QAction *actImg = menu.addAction(tr("Export to Image"));
     
     QAction *selected = menu.exec(event->globalPos());
     
@@ -470,7 +470,7 @@ void ScatterVisualization::contextMenuEvent(QContextMenuEvent *event)
 
 void ScatterVisualization::exportToCsv()
 {
-    QString path = QFileDialog::getSaveFileName(this, "Export Scatter CSV", "", "CSV Files (*.csv)");
+    QString path = QFileDialog::getSaveFileName(this, tr("Export Scatter CSV"), QString(), tr("CSV Files (*.csv)"));
     if (path.isEmpty()) return;
     
     QFile file(path);
@@ -490,7 +490,7 @@ void ScatterVisualization::exportToCsv()
 
 void ScatterVisualization::exportToImage()
 {
-    QString path = QFileDialog::getSaveFileName(this, "Export Scatter Image", "", "PNG Images (*.png);;JPEG Images (*.jpeg)");
+    QString path = QFileDialog::getSaveFileName(this, tr("Export Scatter Image"), QString(), tr("PNG Images (*.png);;JPEG Images (*.jpeg)"));
     if (path.isEmpty()) return;
     
     QPixmap pixmap = _chartView->grab();

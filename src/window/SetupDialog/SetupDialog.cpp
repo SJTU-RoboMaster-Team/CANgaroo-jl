@@ -384,7 +384,7 @@ void SetupDialog::on_btAddDatabase_clicked()
 {
     QModelIndex parent = ui->treeView->selectionModel()->currentIndex();
 
-    QStringList files = QFileDialog::getOpenFileNames(this, "Load CAN Databases", "", "Vector DBC Files (*.dbc)");
+    QStringList files = QFileDialog::getOpenFileNames(this, tr("Load CAN Databases"), QString(), tr("Vector DBC Files (*.dbc)"));
     for (const QString &filename : files) {
         addCanDb(parent, filename);
     }

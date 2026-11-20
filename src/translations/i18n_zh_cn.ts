@@ -4,67 +4,67 @@
 <context>
     <name>Backend</name>
     <message>
-        <location filename="../core/Backend.cpp" line="118"/>
+        <location filename="../core/Backend.cpp" line="117"/>
         <source>Starting measurement</source>
         <translation>开始测量</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="154"/>
+        <location filename="../core/Backend.cpp" line="153"/>
         <source>Listening on interface: %1</source>
         <translation>监听接口: %1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="179"/>
+        <location filename="../core/Backend.cpp" line="178"/>
         <source>Closing interface: %1</source>
         <translation>关闭接口: %1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="189"/>
+        <location filename="../core/Backend.cpp" line="188"/>
         <source>Measurement stopped</source>
         <translation>测量已停止</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="252"/>
+        <location filename="../core/Backend.cpp" line="251"/>
         <source>All active interfaces disconnected. Measurement paused (trace preserved).</source>
         <translation>所有活动接口均已断开，测量已暂停（跟踪数据已保留）。</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="280"/>
+        <location filename="../core/Backend.cpp" line="279"/>
         <source>Missing: %1</source>
         <translation>缺失：%1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="283"/>
+        <location filename="../core/Backend.cpp" line="282"/>
         <source>Ambiguous: %1</source>
         <translation>存在歧义：%1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="286"/>
+        <location filename="../core/Backend.cpp" line="285"/>
         <source>No configured interfaces found to rebind.</source>
         <translation>未找到可重新绑定的已配置接口。</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="289"/>
+        <location filename="../core/Backend.cpp" line="288"/>
         <source>Manual rebind failed: %1</source>
         <translation>手动重新绑定失败：%1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="310"/>
+        <location filename="../core/Backend.cpp" line="309"/>
         <source>Network </source>
         <translation>网络 </translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="382"/>
+        <location filename="../core/Backend.cpp" line="381"/>
         <source>Unable to get driver for interface id: %1. This should never happen.</source>
         <translation>无法获取接口 ID: %1 的驱动程序。这不应该发生。</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="434"/>
+        <location filename="../core/Backend.cpp" line="433"/>
         <source>File not found or not readable.</source>
         <translation>文件未找到或不可读。</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="444"/>
+        <location filename="../core/Backend.cpp" line="443"/>
         <source>Failed to parse DBC file. Please check the log for details.</source>
         <translation>解析 DBC 文件失败。请查看日志了解详情。</translation>
     </message>
@@ -178,12 +178,12 @@
         <translation>接口 #%1: %2, 版本: %3</translation>
     </message>
     <message>
-        <location filename="../driver/BusListener.cpp" line="82"/>
+        <location filename="../driver/BusListener.cpp" line="85"/>
         <source>Device connection lost or closed unexpectedly</source>
         <translation>设备连接丢失或被意外关闭</translation>
     </message>
     <message>
-        <location filename="../driver/BusListener.cpp" line="83"/>
+        <location filename="../driver/BusListener.cpp" line="86"/>
         <source>Error on interface: %1, Closed!!!</source>
         <translation>接口错误: %1, 已关闭!!!</translation>
     </message>
@@ -191,7 +191,7 @@
 <context>
     <name>BusTrace</name>
     <message>
-        <location filename="../core/BusTrace.cpp" line="169"/>
+        <location filename="../core/BusTrace.cpp" line="167"/>
         <source>Trace exceeded %1 messages; oldest messages are being discarded and will be missing from saved traces. Increase the limit in Settings.</source>
         <translation>跟踪已超过 %1 条消息；最早的消息将被丢弃，且不会出现在保存的跟踪中。请在设置中提高上限。</translation>
     </message>
@@ -2532,6 +2532,39 @@ Duration: %3 s</source>
     </message>
 </context>
 <context>
+    <name>ScatterVisualization</name>
+    <message>
+        <location filename="../window/GraphWindow/ScatterVisualization.cpp" line="462"/>
+        <source>Export to CSV</source>
+        <translation>导出 CSV</translation>
+    </message>
+    <message>
+        <location filename="../window/GraphWindow/ScatterVisualization.cpp" line="463"/>
+        <source>Export to Image</source>
+        <translation>导出图片</translation>
+    </message>
+    <message>
+        <location filename="../window/GraphWindow/ScatterVisualization.cpp" line="473"/>
+        <source>Export Scatter CSV</source>
+        <translation>导出散点数据 CSV</translation>
+    </message>
+    <message>
+        <location filename="../window/GraphWindow/ScatterVisualization.cpp" line="473"/>
+        <source>CSV Files (*.csv)</source>
+        <translation>CSV 文件 (*.csv)</translation>
+    </message>
+    <message>
+        <location filename="../window/GraphWindow/ScatterVisualization.cpp" line="493"/>
+        <source>Export Scatter Image</source>
+        <translation>导出散点图</translation>
+    </message>
+    <message>
+        <location filename="../window/GraphWindow/ScatterVisualization.cpp" line="493"/>
+        <source>PNG Images (*.png);;JPEG Images (*.jpeg)</source>
+        <translation>PNG 图片 (*.png);;JPEG 图片 (*.jpeg)</translation>
+    </message>
+</context>
+<context>
     <name>SelectCanInterfacesDialog</name>
     <message>
         <location filename="../window/SetupDialog/SelectCanInterfacesDialog.ui" line="14"/>
@@ -2803,6 +2836,16 @@ Reason: %2</source>
 原因: %2</translation>
     </message>
     <message>
+        <location filename="../window/SetupDialog/SetupDialog.cpp" line="387"/>
+        <source>Load CAN Databases</source>
+        <translation>加载 CAN 数据库</translation>
+    </message>
+    <message>
+        <location filename="../window/SetupDialog/SetupDialog.cpp" line="387"/>
+        <source>Vector DBC Files (*.dbc)</source>
+        <translation>Vector DBC 文件 (*.dbc)</translation>
+    </message>
+    <message>
         <location filename="../window/SetupDialog/SetupDialog.cpp" line="251"/>
         <source>No Network</source>
         <translation>无网络</translation>
@@ -2944,7 +2987,7 @@ Reason: %2</source>
     <message>
         <location filename="../core/TraceFileReader.cpp" line="503"/>
         <source>CSV line %1: unsupported BusType &apos;%2&apos; (only CAN is supported).</source>
-        <translation>CSV 第 %1 行：不支持的 BusType '%2'（仅支持 CAN）。</translation>
+        <translation>CSV 第 %1 行：不支持的 BusType &apos;%2&apos;（仅支持 CAN）。</translation>
     </message>
     <message>
         <location filename="../core/TraceFileReader.cpp" line="512"/>
