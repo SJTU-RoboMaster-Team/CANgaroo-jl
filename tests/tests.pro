@@ -18,5 +18,5 @@ SUBDIRS += \
     measurement_setup \
     update_checker \
     motor_decoder \
-    motor_dbc \
-    motor_manager
+    motor_manager \
+    motor_dbc
