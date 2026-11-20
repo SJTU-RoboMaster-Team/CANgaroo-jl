@@ -4,67 +4,67 @@
 <context>
     <name>Backend</name>
     <message>
-        <location filename="../core/Backend.cpp" line="120"/>
+        <location filename="../core/Backend.cpp" line="122"/>
         <source>Starting measurement</source>
         <translation>开始测量</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="156"/>
+        <location filename="../core/Backend.cpp" line="158"/>
         <source>Listening on interface: %1</source>
         <translation>监听接口: %1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="181"/>
+        <location filename="../core/Backend.cpp" line="183"/>
         <source>Closing interface: %1</source>
         <translation>关闭接口: %1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="191"/>
+        <location filename="../core/Backend.cpp" line="193"/>
         <source>Measurement stopped</source>
         <translation>测量已停止</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="254"/>
+        <location filename="../core/Backend.cpp" line="256"/>
         <source>All active interfaces disconnected. Measurement paused (trace preserved).</source>
         <translation>所有活动接口均已断开，测量已暂停（跟踪数据已保留）。</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="282"/>
+        <location filename="../core/Backend.cpp" line="284"/>
         <source>Missing: %1</source>
         <translation>缺失：%1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="285"/>
+        <location filename="../core/Backend.cpp" line="287"/>
         <source>Ambiguous: %1</source>
         <translation>存在歧义：%1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="288"/>
+        <location filename="../core/Backend.cpp" line="290"/>
         <source>No configured interfaces found to rebind.</source>
         <translation>未找到可重新绑定的已配置接口。</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="291"/>
+        <location filename="../core/Backend.cpp" line="293"/>
         <source>Manual rebind failed: %1</source>
         <translation>手动重新绑定失败：%1</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="312"/>
+        <location filename="../core/Backend.cpp" line="314"/>
         <source>Network </source>
         <translation>网络 </translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="384"/>
+        <location filename="../core/Backend.cpp" line="431"/>
         <source>Unable to get driver for interface id: %1. This should never happen.</source>
         <translation>无法获取接口 ID: %1 的驱动程序。这不应该发生。</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="436"/>
+        <location filename="../core/Backend.cpp" line="483"/>
         <source>File not found or not readable.</source>
         <translation>文件未找到或不可读。</translation>
     </message>
     <message>
-        <location filename="../core/Backend.cpp" line="446"/>
+        <location filename="../core/Backend.cpp" line="493"/>
         <source>Failed to parse DBC file. Please check the log for details.</source>
         <translation>解析 DBC 文件失败。请查看日志了解详情。</translation>
     </message>
@@ -605,37 +605,42 @@
         <translation>仪表盘</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="967"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1003"/>
         <source>CAN — %1</source>
         <translation>CAN — %1</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="993"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1046"/>
+        <source>Motor (built-in)</source>
+        <translation>电机（内置）</translation>
+    </message>
+    <message>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="985"/>
         <source>Unsigned</source>
         <translation>无符号</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="993"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="985"/>
         <source>Signed</source>
         <translation>有符号</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1012"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1018"/>
         <source>Bus Load — %1</source>
         <translation>总线负载 — %1</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1019"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1025"/>
         <source>Virtual</source>
         <translation>虚拟</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1025"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1031"/>
         <source>0..100 %</source>
         <translation>0..100 %</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1026"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1032"/>
         <source>1 s rolling window</source>
         <translation>1 秒滚动窗口</translation>
     </message>
@@ -1853,157 +1858,196 @@ Latest version in %2: %3</source>
 <context>
     <name>MotorView</name>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="179"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="186"/>
         <source>MotorView: unknown motor model &quot;%1&quot; in workspace, using %2.</source>
         <translation>MotorView：工作区中的电机型号“%1”未知，改用 %2。</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="188"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="195"/>
         <source>MotorView: invalid feedback CAN ID &quot;%1&quot; for motor &quot;%2&quot;, keeping %3.</source>
         <translation>MotorView：电机“%2”的反馈 CAN ID“%1”无效，保留 %3。</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="230"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="237"/>
         <source>Name</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="231"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="238"/>
         <source>Model</source>
         <translation>型号</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="232"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="239"/>
         <source>CAN ID</source>
         <translation>CAN ID</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="233"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="240"/>
         <source>Angle (°)</source>
         <translation>角度（°）</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="234"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="241"/>
         <source>Speed (rpm)</source>
         <translation>转速（rpm）</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="235"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="242"/>
         <source>Current (A)</source>
         <translation>电流（A）</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="236"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="243"/>
         <source>Torque (N·m)</source>
         <translation>转矩（N·m）</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="237"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="244"/>
         <source>Temp (°C)</source>
         <translation>温度（°C）</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="238"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="245"/>
         <source>Status</source>
         <translation>状态</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="241"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="248"/>
         <source>Add Motor...</source>
         <translation>添加电机...</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="242"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="249"/>
         <source>Add a motor to decode its feedback frames</source>
         <translation>添加电机以解码其反馈帧</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="243"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="250"/>
         <source>Edit...</source>
         <translation>编辑...</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="244"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="251"/>
         <source>Edit the selected motor</source>
         <translation>编辑选中的电机</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="245"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="252"/>
         <source>Remove</source>
         <translation>移除</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="246"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="253"/>
         <source>Remove the selected motor</source>
         <translation>移除选中的电机</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="247"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="254"/>
         <source>Clear Values</source>
         <translation>清空数值</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="248"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="255"/>
         <source>Reset the decoded values without removing the motors</source>
         <translation>只清空解码数值，不移除电机</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="335"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="256"/>
+        <source>Export DBC...</source>
+        <translation>导出 DBC...</translation>
+    </message>
+    <message>
+        <location filename="../window/MotorView/MotorView.cpp" line="257"/>
+        <source>Save the auto-generated database for these motors as a .dbc file</source>
+        <translation>将当前电机的自动生成数据库保存为 .dbc 文件</translation>
+    </message>
+    <message>
+        <location filename="../window/MotorView/MotorView.cpp" line="344"/>
         <source>Remove Motor</source>
         <translation>移除电机</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="336"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="345"/>
         <source>Remove motor &quot;%1&quot;?</source>
         <translation>确定移除电机“%1”？</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="439"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="375"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="379"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="385"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="392"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="397"/>
+        <source>Export DBC</source>
+        <translation>导出 DBC</translation>
+    </message>
+    <message>
+        <location filename="../window/MotorView/MotorView.cpp" line="380"/>
+        <source>Configure at least one motor first.</source>
+        <translation>请先配置至少一个电机。</translation>
+    </message>
+    <message>
+        <location filename="../window/MotorView/MotorView.cpp" line="385"/>
+        <source>DBC Files (*.dbc)</source>
+        <translation>DBC 文件 (*.dbc)</translation>
+    </message>
+    <message>
+        <location filename="../window/MotorView/MotorView.cpp" line="393"/>
+        <source>Cannot open %1 for writing.</source>
+        <translation>无法打开 %1 写入。</translation>
+    </message>
+    <message>
+        <location filename="../window/MotorView/MotorView.cpp" line="397"/>
+        <source>Cannot write %1.</source>
+        <translation>无法写入 %1。</translation>
+    </message>
+    <message>
+        <location filename="../window/MotorView/MotorView.cpp" line="483"/>
         <source>raw torque: %1</source>
         <translation>原始转矩：%1</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="455"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="499"/>
         <source>MOS: %1 °C / Rotor: %2 °C</source>
         <translation>MOS：%1 °C / 转子：%2 °C</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="465"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="509"/>
         <source>Online</source>
         <translation>在线</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="465"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="509"/>
         <source>Offline</source>
         <translation>离线</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="551"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="595"/>
         <source>Motor Configuration</source>
         <translation>电机配置</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="552"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="596"/>
         <source>CAN ID %1 is already used by motor &quot;%2&quot;. Choose a different ID.</source>
         <translation>CAN ID %1 已被电机“%2”占用，请选择其他 ID。</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="600"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="644"/>
         <source>DJI M3508</source>
         <translation>DJI M3508</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="602"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="646"/>
         <source>DJI M2006</source>
         <translation>DJI M2006</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="604"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="648"/>
         <source>DJI GM6020</source>
         <translation>DJI GM6020</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="606"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="650"/>
         <source>Damiao DM (MIT)</source>
         <translation>达妙 DM（MIT）</translation>
     </message>

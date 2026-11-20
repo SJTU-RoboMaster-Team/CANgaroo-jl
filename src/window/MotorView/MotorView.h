@@ -56,6 +56,7 @@ private slots:
     void onEditMotor();
     void onRemoveMotor();
     void onClearValues();
+    void onExportDbc();
     void onCellDoubleClicked(int row, int column);
 
 private:
@@ -80,6 +81,7 @@ private:
     QPushButton *_btnEdit = nullptr;
     QPushButton *_btnRemove = nullptr;
     QPushButton *_btnClear = nullptr;
+    QPushButton *_btnExport = nullptr;
 
     void rebuildTable();
     void updateRows();

@@ -24,6 +24,8 @@
 #include <QDialog>
 #include <QDomDocument>
 #include <QDomElement>
+#include <QFile>
+#include <QFileDialog>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QItemSelectionModel>
@@ -38,6 +40,7 @@
 #include "core/Log.h"
 #include "core/MotorManager.h"
 #include "core/ThemeManager.h"
+#include "decoders/motor/MotorDbc.h"
 #include "MotorConfigDialog.h"
 
 namespace
@@ -80,6 +83,7 @@ MotorView::MotorView(QWidget *parent, Backend &backend)
     _btnEdit = new QPushButton(this);
     _btnRemove = new QPushButton(this);
     _btnClear = new QPushButton(this);
+    _btnExport = new QPushButton(this);
 
     auto *toolbar = new QHBoxLayout;
     toolbar->addWidget(_btnAdd);
@@ -87,6 +91,8 @@ MotorView::MotorView(QWidget *parent, Backend &backend)
     toolbar->addWidget(_btnRemove);
     toolbar->addSpacing(12);
     toolbar->addWidget(_btnClear);
+    toolbar->addSpacing(12);
+    toolbar->addWidget(_btnExport);
     toolbar->addStretch(1);
 
     _table = new QTableWidget(0, column_count, this);
@@ -110,6 +116,7 @@ MotorView::MotorView(QWidget *parent, Backend &backend)
     connect(_btnEdit, &QPushButton::clicked, this, &MotorView::onEditMotor);
     connect(_btnRemove, &QPushButton::clicked, this, &MotorView::onRemoveMotor);
     connect(_btnClear, &QPushButton::clicked, this, &MotorView::onClearValues);
+    connect(_btnExport, &QPushButton::clicked, this, &MotorView::onExportDbc);
     connect(_table, &QTableWidget::itemSelectionChanged, this, &MotorView::onSelectionChanged);
     connect(_table, &QTableWidget::cellDoubleClicked, this, &MotorView::onCellDoubleClicked);
 
@@ -246,6 +253,8 @@ void MotorView::retranslateUi()
     _btnRemove->setToolTip(tr("Remove the selected motor"));
     _btnClear->setText(tr("Clear Values"));
     _btnClear->setToolTip(tr("Reset the decoded values without removing the motors"));
+    _btnExport->setText(tr("Export DBC..."));
+    _btnExport->setToolTip(tr("Save the auto-generated database for these motors as a .dbc file"));
 
     if (!_manager) {
         return;
@@ -351,6 +360,41 @@ void MotorView::onClearValues()
 {
     if (_manager) {
         _manager->resetStates(); // emits statesUpdated()
+    }
+}
+
+void MotorView::onExportDbc()
+{
+    if (!_manager) {
+        return;
+    }
+
+    QString error;
+    const QString dbcText = MotorDbc::buildText(_manager->motors(), &error);
+    if (!error.isEmpty()) {
+        QMessageBox::warning(this, tr("Export DBC"), error);
+        return;
+    }
+    if (dbcText.isEmpty()) {
+        QMessageBox::information(this, tr("Export DBC"),
+                                 tr("Configure at least one motor first."));
+        return;
+    }
+
+    const QString path = QFileDialog::getSaveFileName(
+        this, tr("Export DBC"), QStringLiteral("motors.dbc"), tr("DBC Files (*.dbc)"));
+    if (path.isEmpty()) {
+        return;
+    }
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
+        QMessageBox::critical(this, tr("Export DBC"),
+                              tr("Cannot open %1 for writing.").arg(path));
+        return;
+    }
+    if (file.write(dbcText.toUtf8()) < 0) {
+        QMessageBox::critical(this, tr("Export DBC"), tr("Cannot write %1.").arg(path));
     }
 }
 
