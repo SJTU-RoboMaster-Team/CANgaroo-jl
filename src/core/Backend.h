@@ -118,9 +118,6 @@ signals:
 
     void onSetupDialogCreated(SetupDialog &dlg);
 
-public slots:
-    void onMessageEnqueued(int idx);
-
 private slots:
     void onListenerDisconnected(BusInterfaceId id, const QString &interfaceName, const QString &reason);
 

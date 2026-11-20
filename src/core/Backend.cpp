@@ -76,7 +76,6 @@ Backend::Backend()
         },
         this);
 
-    connect(_trace, &BusTrace::messageEnqueued, this, &Backend::onMessageEnqueued);
     connect(&_setup, &MeasurementSetup::onSetupChanged, this, &Backend::onSetupChanged);
 }
 
@@ -484,9 +483,4 @@ uint64_t Backend::getUsecsSinceMeasurementStart() const
 void Backend::logMessage(const QDateTime dt, const log_level_t level, const QString msg)
 {
     emit onLogMessage(dt, level, msg);
-}
-
-void Backend::onMessageEnqueued(int idx)
-{
-    Q_UNUSED(idx);
 }

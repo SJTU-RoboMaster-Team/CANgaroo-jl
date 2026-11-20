@@ -62,7 +62,6 @@ public:
     bool getMuxedSignalFromCache(const CanDbSignal *signal, uint64_t *raw_value);
 
 signals:
-    void messageEnqueued(int idx);
     void afterAppend();
     void beforeRemove(int count);
     void afterRemove(int count);

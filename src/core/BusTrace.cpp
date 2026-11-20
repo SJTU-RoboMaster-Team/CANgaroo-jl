@@ -117,8 +117,6 @@ void BusTrace::enqueueMessage(const BusMessage &msg, bool more_to_follow)
     if (!more_to_follow) {
         startTimer();
     }
-
-    emit messageEnqueued(idx);
 }
 
 void BusTrace::flushQueue()

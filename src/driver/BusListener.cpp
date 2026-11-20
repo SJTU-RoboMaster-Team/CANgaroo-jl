@@ -71,6 +71,9 @@ void BusListener::run()
         if (_intf.readMessage(rxMessages, 100)) {
             for(const BusMessage &msg: std::as_const(rxMessages))
             {
+                // Bit accounting for the bus-load display happens here: drivers
+                // only deliver frames, they no longer count bits themselves.
+                _intf.addFrameBits(msg);
                 trace->enqueueMessage(msg, false);
             }
             rxMessages.clear();
