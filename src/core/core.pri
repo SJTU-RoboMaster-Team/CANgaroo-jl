@@ -16,6 +16,7 @@ SOURCES += \
     $$PWD/TraceFileReader.cpp \
     $$PWD/TraceRecorder.cpp \
     $$PWD/TriggerCaptureManager.cpp \
+    $$PWD/MotorManager.cpp \
     $$PWD/UpdateChecker.cpp
 
 HEADERS += \
@@ -36,5 +37,6 @@ HEADERS += \
     $$PWD/SocketCan.h \
     $$PWD/TraceRecorder.h \
     $$PWD/TriggerCaptureManager.h \
+    $$PWD/MotorManager.h \
     $$PWD/TraceFileFormat.h \
     $$PWD/UpdateChecker.h

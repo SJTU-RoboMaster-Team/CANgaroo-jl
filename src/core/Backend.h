@@ -43,6 +43,7 @@ class SetupDialog;
 class LogModel;
 class TraceRecorder;
 class TriggerCaptureManager;
+class MotorManager;
 
 class Backend : public QObject
 {
@@ -83,6 +84,7 @@ public:
 
     TraceRecorder *getTraceRecorder() const { return _traceRecorder; }
     TriggerCaptureManager *getTriggerCaptureManager() const { return _triggerCaptureManager; }
+    MotorManager *getMotorManager() const { return _motorManager; }
 
     CanDbMessage *findDbMessage(const BusMessage &msg) const;
 
@@ -137,4 +139,5 @@ private:
     LogModel *_logModel;
     TraceRecorder *_traceRecorder = nullptr;
     TriggerCaptureManager *_triggerCaptureManager = nullptr;
+    MotorManager *_motorManager = nullptr;
 };

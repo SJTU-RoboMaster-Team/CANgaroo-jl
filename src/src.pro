@@ -41,6 +41,7 @@ RESOURCES = cangaroo.qrc
 include($$PWD/core/core.pri)
 include($$PWD/driver/driver.pri)
 include($$PWD/db/db.pri)
+include($$PWD/decoders/decoders.pri)
 include($$PWD/window/window.pri)
 include($$PWD/helpers/helpers.pri)
 

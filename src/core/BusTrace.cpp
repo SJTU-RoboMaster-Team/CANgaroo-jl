@@ -30,6 +30,7 @@
 #include "core/TraceFileWriter.h"
 #include "core/TraceRecorder.h"
 #include "core/TriggerCaptureManager.h"
+#include "core/MotorManager.h"
 #include "db/model/CanDbMessage.h"
 #include "db/model/CanDbSignal.h"
 
@@ -102,6 +103,10 @@ void BusTrace::enqueueMessage(const BusMessage &msg, bool more_to_follow)
     if (auto *trigger = _backend.getTriggerCaptureManager())
     {
         trigger->enqueue(msg);
+    }
+    if (auto *motors = _backend.getMotorManager())
+    {
+        motors->enqueue(msg);
     }
 
     QMutexLocker locker(&_mutex);

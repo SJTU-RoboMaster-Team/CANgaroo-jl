@@ -29,6 +29,7 @@
 #include "core/BusTrace.h"
 #include "core/TraceRecorder.h"
 #include "core/TriggerCaptureManager.h"
+#include "core/MotorManager.h"
 #include "core/MeasurementSetup.h"
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementInterface.h"
@@ -75,6 +76,8 @@ Backend::Backend()
             return false;
         },
         this);
+
+    _motorManager = new MotorManager(this);
 
     connect(&_setup, &MeasurementSetup::onSetupChanged, this, &Backend::onSetupChanged);
 }

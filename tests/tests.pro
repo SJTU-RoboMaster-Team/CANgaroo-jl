@@ -16,4 +16,6 @@ SUBDIRS += \
     trigger_capture \
     candle_driver \
     measurement_setup \
-    update_checker
+    update_checker \
+    motor_decoder \
+    motor_manager
