@@ -28,7 +28,11 @@
 #include <cmath>
 #include <memory>
 
+#include <QFile>
+#include <QTemporaryFile>
+
 #include "core/BusMessage.h"
+#include "db/dbc/DbcParser.h"
 #include "db/model/CanDb.h"
 #include "db/model/CanDbMessage.h"
 #include "db/model/CanDbSignal.h"
@@ -109,6 +113,8 @@ private slots:
     void gm6020CurrentScale();
     void damiaoDecodingMatchesMotorDecoder();
     void damiaoRangesFollowConfiguration();
+    void mixedFleetParsesAllMessages();
+    void exportedTextRoundTripsThroughLatin1();
 
     void disabledMotorsAreSkipped();
     void rejectsDuplicateFeedbackId();
@@ -363,6 +369,74 @@ void MotorDbcTest::damiaoRangesFollowConfiguration()
     QVERIFY(near(state.positionRad, position->extractPhysicalFromMessage(frame)));
     QVERIFY(near(state.velocityRadPerSec, velocity->extractPhysicalFromMessage(frame)));
     QVERIFY(near(state.torqueNm, torque->extractPhysicalFromMessage(frame)));
+}
+
+void MotorDbcTest::mixedFleetParsesAllMessages()
+{
+    const QVector<MotorConfig> motors = {
+        makeMotor(MotorModel::DjiM3508, 0x201, QStringLiteral("Chassis")),
+        makeMotor(MotorModel::DamiaoMit, 0x005, QStringLiteral("Arm")),
+        makeMotor(MotorModel::DjiGM6020, 0x205, QStringLiteral("Gimbal")),
+    };
+
+    QString error;
+    const pCanDb db = MotorDbc::buildDatabase(motors, &error);
+    QVERIFY2(db, qPrintable(error));
+    QCOMPARE(db->getNumberOfMessages(), size_t(3));
+
+    CanDbMessage *chassis = db->getMessageById(0x201);
+    CanDbMessage *arm = db->getMessageById(0x005);
+    CanDbMessage *gimbal = db->getMessageById(0x205);
+    QVERIFY(chassis && arm && gimbal);
+    QCOMPARE(chassis->getName(), QStringLiteral("Chassis"));
+    QCOMPARE(arm->getName(), QStringLiteral("Arm"));
+    QCOMPARE(gimbal->getName(), QStringLiteral("Gimbal"));
+    QVERIFY(chassis->getSender() && arm->getSender() && gimbal->getSender());
+    QCOMPARE(chassis->getSender()->name(), QStringLiteral("Node1"));
+    QCOMPARE(arm->getSender()->name(), QStringLiteral("Node2"));
+    QCOMPARE(gimbal->getSender()->name(), QStringLiteral("Node3"));
+
+    // The Damiao VAL_ section must not swallow the following GM6020 frame.
+    QVERIFY(chassis->getSignalByName(QStringLiteral("Current")));
+    QVERIFY(arm->getSignalByName(QStringLiteral("State")));
+    QVERIFY(gimbal->getSignalByName(QStringLiteral("Current")));
+}
+
+void MotorDbcTest::exportedTextRoundTripsThroughLatin1()
+{
+    const MotorConfig config = makeMotor(MotorModel::DamiaoMit, 0x005, QStringLiteral("DM"));
+    QString error;
+    const QString text = MotorDbc::buildText({config}, &error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QVERIFY(!text.isEmpty());
+
+    // Motor View exports exactly these bytes. DbcParser reads DBC files as
+    // Latin-1, so the export must not be UTF-8 encoded or the middle dot in the
+    // torque unit would come back as two characters.
+    const QByteArray bytes = text.toLatin1();
+    QVERIFY(!bytes.isEmpty());
+    // Latin-1 middle dot is one byte (0xB7), the UTF-8 form would be two.
+    QVERIFY(bytes.contains('\xB7'));
+
+    QTemporaryFile file;
+    QVERIFY(file.open());
+    QCOMPARE(file.write(bytes), qint64(bytes.size()));
+    QVERIFY(file.flush());
+    const QString path = file.fileName();
+    file.close();
+
+    CanDb db;
+    {
+        QFile readFile(path);
+        DbcParser parser;
+        QVERIFY(parser.parseFile(&readFile, db));
+    }
+
+    CanDbMessage *message = db.getMessageById(0x005);
+    QVERIFY(message);
+    CanDbSignal *torque = message->getSignalByName(QStringLiteral("Torque"));
+    QVERIFY(torque);
+    QCOMPARE(torque->getUnit(), QStringLiteral("N\u00B7m"));
 }
 
 void MotorDbcTest::disabledMotorsAreSkipped()
