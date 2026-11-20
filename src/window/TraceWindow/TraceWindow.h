@@ -100,7 +100,6 @@ private:
     bool _filterShowTx = true;
     bool _filterShowRx = true;
     QSet<uint32_t> _filterHiddenMessageIds;
-    QSet<uint8_t>  _filterHiddenLinFrameIds;
     QSet<BusInterfaceId> _filterHiddenInterfaces;
 
     void applyDialogFilters();

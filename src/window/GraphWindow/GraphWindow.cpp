@@ -44,8 +44,6 @@
 #include "core/ThemeManager.h"
 #include "core/TriggerCaptureManager.h"
 #include "db/model/CanDbMessage.h"
-#include "db/model/LinFrame.h"
-#include "db/model/LinSignal.h"
 
 #include "TimeSeriesVisualization.h"
 #include "ScatterVisualization.h"
@@ -139,10 +137,6 @@ constexpr int busLoadMaxWindow = 100000;
 
 static uint32_t computeFrameBits(const BusMessage &msg)
 {
-    if (msg.busType() == BusType::LIN) {
-        // Break(14) + Sync(10) + PID(10) + data bytes (10 each) + checksum(10)
-        return 44 + static_cast<uint32_t>(msg.getLength()) * 10;
-    }
     uint32_t dlc = msg.getLength();
     uint32_t bits = 47 + (dlc * 8);
     if (msg.isExtended()) bits += 20;
@@ -769,10 +763,6 @@ bool GraphWindow::saveXML(Backend &backend, QDomDocument &xml, QDomElement &root
             if (gs->isBusLoad()) {
                 sigEl.setAttribute("type", "busload");
                 sigEl.setAttribute("name", gs->name());
-            } else if (gs->isLin()) {
-                sigEl.setAttribute("type", "lin");
-                sigEl.setAttribute("parent", gs->parentName());
-                sigEl.setAttribute("name", gs->name());
             } else {
                 sigEl.setAttribute("type", "can");
                 sigEl.setAttribute("parent", gs->parentName());
@@ -834,9 +824,7 @@ void GraphWindow::applyPendingSignals()
                 bool match = false;
                 if (ps.type == "busload" && gs->isBusLoad())
                     match = (gs->name() == ps.name);
-                else if (ps.type == "lin" && gs->isLin())
-                    match = (gs->name() == ps.name && gs->parentName() == ps.parent);
-                else if (ps.type == "can" && !gs->isLin() && !gs->isBusLoad())
+                else if (ps.type == "can" && !gs->isBusLoad())
                     match = (gs->name() == ps.name && gs->parentName() == ps.parent);
 
                 if (match) {
@@ -924,10 +912,6 @@ void GraphWindow::populateSignalTree()
             if (gs->isBusLoad()) {
                 ps.type = QStringLiteral("busload");
                 ps.name = gs->name();
-            } else if (gs->isLin()) {
-                ps.type   = QStringLiteral("lin");
-                ps.parent = gs->parentName();
-                ps.name   = gs->name();
             } else {
                 ps.type   = QStringLiteral("can");
                 ps.parent = gs->parentName();
@@ -1018,53 +1002,9 @@ void GraphWindow::populateSignalTree()
             }
         }
 
-        // ── LIN signals ──────────────────────────────────────────────
-        if (!network->_linDbs.isEmpty()) {
-            QTreeWidgetItem *linRoot = new QTreeWidgetItem(ui->signalTree);
-            linRoot->setText(0, tr("LIN — %1").arg(network->name()));
-            linRoot->setExpanded(true);
-
-            for (pLinDb db : network->_linDbs) {
-                for (LinFrame *frame : db->frames().values()) {
-                    QString frameName = frame->name().trimmed();
-                    if (frameName.isEmpty())
-                        frameName = "FRM_" + QString::number(frame->id(), 16).toUpper();
-
-                    QTreeWidgetItem *frmItem = new QTreeWidgetItem(linRoot);
-                    frmItem->setText(0, QString("%1 (0x%2)").arg(frameName).arg(frame->id(), 0, 16));
-                    frmItem->setText(3, "FRM");
-                    frmItem->setCheckState(0, Qt::Unchecked);
-
-                    QPixmap frmPix(12, 12);
-                    frmPix.fill(QColor("#8d6e63"));
-                    frmItem->setIcon(0, QIcon(frmPix));
-
-                    for (LinSignal *sig : frame->signalList()) {
-                        auto *gs = new GraphSignal(sig, frame);
-                        _ownedSignals.append(gs);
-
-                        QString sigName = sig->name().trimmed();
-                        if (sigName.isEmpty()) sigName = "Signal";
-
-                        QString details = QString("LIN | %1..%2 %3")
-                            .arg(sig->minValue())
-                            .arg(sig->maxValue())
-                            .arg(sig->unit());
-
-                        addSignalItem(frmItem, gs, sigName, frameName,
-                                      details, QString(), interfaceData);
-                    }
-                }
-            }
-        }
-
         // ── Virtual signals (Bus Load) ────────────────────────────────
         for (MeasurementInterface *mi : network->interfaces()) {
-            const bool isCan = (mi->busType() == BusType::CAN);
-            const bool isLin = (mi->busType() == BusType::LIN);
-            if (!isCan && !isLin) continue;
-
-            unsigned bitrate = isLin ? mi->linBaudRate() : mi->bitrate();
+            const unsigned bitrate = mi->bitrate();
             if (bitrate == 0) continue;
 
             BusInterfaceId ifId = mi->busInterface();

@@ -32,8 +32,6 @@
 #include "core/BusTrace.h"
 #include "core/BusMessage.h"
 #include "db/model/CanDbMessage.h"
-#include "db/model/LinFrame.h"
-#include "db/model/LinSignal.h"
 #include "core/ThemeManager.h"
 #include <iostream>
 
@@ -229,7 +227,6 @@ QVariant BaseTraceViewModel::data_DisplayRole_Message(const QModelIndex &index, 
 {
     (void) role;
 
-    const bool isLin = (currentMsg.busType() == BusType::LIN);
 
     switch (index.column()) {
 
@@ -247,11 +244,6 @@ QVariant BaseTraceViewModel::data_DisplayRole_Message(const QModelIndex &index, 
 
         case column_type:
         {
-            if (isLin) {
-                if (currentMsg.isLinSleepFrame())  return QStringLiteral("LIN.SLP");
-                if (currentMsg.isLinWakeupFrame()) return QStringLiteral("LIN.WUP");
-                return QStringLiteral("LIN");
-            }
             if (currentMsg.isErrorFrame()) {
                 return QStringLiteral("ERR");
             }
@@ -260,31 +252,19 @@ QVariant BaseTraceViewModel::data_DisplayRole_Message(const QModelIndex &index, 
         }
 
         case column_canid:
-            // A CAN error frame carries error classes instead of an ID. A LIN
-            // frame flagged as an error (no response, bad checksum) is a real
-            // frame, so keep its ID visible.
-            return (currentMsg.isErrorFrame() && currentMsg.busType() == BusType::CAN)
+            // A CAN error frame carries error classes instead of an ID.
+            return currentMsg.isErrorFrame()
                        ? QStringLiteral("-")
                        : currentMsg.getIdString();
 
         case column_name:
         {
-            if (isLin) {
-                if (currentMsg.isLinSleepFrame())  return tr("Sleep");
-                if (currentMsg.isLinWakeupFrame()) return tr("Wakeup");
-                LinFrame *linFrame = backend()->findLinFrame(currentMsg);
-                return linFrame ? linFrame->name() : QStringLiteral("");
-            }
             CanDbMessage *dbmsg = backend()->findDbMessage(currentMsg);
             return (dbmsg) ? dbmsg->getName() : "";
         }
 
         case column_sender:
         {
-            if (isLin) {
-                LinFrame *linFrame = backend()->findLinFrame(currentMsg);
-                return linFrame ? linFrame->publisher() : QStringLiteral("");
-            }
             CanDbMessage *dbmsg = backend()->findDbMessage(currentMsg);
             return (dbmsg) ? dbmsg->getSender()->name() : "";
         }
@@ -297,8 +277,6 @@ QVariant BaseTraceViewModel::data_DisplayRole_Message(const QModelIndex &index, 
 
         case column_comment:
         {
-            if (isLin)
-                return QStringLiteral("");
             CanDbMessage *dbmsg = backend()->findDbMessage(currentMsg);
             return (dbmsg) ? dbmsg->getComment() : "";
         }
@@ -312,35 +290,6 @@ QVariant BaseTraceViewModel::data_DisplayRole_Message(const QModelIndex &index, 
 QVariant BaseTraceViewModel::data_DisplayRole_Signal(const QModelIndex &index, int role, const BusMessage &msg) const
 {
     (void) role;
-
-    if (msg.busType() == BusType::LIN) {
-        LinFrame *linFrame = backend()->findLinFrame(msg);
-        if (!linFrame) { return QVariant(); }
-
-        const LinSignalList &sigs = linFrame->signalList();
-        if (index.row() < 0 || index.row() >= sigs.size()) { return QVariant(); }
-        const LinSignal *signal = sigs.at(index.row());
-
-        switch (index.column()) {
-            case column_name:
-                return signal->name();
-            case column_data:
-            {
-                uint64_t raw = signal->extractRawValue({msg.getData(), static_cast<std::size_t>(msg.getLength())});
-                const QString valName = signal->getValueName(raw);
-                if (valName.isEmpty()) {
-                    const QString unit = signal->unit();
-                    double phys = signal->convertToPhysical(raw);
-                    return unit.isEmpty()
-                        ? QVariant(phys)
-                        : QVariant(QStringLiteral("%1 %2").arg(phys).arg(unit));
-                }
-                return QStringLiteral("%1 - %2").arg(raw).arg(valName);
-            }
-            default:
-                return QVariant();
-        }
-    }
 
     uint64_t raw_data;
     QString value_name;
@@ -423,10 +372,6 @@ QVariant BaseTraceViewModel::data_ChangedBytesRole(const QModelIndex &index) con
 QVariant BaseTraceViewModel::data_TextColorRole_Signal(const QModelIndex &index, int role, const BusMessage &msg) const
 {
     (void) role;
-
-    // LIN signals are always present in the frame (no multiplexing)
-    if (msg.busType() == BusType::LIN)
-        return QVariant();
 
     CanDbMessage *dbmsg = backend()->findDbMessage(msg);
     if (!dbmsg) { return QVariant(); }

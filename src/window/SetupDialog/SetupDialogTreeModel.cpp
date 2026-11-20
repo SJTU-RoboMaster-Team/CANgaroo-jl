@@ -23,7 +23,6 @@
 #include "SetupDialogTreeModel.h"
 
 #include "driver/BusInterface.h"
-#include "db/model/LinDb.h"
 
 SetupDialogTreeModel::SetupDialogTreeModel(Backend *backend, QObject *parent)
   : QAbstractItemModel(parent),
@@ -215,36 +214,6 @@ void SetupDialogTreeModel::deleteCanDb(const QModelIndex &index)
     }
 }
 
-SetupDialogTreeItem *SetupDialogTreeModel::addLinDb(const QModelIndex &parent, pLinDb db)
-{
-    SetupDialogTreeItem *parentItem = static_cast<SetupDialogTreeItem*>(parent.internalPointer());
-    if (!parentItem) { return nullptr; }
-
-    SetupDialogTreeItem *item = nullptr;
-    if (parentItem->network) {
-        beginInsertRows(parent, rowCount(parent), rowCount(parent));
-        parentItem->network->addLinDb(db);
-        item = loadLinDb(*parentItem, db);
-        endInsertRows();
-    }
-    return item;
-}
-
-void SetupDialogTreeModel::deleteLinDb(const QModelIndex &index)
-{
-    SetupDialogTreeItem *item = static_cast<SetupDialogTreeItem*>(index.internalPointer());
-    if (!item) { return; }
-
-    SetupDialogTreeItem *parentItem = item->getParentItem();
-    if (parentItem && parentItem->network && parentItem->network->_linDbs.contains(item->lindb)) {
-        beginRemoveRows(index.parent(), item->row(), item->row());
-        parentItem->network->_linDbs.removeAll(item->lindb);
-        item->getParentItem()->removeChild(item);
-        delete item;
-        endRemoveRows();
-    }
-}
-
 SetupDialogTreeItem *SetupDialogTreeModel::addInterface(const QModelIndex &parent, BusInterfaceId &interface)
 {
     SetupDialogTreeItem *parentItem = static_cast<SetupDialogTreeItem*>(parent.internalPointer());
@@ -257,7 +226,6 @@ SetupDialogTreeItem *SetupDialogTreeModel::addInterface(const QModelIndex &paren
         // Propagate the actual bus type (e.g. LIN) from the underlying interface
         BusInterface *canIntf = _backend->getInterfaceById(interface);
         if (canIntf)
-            mi->setBusType(canIntf->busType());
         item = loadMeasurementInterface(*parentItem, mi);
         endInsertRows();
     }
@@ -301,14 +269,6 @@ SetupDialogTreeItem *SetupDialogTreeModel::loadCanDb(SetupDialogTreeItem &parent
     return item;
 }
 
-SetupDialogTreeItem *SetupDialogTreeModel::loadLinDb(SetupDialogTreeItem &parent, const pLinDb &db)
-{
-    SetupDialogTreeItem *item = new SetupDialogTreeItem(SetupDialogTreeItem::type_lindb, _backend, &parent);
-    item->lindb = db;
-    parent.appendChild(item);
-    return item;
-}
-
 SetupDialogTreeItem *SetupDialogTreeModel::loadNetwork(SetupDialogTreeItem *root, MeasurementNetwork &network)
 {
     SetupDialogTreeItem *item_network = new SetupDialogTreeItem(SetupDialogTreeItem::type_network, _backend, root);
@@ -328,10 +288,6 @@ SetupDialogTreeItem *SetupDialogTreeModel::loadNetwork(SetupDialogTreeItem *root
 
     for (const auto &candb : network._canDbs) {
         loadCanDb(*item_candb_root, candb);
-    }
-
-    for (const auto &lindb : network._linDbs) {
-        loadLinDb(*item_candb_root, lindb);
     }
 
     root->appendChild(item_network);

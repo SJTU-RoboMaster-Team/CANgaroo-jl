@@ -36,7 +36,6 @@
 class BusInterface;
 class CanDbMessage;
 class CanDbSignal;
-class LinSignal;
 class MeasurementSetup;
 class Backend;
 
@@ -61,9 +60,6 @@ public:
     void save(QFile &file, TraceFileFormat format);
 
     bool getMuxedSignalFromCache(const CanDbSignal *signal, uint64_t *raw_value);
-
-    // LIN mux cache not needed (LIN has no multiplexing), but keep symmetry:
-    bool getLinSignalFromCache(const LinSignal *signal, uint64_t *raw_value) { (void)signal; (void)raw_value; return false; }
 
 signals:
     void messageEnqueued(int idx);

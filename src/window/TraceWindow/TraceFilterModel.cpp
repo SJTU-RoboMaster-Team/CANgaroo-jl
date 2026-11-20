@@ -60,10 +60,6 @@ void TraceFilterModel::setHiddenMessageIds(const QSet<uint32_t> &ids)
     _hiddenMessageIds = ids;
 }
 
-void TraceFilterModel::setHiddenLinFrameIds(const QSet<uint8_t> &ids)
-{
-    _hiddenLinFrameIds = ids;
-}
 
 void TraceFilterModel::setHiddenInterfaces(const QSet<BusInterfaceId> &ids)
 {
@@ -74,7 +70,7 @@ bool TraceFilterModel::filterAcceptsRow(int source_row, const QModelIndex &sourc
 {
     // Fast path: nothing is filtered, so skip the message fetch entirely
     if (_filterText.isEmpty() && _showTx && _showRx
-        && _hiddenMessageIds.isEmpty() && _hiddenLinFrameIds.isEmpty()
+        && _hiddenMessageIds.isEmpty()
         && _hiddenInterfaces.isEmpty())
     {
         return true;
@@ -114,14 +110,7 @@ bool TraceFilterModel::filterAcceptsRow(int source_row, const QModelIndex &sourc
         {
             return false;
         }
-        if (msg.busType() == BusType::LIN)
-        {
-            if (_hiddenLinFrameIds.contains(static_cast<uint8_t>(msg.getId())))
-            {
-                return false;
-            }
-        }
-        else if (_hiddenMessageIds.contains(msg.getId()))
+        if (_hiddenMessageIds.contains(msg.getId()))
         {
             return false;
         }

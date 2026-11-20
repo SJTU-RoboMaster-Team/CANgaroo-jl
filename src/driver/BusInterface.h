@@ -79,10 +79,6 @@ public:
         capability_custom_canfd_bitrate = 0x080, ///< Arbitrary CAN FD data-phase bitrate
         capability_bus_off_recovery     = 0x800, ///< Host-triggered recovery, see recoverFromBusOff()
         capability_tdc                  = 0x1000, ///< Transmitter delay compensation for the CAN FD data phase
-        // LIN capabilities
-        capability_lin_master           = 0x100, ///< LIN master node (can send headers)
-        capability_lin_slave            = 0x200, ///< LIN slave node
-        capability_lin_monitor          = 0x400, ///< Passive LIN monitor
     };
 
 public:
@@ -105,9 +101,6 @@ public:
     /// Stable hardware identity used to rebind the same physical device/channel
     /// after USB unplug/replug. Defaults to getName().
     [[nodiscard]] virtual QString hardwareKey() const;
-
-    /// Bus type (CAN or LIN); defaults to CAN.
-    virtual BusType busType() const { return BusType::CAN; }
 
     /// Firmware / driver version string, if available.
     virtual QString getVersion();
@@ -149,29 +142,13 @@ public:
     // Message I/O
     // -----------------------------------------------------------------------
 
-    /// Send one CAN or LIN message.  Called from the BusListener thread.
+    /// Send one CAN message.  Called from the BusListener thread.
     virtual void sendMessage(const BusMessage &msg) = 0;
 
     /// Block for up to @p timeout_ms and fill @p msglist with received frames.
     /// Returns true when at least one message was appended.  Called from the
     /// BusListener thread in a tight loop.
     virtual bool readMessage(QList<BusMessage> &msglist, unsigned int timeout_ms) = 0;
-
-    /// Send a LIN sleep or wakeup frame.  Only valid when capability_lin_master
-    /// or capability_lin_slave is set.
-    virtual void sendLinSleepWakeup(bool wakeup) { Q_UNUSED(wakeup) }
-
-    /// Switch to a different LIN schedule table (master mode only).
-    virtual void setLinScheduleTable(uint8_t tableIndex) { Q_UNUSED(tableIndex) }
-
-    /// Send a LIN diagnostic (node-configuration) request frame.
-    virtual void sendLinDiagRequest(uint8_t nad, const uint8_t *data, uint8_t len)
-    { Q_UNUSED(nad); Q_UNUSED(data); Q_UNUSED(len); }
-
-    /// Send a LIN diagnostic response frame (slave node answering a master request).
-    /// Only valid when capability_lin_slave is set.
-    virtual void sendLinDiagResponse(uint8_t nad, const uint8_t *data, uint8_t len)
-    { Q_UNUSED(nad); Q_UNUSED(data); Q_UNUSED(len); }
 
     // -----------------------------------------------------------------------
     // Statistics

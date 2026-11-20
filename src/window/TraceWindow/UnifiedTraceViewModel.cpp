@@ -1,7 +1,6 @@
 #include "UnifiedTraceViewModel.h"
 #include "core/BusTrace.h"
 #include "core/Backend.h"
-#include "db/model/LinFrame.h"
 #include "db/model/CanDbMessage.h"
 #include <QColor>
 #include <QDateTime>
@@ -169,18 +168,10 @@ void UnifiedTraceViewModel::processNewMessages()
         item->setPrevSameIdFrame(m_prevMessageByKey.value(dkey));
         m_prevMessageByKey[dkey] = msg;
 
-        if (msg.busType() == BusType::LIN) {
-            LinFrame *linFrame = backend()->findLinFrame(msg);
-            if (linFrame) {
-                for (int s = 0; s < linFrame->signalList().size(); ++s)
-                    item->appendChild(std::make_shared<UnifiedTraceItem>(s, item.get()));
-            }
-        } else {
-            CanDbMessage *dbmsg = backend()->findDbMessage(msg);
-            if (dbmsg) {
-                for (int s = 0; s < dbmsg->getSignals().length(); ++s)
-                    item->appendChild(std::make_shared<UnifiedTraceItem>(s, item.get()));
-            }
+        CanDbMessage *dbmsg = backend()->findDbMessage(msg);
+        if (dbmsg) {
+            for (int s = 0; s < dbmsg->getSignals().length(); ++s)
+                item->appendChild(std::make_shared<UnifiedTraceItem>(s, item.get()));
         }
 
         newItems.append(item);
@@ -262,12 +253,11 @@ void UnifiedTraceViewModel::onSetupChanged()
 
 uint64_t UnifiedTraceViewModel::makeDeltaKey(const BusMessage &msg)
 {
-    // Bits 33+: interface ID; bit 32: RX flag; bit 31: extended flag;
-    // bits 29-30: bus type; bits 0-28: frame ID
-    return static_cast<uint64_t>(msg.getInterfaceId()) << 33
-         | static_cast<uint64_t>(msg.isRX()) << 32
-         | static_cast<uint64_t>(msg.isExtended()) << 31
-         | static_cast<uint64_t>(static_cast<uint8_t>(msg.busType())) << 29
+    // Bits 32+: interface ID; bit 31: RX flag; bit 30: extended flag;
+    // bits 0-28: frame ID
+    return static_cast<uint64_t>(msg.getInterfaceId()) << 32
+         | static_cast<uint64_t>(msg.isRX()) << 31
+         | static_cast<uint64_t>(msg.isExtended()) << 30
          | (static_cast<uint64_t>(msg.getRawId()) & 0x1FFFFFFFull);
 }
 
@@ -297,11 +287,6 @@ QVariant UnifiedTraceViewModel::data_DisplayRole(const QModelIndex &index, [[may
         case column_channel: return interfaceName(msg.getInterfaceId());
         case column_direction: return msg.isRX() ? tr("RX") : tr("TX");
         case column_type: {
-            if (msg.busType() == BusType::LIN) {
-                if (msg.isLinSleepFrame())  return QStringLiteral("LIN.SLP");
-                if (msg.isLinWakeupFrame()) return QStringLiteral("LIN.WUP");
-                return QStringLiteral("LIN");
-            }
             if (msg.isErrorFrame()) return QStringLiteral("ERR");
             QString t;
             if (msg.isFD())       t += QStringLiteral("FD.");
@@ -312,20 +297,13 @@ QVariant UnifiedTraceViewModel::data_DisplayRole(const QModelIndex &index, [[may
             return t;
         }
         case column_canid:
-            // A CAN error frame carries error classes instead of an ID; a LIN
-            // frame flagged as an error is a real frame, so keep its ID.
-            if (msg.isErrorFrame() && msg.busType() == BusType::CAN)
+            // A CAN error frame carries error classes instead of an ID.
+            if (msg.isErrorFrame())
                 return QStringLiteral("-");
             return QString("0x%1").arg(msg.getId(), 0, 16).toUpper();
         case column_dlc: return msg.getLength();
         case column_data: return dataAsciiMode() ? msg.getDataAsciiString() : msg.getDataHexString();
         case column_name:
-            if (msg.busType() == BusType::LIN) {
-                if (msg.isLinSleepFrame())  return tr("Sleep");
-                if (msg.isLinWakeupFrame()) return tr("Wakeup");
-                LinFrame *linFrame = backend()->findLinFrame(msg);
-                return linFrame ? linFrame->name() : QStringLiteral("");
-            }
             {
                 CanDbMessage *dbmsg = backend()->findDbMessage(msg);
                 return (dbmsg) ? dbmsg->getName() : tr("[raw]");
@@ -335,10 +313,6 @@ QVariant UnifiedTraceViewModel::data_DisplayRole(const QModelIndex &index, [[may
                 return (dbmsg) ? dbmsg->getComment() : "";
             }
         case column_sender: {
-            if (msg.busType() == BusType::LIN) {
-                LinFrame *linFrame = backend()->findLinFrame(msg);
-                return linFrame ? linFrame->publisher() : QStringLiteral("");
-            }
             return "";
         }
         default: return QVariant();

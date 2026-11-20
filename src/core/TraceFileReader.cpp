@@ -338,42 +338,6 @@ TraceReadResult readVectorAsc(QIODevice &in, qint64 totalBytes, const TraceFileR
             continue;
         }
 
-        // LIN frame
-        if (parts.size() >= 6 && parts[2].compare(QLatin1String("LIN"), Qt::CaseInsensitive) == 0)
-        {
-            const uint8_t linId = static_cast<uint8_t>(parts[3].toUInt(nullptr, 16) & 0x3Fu);
-            const QString linDir = parts[4];
-
-            BusMessage msg;
-            msg.setTimestamp(finalTs);
-            msg.setBusType(BusType::LIN);
-            msg.setId(linId);
-            msg.setRX(linDir.compare(QLatin1String("Rx"), Qt::CaseInsensitive) == 0);
-
-            if (parts[5].startsWith(QLatin1String("LIN_"), Qt::CaseInsensitive))
-            {
-                msg.setErrorFrame(true);
-                msg.setLength(0);
-            }
-            else if (parts[5].compare(QLatin1String("d"), Qt::CaseInsensitive) == 0 && parts.size() >= 8)
-            {
-                const int dlc = parts[6].toInt(&ok);
-                if (ok && dlc >= 0 && dlc <= 8)
-                {
-                    msg.setLength(static_cast<uint8_t>(dlc));
-                    for (int i = 0; i < dlc && (7 + i) < parts.size(); ++i)
-                    {
-                        if (parts[7 + i].compare(QLatin1String("checksum"), Qt::CaseInsensitive) == 0)
-                            break;
-                        msg.setByte(static_cast<uint8_t>(i), static_cast<uint8_t>(parts[7 + i].toUInt(nullptr, 16)));
-                    }
-                }
-            }
-            result.messages.append(msg);
-            result.interfaceNames.append(QStringLiteral("CH %1").arg(channel));
-            continue;
-        }
-
         if (parts.size() < 6)
         {
             continue;
@@ -534,7 +498,12 @@ TraceReadResult readCsv(QIODevice &in, qint64 totalBytes, const TraceFileReader:
         msg.setRX(dirStr.isEmpty() || dirStr.compare(QLatin1String("Rx"), Qt::CaseInsensitive) == 0);
 
         const QString busStr = field(row, colBus);
-        msg.setBusType(busStr.compare(QLatin1String("LIN"), Qt::CaseInsensitive) == 0 ? BusType::LIN : BusType::CAN);
+        if (!busStr.isEmpty() && busStr.compare(QLatin1String("CAN"), Qt::CaseInsensitive) != 0)
+        {
+            result.errorMessage = QCoreApplication::translate("TraceFileReader", "CSV line %1: unsupported BusType '%2' (only CAN is supported).")
+                                      .arg(lineNum).arg(busStr);
+            return result;
+        }
 
         bool idOk = false;
         const uint32_t id = field(row, colId).toUInt(&idOk, 16);

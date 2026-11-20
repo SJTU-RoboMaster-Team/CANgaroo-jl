@@ -118,16 +118,10 @@ void BusInterface::addFrameBits(const BusMessage &msg)
 {
     uint32_t bits;
 
-    if (msg.busType() == BusType::LIN) {
-        // Break(14) + Sync(10) + PID(10) + data bytes (10 each) + checksum(10)
-        bits = 44 + static_cast<uint32_t>(msg.getLength()) * 10;
-    } else {
-        uint32_t dlc = msg.getLength();
-        bits = 47 + (dlc * 8);
-        if (msg.isExtended()) bits += 18 + 2;
-        if (msg.isFD())       bits += 20;
-        bits += bits / 5; // Approximate bit stuffing
-    }
+    bits = 47 + (msg.getLength() * 8);
+    if (msg.isExtended()) bits += 18 + 2;
+    if (msg.isFD())       bits += 20;
+    bits += bits / 5; // Approximate bit stuffing
 
     _totalBits += bits;
 }

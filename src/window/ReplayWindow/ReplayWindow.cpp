@@ -302,7 +302,6 @@ void ReplayWindow::buildFilterTree()
     };
 
     QMap<QString, QMap<uint32_t, IdInfo>> ifaceIds;
-    QSet<QString> linChannels;
     for (int i = 0; i < _messages.size(); i++) {
         const QString &iface = _messageInterfaces[i];
         const uint32_t id = _messages[i].isErrorFrame() ? ErrorFrameId : _messages[i].getId();
@@ -312,8 +311,6 @@ void ReplayWindow::buildFilterTree()
             info.hasRx = true;
         else
             info.hasTx = true;
-        if (_messages[i].busType() == BusType::LIN)
-            linChannels.insert(iface);
     }
 
     const BusInterfaceIdList availableInterfaces = _backend->getInterfaceList();
@@ -321,26 +318,17 @@ void ReplayWindow::buildFilterTree()
     for (auto ifaceIt = ifaceIds.constBegin(); ifaceIt != ifaceIds.constEnd(); ++ifaceIt) {
         const QString &iface = ifaceIt.key();
         const QMap<uint32_t, IdInfo> &ids = ifaceIt.value();
-        const bool isLin = linChannels.contains(iface);
 
         auto *ifaceItem = new QTreeWidgetItem(_filterTree);
-        ifaceItem->setText(0, isLin ? tr("%1 (LIN)").arg(iface) : tr("%1 (CAN)").arg(iface));
+        ifaceItem->setText(0, tr("%1 (CAN)").arg(iface));
         ifaceItem->setData(0, Qt::UserRole + 1, iface);
         ifaceItem->setFlags(ifaceItem->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsAutoTristate);
         ifaceItem->setCheckState(0, Qt::Checked);
 
         auto *combo = new QComboBox(_filterTree);
         combo->addItem(tr("Trace only"), QVariant(static_cast<int>(-1)));
-        if (!isLin) {
-            for (BusInterfaceId id : availableInterfaces) {
-                BusInterface *intf = _backend->getInterfaceById(id);
-                if (intf && intf->busType() == BusType::LIN)
-                    continue;
-                combo->addItem(_backend->getInterfaceName(id), QVariant(static_cast<int>(id)));
-            }
-        } else {
-            combo->setEnabled(false);
-            combo->setToolTip(tr("LIN frames can only be replayed to the trace"));
+        for (BusInterfaceId id : availableInterfaces) {
+            combo->addItem(_backend->getInterfaceName(id), QVariant(static_cast<int>(id)));
         }
         _channelCombos[iface] = combo;
 
@@ -766,7 +754,7 @@ void ReplayWindow::dispatchSingleMessage(int index, bool moreToFollow)
     const int mappedInt = _channelCombos.contains(channel) ? _channelCombos[channel]->currentData().toInt() : -1;
     BusInterface *intf = (mappedInt >= 0) ? _backend->getInterfaceById(static_cast<BusInterfaceId>(mappedInt)) : nullptr;
 
-    if (intf && intf->isOpen() && !msg.isErrorFrame() && msg.busType() != BusType::LIN) {
+    if (intf && intf->isOpen() && !msg.isErrorFrame()) {
         msg.setTimestamp(_backend->currentTimeStamp());
         msg.setInterfaceId(static_cast<BusInterfaceId>(mappedInt));
         msg.setRX(false);

@@ -114,13 +114,12 @@ void CanStatusWindow::beginMeasurement()
     _lastStats.clear();
     _effectiveBitrates.clear();
 
-    // Build effective bitrate map: use LIN baud rate for LIN interfaces.
+    // Build effective bitrate map from the configured interfaces.
     for (MeasurementNetwork *network : backend().getSetup().getNetworks()) {
         for (MeasurementInterface *mi : network->interfaces()) {
             BusInterface *intf = backend().getInterfaceById(mi->busInterface());
             if (!intf) continue;
-            unsigned bitrate = (mi->busType() == BusType::LIN) ? mi->linBaudRate() : mi->bitrate();
-            _effectiveBitrates[intf] = bitrate;
+            _effectiveBitrates[intf] = mi->bitrate();
         }
     }
 
@@ -226,7 +225,7 @@ void CanStatusWindow::update()
         BusInterface *intf = row.intf;
         intf->updateStatistics();
         QString stateText = intf->getStateText();
-        if (intf->getState() == BusInterface::state_ok && intf->busType() == BusType::CAN)
+        if (intf->getState() == BusInterface::state_ok)
         {
             // "ready" alone would suggest a normal bus participant.
             bool listenOnly = false;

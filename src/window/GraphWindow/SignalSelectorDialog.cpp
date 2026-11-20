@@ -28,8 +28,6 @@
 #include "core/MeasurementSetup.h"
 #include "core/MeasurementNetwork.h"
 #include "db/model/CanDbMessage.h"
-#include "db/model/LinFrame.h"
-#include "db/model/LinSignal.h"
 
 SignalSelectorDialog::SignalSelectorDialog(QWidget *parent, Backend &backend)
     : QDialog(parent), _backend(backend)
@@ -139,33 +137,6 @@ void SignalSelectorDialog::populateTree()
             }
         }
 
-        // ── LIN signals ──────────────────────────────────────────────
-        if (!network->_linDbs.isEmpty()) {
-            QTreeWidgetItem *linRoot = new QTreeWidgetItem(_tree);
-            linRoot->setText(0, tr("LIN — %1").arg(network->name()));
-            linRoot->setExpanded(true);
-
-            for (pLinDb db : network->_linDbs) {
-                for (LinFrame *frame : db->frames().values()) {
-                    QTreeWidgetItem *frmItem = new QTreeWidgetItem(linRoot);
-                    frmItem->setText(0, QString("%1 (0x%2)").arg(frame->name()).arg(frame->id(), 0, 16));
-                    frmItem->setCheckState(0, Qt::Unchecked);
-
-                    for (LinSignal *sig : frame->signalList()) {
-                        auto *gs = new GraphSignal(sig, frame);
-                        _ownedSignals.append(gs);
-
-                        QString details = QString("LIN | %1..%2 %3")
-                            .arg(sig->minValue())
-                            .arg(sig->maxValue())
-                            .arg(sig->unit());
-
-                        addSignalItem(frmItem, gs, sig->name(), details,
-                                      QString(), interfaceData);
-                    }
-                }
-            }
-        }
     }
 }
 

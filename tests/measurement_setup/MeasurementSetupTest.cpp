@@ -94,7 +94,6 @@ private slots:
     void exactStandardIdMatches();
     void unknownIdIsNotFound();
     void errorFrameIsNeverMatched();
-    void linFrameIsNeverMatchedAsCan();
 
     void j1939MatchesOtherSourceAddress();
     void j1939MatchesOtherPriority();
@@ -171,14 +170,6 @@ void MeasurementSetupTest::errorFrameIsNeverMatched()
     use(load(k_j1939Dbc));
     BusMessage msg = extendedFrame(k_wbsdDbcId & 0x1FFFFFFF);
     msg.setErrorFrame(true);
-    QVERIFY(_setup.findDbMessage(msg) == nullptr);
-}
-
-void MeasurementSetupTest::linFrameIsNeverMatchedAsCan()
-{
-    use(load(k_j1939Dbc));
-    BusMessage msg = extendedFrame(k_wbsdDbcId & 0x1FFFFFFF);
-    msg.setBusType(BusType::LIN);
     QVERIFY(_setup.findDbMessage(msg) == nullptr);
 }
 

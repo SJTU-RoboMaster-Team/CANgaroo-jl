@@ -32,7 +32,6 @@
 #include "driver/CanDriver.h"
 #include "core/BusMessage.h"
 #include "db/model/CanDb.h"
-#include "db/model/LinDb.h"
 #include "core/MeasurementSetup.h"
 #include "core/Log.h"
 
@@ -40,7 +39,6 @@ class MeasurementNetwork;
 class BusTrace;
 class BusListener;
 class CanDbMessage;
-class LinFrame;
 class SetupDialog;
 class LogModel;
 class TraceRecorder;
@@ -87,7 +85,6 @@ public:
     TriggerCaptureManager *getTriggerCaptureManager() const { return _triggerCaptureManager; }
 
     CanDbMessage *findDbMessage(const BusMessage &msg) const;
-    LinFrame     *findLinFrame(const BusMessage &msg) const;
 
     [[nodiscard]] const QList<CanDriver*> &getDrivers() const noexcept { return _drivers; }
     BusInterfaceIdList getInterfaceList();
@@ -100,7 +97,6 @@ public:
     BusInterface *getInterfaceByDriverAndName(QString driverName, QString deviceName);
 
     pCanDb loadDbc(QString filename, QString *errorMsg = nullptr);
-    pLinDb loadLdf(QString filename, QString *errorMsg = nullptr);
 
     void notifyDisplayConfigChanged();
 

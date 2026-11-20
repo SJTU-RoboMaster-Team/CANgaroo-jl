@@ -35,7 +35,6 @@ class MeasurementNetwork;
 class BusTrace;
 class BusInterface;
 class CanDbMessage;
-class LinFrame;
 class BusMessage;
 
 struct InterfaceDescriptor
@@ -65,12 +64,11 @@ public:
     void clear();
 
     CanDbMessage *findDbMessage(const BusMessage &msg) const;
-    LinFrame     *findLinFrame(const BusMessage &msg) const;
     void rebuildMessageCache();
     QString getInterfaceName(const BusInterface &id) const;
 
     // Database reload coordination. Call beginDatabaseReload() before mutating any
-    // loaded CanDb/LinDb so that consumers (e.g. the GraphWindow decoder thread)
+    // loaded CanDb so that consumers (e.g. the GraphWindow decoder thread)
     // release their cached signal/frame pointers; call endDatabaseReload() afterwards
     // to rebuild the message/frame caches and refresh all consumers.
     void beginDatabaseReload();
@@ -108,5 +106,4 @@ private:
     {
         return (static_cast<quint64>(intf) << 32) | pgn;
     }
-    mutable QHash<uint8_t,  LinFrame*>     _linFrameCache;
 };
