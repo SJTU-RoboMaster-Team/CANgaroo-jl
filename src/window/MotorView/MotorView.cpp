@@ -393,7 +393,11 @@ void MotorView::onExportDbc()
                               tr("Cannot open %1 for writing.").arg(path));
         return;
     }
-    if (file.write(dbcText.toUtf8()) < 0) {
+    // DbcParser reads DBC files as Latin-1 (the usual DBC encoding). Writing
+    // UTF-8 would corrupt non-ASCII units such as the middle dot in "N·m" when
+    // the exported file is loaded again.
+    const QByteArray bytes = dbcText.toLatin1();
+    if (file.write(bytes) != qint64(bytes.size())) {
         QMessageBox::critical(this, tr("Export DBC"), tr("Cannot write %1.").arg(path));
     }
 }
