@@ -58,7 +58,6 @@
 #include "window/CanStatusWindow/CanStatusWindow.h"
 #include "window/RawTxWindow/RawTxWindow.h"
 #include "window/TxGeneratorWindow/TxGeneratorWindow.h"
-#include "window/ScriptWindow/ScriptWindow.h"
 #include "window/ReplayWindow/ReplayWindow.h"
 #include "window/GatewayWindow/GatewayWindow.h"
 #include "window/SettingsDialog/SettingsDialog.h"
@@ -110,7 +109,6 @@ void MainWindow::initActions()
     connect(ui->actionSetup, &QAction::triggered, this, &MainWindow::showSetupDialog);
     connect(ui->actionTransmit_View, &QAction::triggered, this, [this]() { addRawTxWidget(); });
     connect(ui->actionGenerator_View, &QAction::triggered, this, [this]() { addTxGeneratorWidget(); });
-    connect(ui->actionScript_View, &QAction::triggered, this, [this]() { addScriptWidget(); });
     connect(ui->actionReplay_View, &QAction::triggered, this, [this]() { addReplayWidget(); });
     connect(ui->actionSettings, &QAction::triggered, this, &MainWindow::showSettingsDialog);
 
@@ -889,11 +887,12 @@ bool MainWindow::loadWorkspaceTab(QDomElement el)
         if (gen && !genEl.isNull())
             gen->loadXML(backend(), genEl);
 
-        // Load ScriptWindow dock content (script code + autorun) if present.
-        ScriptWindow *script = mw->findChild<ScriptWindow *>();
-        QDomElement scriptEl = el.firstChildElement("scriptwindow");
-        if (script && !scriptEl.isNull())
-            script->loadXML(backend(), scriptEl);
+        // Workspaces from before the Python window was dropped still carry a
+        // <scriptwindow> element; it is ignored rather than failing the load.
+        if (!el.firstChildElement("scriptwindow").isNull())
+        {
+            log_info(QString(tr("Ignoring scriptwindow section from workspace; Python scripting is no longer available")));
+        }
 
         // Load GraphWindow dock content (active signals, view type, duration) if present.
         GraphWindow *graph = mw->findChild<GraphWindow *>();
@@ -1029,15 +1028,6 @@ bool MainWindow::saveWorkspaceToFile(const QString &filename)
             QDomElement genEl = doc.createElement("txgeneratorwindow");
             gen->saveXML(backend(), doc, genEl);
             tabEl.appendChild(genEl);
-        }
-
-        // Save ScriptWindow dock content (script code + autorun).
-        ScriptWindow *script = w->findChild<ScriptWindow *>();
-        if (script)
-        {
-            QDomElement scriptEl = doc.createElement("scriptwindow");
-            script->saveXML(backend(), doc, scriptEl);
-            tabEl.appendChild(scriptEl);
         }
 
         // Save GraphWindow dock content (active signals, view type, duration).
@@ -1193,7 +1183,6 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     QDockWidget *dockStatusWidget   = addStatusWidget(mm);
     QDockWidget *dockGeneratorWidget = addTxGeneratorWidget(mm);
     QDockWidget *dockGraphWidget    = addGraphWidget(mm);
-    QDockWidget *dockScriptWidget   = addScriptWidget(mm);
     QDockWidget *dockReplayWidget   = addReplayWidget(mm);
 
     auto *gen = qobject_cast<TxGeneratorWindow *>(dockGeneratorWidget->widget());
@@ -1204,26 +1193,24 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     // that are already placed in the same area of the same QMainWindow.
     mm->splitDockWidget(dockGeneratorWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockGraphWidget, dockLogWidget, Qt::Horizontal);
-    mm->splitDockWidget(dockScriptWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockReplayWidget, dockLogWidget, Qt::Horizontal);
     mm->tabifyDockWidget(dockGeneratorWidget, dockGraphWidget);
-    mm->tabifyDockWidget(dockGraphWidget, dockScriptWidget);
-    mm->tabifyDockWidget(dockScriptWidget, dockReplayWidget);
+    mm->tabifyDockWidget(dockGraphWidget, dockReplayWidget);
     mm->splitDockWidget(dockStatusWidget, dockLogWidget, Qt::Horizontal);
     mm->tabifyDockWidget(dockStatusWidget, dockLogWidget);
 
     // Deferred resize so it runs after the event loop settles.
-    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockScriptWidget, dockReplayWidget]()
+    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget]()
     {
         dockStatusWidget->show();
         dockStatusWidget->raise();
         dockGeneratorWidget->show();
         dockGeneratorWidget->raise();
 
-        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockScriptWidget, dockReplayWidget},
-                        {600, 600, 600, 600, 600}, Qt::Vertical);
-        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockScriptWidget, dockReplayWidget},
-                        {1200, 1200, 1200, 1200, 1200}, Qt::Horizontal);
+        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget},
+                        {600, 600, 600, 600}, Qt::Vertical);
+        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget},
+                        {1200, 1200, 1200, 1200}, Qt::Horizontal);
     });
 
     ui->mainTabs->setCurrentWidget(mm);
@@ -1327,33 +1314,6 @@ QDockWidget *MainWindow::addTxGeneratorWidget(QMainWindow *parent)
 {
     return makeDock(tr("Generator View"), QStringLiteral("dock_generator"),
                     new TxGeneratorWindow(nullptr, backend()), parent);
-}
-
-QDockWidget *MainWindow::addScriptWidget(QMainWindow *parent)
-{
-    // One Script dock per tab: reuse an existing one instead of stacking a second
-    // ScriptWindow on top (#30). Engines in different tabs share the process's one
-    // Python interpreter (see PythonEngine.cpp, #50).
-    QMainWindow *targetTab = parent ? parent : currentTab();
-    if (targetTab)
-    {
-        if (auto *existing = targetTab->findChild<ScriptWindow *>())
-        {
-            if (auto *dock = qobject_cast<QDockWidget *>(existing->parentWidget()))
-            {
-                dock->show();
-                dock->raise();
-                return dock;
-            }
-        }
-    }
-
-    auto *scriptWindow = new ScriptWindow(nullptr, backend());
-    auto *dock = makeDock(tr("Python"), QStringLiteral("dock_script"), scriptWindow, parent);
-    if (dock)
-        connect(scriptWindow, &ConfigurableWidget::settingsChanged,
-                this, [this]() { setWorkspaceModified(true); });
-    return dock;
 }
 
 QDockWidget *MainWindow::addReplayWidget(QMainWindow *parent)

@@ -15,9 +15,7 @@ SUBDIRS += \
     trace_recorder \
     trigger_capture \
     decoders \
-    autosar_e2e \
     ldf_parser \
     candle_driver \
     measurement_setup \
-    python_engine \
     update_checker

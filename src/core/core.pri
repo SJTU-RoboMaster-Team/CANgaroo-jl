@@ -17,7 +17,6 @@ SOURCES += \
     $$PWD/TraceFileReader.cpp \
     $$PWD/TraceRecorder.cpp \
     $$PWD/TriggerCaptureManager.cpp \
-    $$PWD/PythonEngine.cpp \
     $$PWD/UpdateChecker.cpp
 
 HEADERS += \
@@ -39,6 +38,5 @@ HEADERS += \
     $$PWD/SocketCan.h \
     $$PWD/TraceRecorder.h \
     $$PWD/TriggerCaptureManager.h \
-    $$PWD/PythonEngine.h \
     $$PWD/TraceFileFormat.h \
     $$PWD/UpdateChecker.h
