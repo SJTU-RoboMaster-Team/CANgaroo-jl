@@ -945,7 +945,7 @@
     <name>MainWindow</name>
     <message>
         <location filename="../mainwindow.ui" line="17"/>
-        <location filename="../mainwindow.cpp" line="1731"/>
+        <location filename="../mainwindow.cpp" line="1747"/>
         <source>CANgaroo</source>
         <oldsource>cangaroo</oldsource>
         <translation>CANgaroo</translation>
@@ -1143,7 +1143,7 @@
     </message>
     <message>
         <location filename="../mainwindow.ui" line="355"/>
-        <location filename="../mainwindow.cpp" line="1277"/>
+        <location filename="../mainwindow.cpp" line="1281"/>
         <source>Message View</source>
         <translation>消息视图</translation>
     </message>
@@ -1169,7 +1169,7 @@
     </message>
     <message>
         <location filename="../mainwindow.ui" line="360"/>
-        <location filename="../mainwindow.cpp" line="1295"/>
+        <location filename="../mainwindow.cpp" line="1311"/>
         <source>Generator View</source>
         <translation>生成器视图</translation>
     </message>
@@ -1200,7 +1200,7 @@
         <translation>是否要保存更改？</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1742"/>
+        <location filename="../mainwindow.cpp" line="1758"/>
         <source>English</source>
         <translation>English</translation>
     </message>
@@ -1217,7 +1217,7 @@
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="120"/>
-        <location filename="../mainwindow.cpp" line="1307"/>
+        <location filename="../mainwindow.cpp" line="1323"/>
         <source>Motor View</source>
         <translation>电机视图</translation>
     </message>
@@ -1416,12 +1416,12 @@ Please verify the USB adapter is plugged in and try again, or open Measurement S
         <translation>无法从工作空间配置文件读取测量设置: %1</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1791"/>
+        <location filename="../mainwindow.cpp" line="1807"/>
         <source>All Supported (*.asc *.candump *.csv);;Vector ASC (*.asc);;CAN/FD Raw CSV (*.csv);;Linux candump (*.candump);;All Files (*)</source>
         <translation>所有支持的格式 (*.asc *.candump *.csv);;Vector ASC (*.asc);;CAN/FD 原始帧 CSV (*.csv);;Linux candump (*.candump);;所有文件 (*)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1846"/>
+        <location filename="../mainwindow.cpp" line="1862"/>
         <source>CAN/FD Raw CSV (*.csv);;Vector ASC (*.asc);;Linux candump (*.candump)</source>
         <translation>CAN/FD 原始帧 CSV (*.csv);;Vector ASC (*.asc);;Linux candump (*.candump)</translation>
     </message>
@@ -1446,116 +1446,116 @@ Please verify the USB adapter is plugged in and try again, or open Measurement S
         <translation>不再询问 (始终丢弃)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1289"/>
+        <location filename="../mainwindow.cpp" line="1305"/>
         <source>BUS Status</source>
         <translation>总线状态</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1771"/>
+        <location filename="../mainwindow.cpp" line="1787"/>
         <source>Export Full Trace</source>
         <translation>导出完整跟踪</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1771"/>
+        <location filename="../mainwindow.cpp" line="1787"/>
         <source>Current trace is empty.</source>
         <translation>当前跟踪为空。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1777"/>
+        <location filename="../mainwindow.cpp" line="1793"/>
         <source>Trace Was Pruned</source>
         <translation>跟踪已被裁剪</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1778"/>
+        <location filename="../mainwindow.cpp" line="1794"/>
         <source>The in-memory trace exceeded %1 frames and older frames were pruned.
 For lossless long recordings, enable Continuous Recording (Ctrl+R) before measurement.</source>
         <translation>内存中的跟踪超过 %1 帧，较早的帧已被裁剪。
 如需无损的长时间记录，请在测量前启用连续录制 (Ctrl+R)。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1789"/>
+        <location filename="../mainwindow.cpp" line="1805"/>
         <source>Import Trace File</source>
         <translation>导入跟踪文件</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1806"/>
+        <location filename="../mainwindow.cpp" line="1822"/>
         <source>Import Failed</source>
         <translation>导入失败</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1808"/>
+        <location filename="../mainwindow.cpp" line="1824"/>
         <source>Failed to parse trace file or file is empty.</source>
         <translation>解析跟踪文件失败，或文件为空。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1818"/>
+        <location filename="../mainwindow.cpp" line="1834"/>
         <source>Large Trace File</source>
         <translation>大型跟踪文件</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1819"/>
+        <location filename="../mainwindow.cpp" line="1835"/>
         <source>This file contains %1 frames, exceeding the in-memory Trace limit (%2).</source>
         <translation>该文件包含 %1 帧，超过内存跟踪上限（%2）。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1822"/>
+        <location filename="../mainwindow.cpp" line="1838"/>
         <source>Choose how to handle this large trace:</source>
         <translation>请选择如何处理该大型跟踪：</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1823"/>
+        <location filename="../mainwindow.cpp" line="1839"/>
         <source>Split &amp; Save Files...</source>
         <translation>分段保存文件...</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1824"/>
+        <location filename="../mainwindow.cpp" line="1840"/>
         <source>Open in Replay Window</source>
         <translation>在回放窗口中打开</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1825"/>
+        <location filename="../mainwindow.cpp" line="1841"/>
         <source>Load First %1 Frames</source>
         <translation>仅加载前 %1 帧</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1833"/>
+        <location filename="../mainwindow.cpp" line="1849"/>
         <source>Split Trace by Frame Count</source>
         <translation>按帧数分割跟踪</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1834"/>
+        <location filename="../mainwindow.cpp" line="1850"/>
         <source>Maximum frames per output file:</source>
         <translation>每个输出文件的最大帧数：</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1844"/>
+        <location filename="../mainwindow.cpp" line="1860"/>
         <source>Save Split Trace Files</source>
         <translation>保存分段跟踪文件</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1862"/>
+        <location filename="../mainwindow.cpp" line="1878"/>
         <source>Split Save Failed</source>
         <translation>分段保存失败</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1862"/>
+        <location filename="../mainwindow.cpp" line="1878"/>
         <source>No files written.</source>
         <translation>未写入任何文件。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1865"/>
+        <location filename="../mainwindow.cpp" line="1881"/>
         <source>Split Save Complete</source>
         <translation>分段保存完成</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1866"/>
+        <location filename="../mainwindow.cpp" line="1882"/>
         <source>Saved %1 split file(s) starting at:
 %2</source>
         <translation>已保存 %1 个分段文件，起始文件：
 %2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1895"/>
+        <location filename="../mainwindow.cpp" line="1911"/>
         <source>Imported %1 frames from %2</source>
         <translation>已从 %2 导入 %1 帧</translation>
     </message>
@@ -1570,22 +1570,22 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
         <translation>工作区中的 gatewaywindow 段已忽略：CAN 网关功能已移除</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1647"/>
+        <location filename="../mainwindow.cpp" line="1663"/>
         <source>Save Trace to file</source>
         <translation>将跟踪保存到文件</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1667"/>
+        <location filename="../mainwindow.cpp" line="1683"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1667"/>
+        <location filename="../mainwindow.cpp" line="1683"/>
         <source>Cannot open file for writing.</source>
         <translation>无法打开文件进行写入。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1743"/>
+        <location filename="../mainwindow.cpp" line="1759"/>
         <source>Chinese</source>
         <translation>Chinese</translation>
     </message>
@@ -1595,7 +1595,7 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
         <translation>导入完整跟踪</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1441"/>
+        <location filename="../mainwindow.cpp" line="1457"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -1612,17 +1612,17 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
         <translation>图表</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1283"/>
+        <location filename="../mainwindow.cpp" line="1299"/>
         <source>Log</source>
         <translation>日志</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1301"/>
+        <location filename="../mainwindow.cpp" line="1317"/>
         <source>Replay</source>
         <translation>回放</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1397"/>
+        <location filename="../mainwindow.cpp" line="1413"/>
         <source>About CANgaroo</source>
         <translation>关于CANgaroo</translation>
     </message>
@@ -1632,20 +1632,20 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
         <translation>检查更新(&amp;U)...</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1440"/>
+        <location filename="../mainwindow.cpp" line="1456"/>
         <source>Checking for updates from %1...</source>
         <translation>正在从 %1 检查更新...</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1443"/>
-        <location filename="../mainwindow.cpp" line="1482"/>
-        <location filename="../mainwindow.cpp" line="1491"/>
-        <location filename="../mainwindow.cpp" line="1511"/>
+        <location filename="../mainwindow.cpp" line="1459"/>
+        <location filename="../mainwindow.cpp" line="1498"/>
+        <location filename="../mainwindow.cpp" line="1507"/>
+        <location filename="../mainwindow.cpp" line="1527"/>
         <source>Check for Updates</source>
         <translation>检查更新</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1483"/>
+        <location filename="../mainwindow.cpp" line="1499"/>
         <source>You are already using the latest version (%1).
 
 Update source: %2</source>
@@ -1654,7 +1654,7 @@ Update source: %2</source>
 更新源: %2</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1492"/>
+        <location filename="../mainwindow.cpp" line="1508"/>
         <source>You are running a development build (%1).
 
 Latest version in %2: %3</source>
@@ -1663,73 +1663,73 @@ Latest version in %2: %3</source>
 %2 中的最新版本: %3</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1497"/>
-        <location filename="../mainwindow.cpp" line="1592"/>
+        <location filename="../mainwindow.cpp" line="1513"/>
+        <location filename="../mainwindow.cpp" line="1608"/>
         <source>Open Release Page</source>
         <translation>打开发布页面</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1512"/>
+        <location filename="../mainwindow.cpp" line="1528"/>
         <source>Failed to check for updates from %1.</source>
         <translation>从 %1 检查更新失败。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1514"/>
+        <location filename="../mainwindow.cpp" line="1530"/>
         <source>Open Releases Page</source>
         <translation>打开发布列表</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1527"/>
+        <location filename="../mainwindow.cpp" line="1543"/>
         <source>Update Available</source>
         <translation>发现新版本</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1532"/>
+        <location filename="../mainwindow.cpp" line="1548"/>
         <source>A new version of CANgaroo is available!</source>
         <translation>发现新版本 CANgaroo！</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1540"/>
+        <location filename="../mainwindow.cpp" line="1556"/>
         <source>Current version:</source>
         <translation>当前版本:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1544"/>
+        <location filename="../mainwindow.cpp" line="1560"/>
         <source> (tag %1)</source>
         <translation> (标签 %1)</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1545"/>
+        <location filename="../mainwindow.cpp" line="1561"/>
         <source>Latest version:</source>
         <translation>最新版本:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1554"/>
+        <location filename="../mainwindow.cpp" line="1570"/>
         <source>Update source:</source>
         <translation>更新源:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1557"/>
+        <location filename="../mainwindow.cpp" line="1573"/>
         <source>Package:</source>
         <translation>安装包:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1563"/>
+        <location filename="../mainwindow.cpp" line="1579"/>
         <source>Release notes:</source>
         <translation>更新说明:</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1575"/>
+        <location filename="../mainwindow.cpp" line="1591"/>
         <source>Detected from repository tag %1 (no published release notes yet).</source>
         <translation>检测到仓库标签 %1（暂未发布发行说明）。</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1587"/>
+        <location filename="../mainwindow.cpp" line="1603"/>
         <source>Download</source>
         <translation>下载</translation>
     </message>
     <message>
-        <location filename="../mainwindow.cpp" line="1588"/>
+        <location filename="../mainwindow.cpp" line="1604"/>
         <source>Release Page</source>
         <translation>发布页面</translation>
     </message>
@@ -1977,7 +1977,7 @@ Latest version in %2: %3</source>
         <location filename="../window/MotorView/MotorView.cpp" line="379"/>
         <location filename="../window/MotorView/MotorView.cpp" line="385"/>
         <location filename="../window/MotorView/MotorView.cpp" line="392"/>
-        <location filename="../window/MotorView/MotorView.cpp" line="397"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="401"/>
         <source>Export DBC</source>
         <translation>导出 DBC</translation>
     </message>
@@ -1997,57 +1997,57 @@ Latest version in %2: %3</source>
         <translation>无法打开 %1 写入。</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="397"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="401"/>
         <source>Cannot write %1.</source>
         <translation>无法写入 %1。</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="483"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="487"/>
         <source>raw torque: %1</source>
         <translation>原始转矩：%1</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="499"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="503"/>
         <source>MOS: %1 °C / Rotor: %2 °C</source>
         <translation>MOS：%1 °C / 转子：%2 °C</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="509"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="513"/>
         <source>Online</source>
         <translation>在线</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="509"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="513"/>
         <source>Offline</source>
         <translation>离线</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="595"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="599"/>
         <source>Motor Configuration</source>
         <translation>电机配置</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="596"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="600"/>
         <source>CAN ID %1 is already used by motor &quot;%2&quot;. Choose a different ID.</source>
         <translation>CAN ID %1 已被电机“%2”占用，请选择其他 ID。</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="644"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="648"/>
         <source>DJI M3508</source>
         <translation>DJI M3508</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="646"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="650"/>
         <source>DJI M2006</source>
         <translation>DJI M2006</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="648"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="652"/>
         <source>DJI GM6020</source>
         <translation>DJI GM6020</translation>
     </message>
     <message>
-        <location filename="../window/MotorView/MotorView.cpp" line="650"/>
+        <location filename="../window/MotorView/MotorView.cpp" line="654"/>
         <source>Damiao DM (MIT)</source>
         <translation>达妙 DM（MIT）</translation>
     </message>
@@ -2134,6 +2134,8 @@ Latest version in %2: %3</source>
     <name>RawTxWindow</name>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="72"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="112"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="299"/>
         <source>Send</source>
         <translation>发送</translation>
     </message>
@@ -2154,8 +2156,8 @@ Latest version in %2: %3</source>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="191"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="75"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="215"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="87"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="294"/>
         <source>RTR</source>
         <translation>RTR</translation>
     </message>
@@ -2165,34 +2167,110 @@ Latest version in %2: %3</source>
         <translation>扩展帧</translation>
     </message>
     <message>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="60"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="211"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="72"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="290"/>
         <source>ID (Hex):</source>
         <translation>ID (Hex):</translation>
     </message>
     <message>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="68"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="212"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="80"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="291"/>
         <source>DLC:</source>
         <translation>DLC:</translation>
     </message>
     <message>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="74"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="214"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="86"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="293"/>
         <source>Extended</source>
         <translation>扩展帧</translation>
     </message>
     <message>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="86"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="213"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="98"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="292"/>
         <source>Interface:</source>
         <translation>接口：</translation>
     </message>
     <message>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="143"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="218"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="113"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="300"/>
+        <source>Repeat</source>
+        <translation>周期发送</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="115"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="301"/>
+        <source>Interval</source>
+        <translation>间隔</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="119"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="302"/>
+        <source> ms</source>
+        <translation> 毫秒</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="149"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="482"/>
+        <source>Repeat stopped because measurement ended.</source>
+        <translation>测量已结束，周期发送已停止。</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="199"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="297"/>
         <source>Signal</source>
         <translation>信号</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="393"/>
+        <source>Payload bytes must be hexadecimal values from 00 to FF.</source>
+        <translation>数据字节必须是 00 至 FF 之间的十六进制值。</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="443"/>
+        <source>The selected interface changed during Repeat.</source>
+        <translation>周期发送期间所选接口发生变化。</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="457"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="538"/>
+        <source>The selected interface is not open.</source>
+        <translation>所选接口未打开。</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="472"/>
+        <source>Ready to send</source>
+        <translation>可以发送</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="467"/>
+        <source>Interface is closed. Start measurement and select an open interface.</source>
+        <translation>接口未打开。请启动测量并选择已打开的接口。</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="475"/>
+        <source>TX requested: %1 (every %2 ms)</source>
+        <translation>已请求发送 %1 帧（每 %2 毫秒）</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="476"/>
+        <source>TX requested: %1</source>
+        <translation>已请求发送 %1 帧</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="479"/>
+        <source>Repeat stopped. TX requested: %1</source>
+        <translation>周期发送已停止。已请求发送 %1 帧。</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="485"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="503"/>
+        <source>Send failed: %1</source>
+        <translation>发送失败：%1</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="547"/>
+        <source>CAN FD is not enabled on the selected interface.</source>
+        <translation>所选接口未启用 CAN FD。</translation>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="32"/>
@@ -2206,15 +2284,15 @@ Latest version in %2: %3</source>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="50"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="143"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="218"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="199"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="297"/>
         <source>Value</source>
         <translation>值</translation>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="55"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="143"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="218"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="199"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="297"/>
         <source>Unit</source>
         <translation>单位</translation>
     </message>
@@ -2225,15 +2303,15 @@ Latest version in %2: %3</source>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="217"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="77"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="217"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="89"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="296"/>
         <source>BRS</source>
         <translation>BRS</translation>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="230"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="76"/>
-        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="216"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="88"/>
+        <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="295"/>
         <source>FD</source>
         <translation>FD</translation>
     </message>
@@ -2457,6 +2535,21 @@ Latest version in %2: %3</source>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="1709"/>
         <source>48</source>
         <translation>48</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxMessageBuilder.cpp" line="39"/>
+        <source>Invalid payload length for the selected frame format.</source>
+        <translation>载荷长度不符合所选帧格式。</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxMessageBuilder.cpp" line="42"/>
+        <source>CAN FD does not support remote frames.</source>
+        <translation>CAN FD 不支持远程帧。</translation>
+    </message>
+    <message>
+        <location filename="../window/RawTxWindow/RawTxMessageBuilder.cpp" line="45"/>
+        <source>BRS requires CAN FD.</source>
+        <translation>BRS 仅适用于 CAN FD。</translation>
     </message>
 </context>
 <context>
@@ -4031,29 +4124,29 @@ Reason: %2</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="127"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="128"/>
         <source>Randomize Data</source>
         <translation>随机化数据</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="128"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="129"/>
         <source>Randomize data bytes for selected messages</source>
         <translation>为选中消息随机化数据字节</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="618"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="613"/>
         <source>Edit Message: %1 - %2</source>
         <translation>编辑消息: %1 - %2</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="806"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="850"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="804"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="848"/>
         <source>Stop</source>
         <translation>停止</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="806"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="850"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="804"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="848"/>
         <source>Start</source>
         <translation>启动</translation>
     </message>
