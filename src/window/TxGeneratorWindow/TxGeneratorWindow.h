@@ -51,6 +51,8 @@ public:
     virtual bool saveXML(Backend &backend, QDomDocument &xml, QDomElement &root);
     virtual bool loadXML(Backend &backend, QDomElement &el);
     virtual QSize sizeHint() const override;
+    [[nodiscard]] bool currentMessage(BusMessage *msg, QString *name,
+                                      BusInterfaceId *interfaceId, CanDbMessage **dbMsg) const;
 
 protected:
     void retranslateUi() override;
@@ -58,6 +60,7 @@ protected:
 signals:
     void loopbackFrame(const BusMessage &msg);
     void interfaceChanged(BusInterfaceId interfaceId);
+    void messageSelected(const BusMessage &msg, const QString &name, BusInterfaceId interfaceId, CanDbMessage *dbMsg);
 
 public slots:
     void stopAll();

@@ -31,6 +31,7 @@
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
 #include <QComboBox>
+#include <QSignalBlocker>
 #include "core/Backend.h"
 #include "core/ThemeManager.h"
 #include "core/MeasurementNetwork.h"
@@ -565,45 +566,39 @@ void TxGeneratorWindow::on_treeAvailable_itemDoubleClicked(QTreeWidgetItem *item
 
 void TxGeneratorWindow::on_treeActive_itemSelectionChanged()
 {
+    const auto selected = ui->treeActive->selectedItems();
+    auto *item = selected.value(0, ui->treeActive->currentItem());
+    const int row = ui->treeActive->indexOfTopLevelItem(item);
+    if (row < 0 || row >= _cyclicMessages.size()) { return; }
+
+    const CyclicMessage &cm = _cyclicMessages.at(row);
     isLoading = true;
-    QList<QTreeWidgetItem*> selected = ui->treeActive->selectedItems();
-    if (!selected.isEmpty()) {
-        int row = ui->treeActive->indexOfTopLevelItem(selected.first());
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            const CyclicMessage &cm = _cyclicMessages[row];
-
-            ui->btnBulkRun->blockSignals(true);
-            ui->btnBulkStop->blockSignals(true);
-            ui->btnBulkRun->setChecked(cm.enabled);
-            ui->btnBulkStop->setChecked(!cm.enabled);
-            ui->btnBulkRun->blockSignals(false);
-            ui->btnBulkStop->blockSignals(false);
-
-            ui->spinInterval->blockSignals(true);
-            ui->spinInterval->setValue(cm.interval);
-            ui->spinInterval->blockSignals(false);
-
-
-        }
-    } else {
-        int row = ui->treeActive->currentIndex().row();
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            const CyclicMessage &cm = _cyclicMessages[row];
-            ui->btnBulkRun->blockSignals(true);
-            ui->btnBulkStop->blockSignals(true);
-            ui->btnBulkRun->setChecked(cm.enabled);
-            ui->btnBulkStop->setChecked(!cm.enabled);
-            ui->btnBulkRun->blockSignals(false);
-            ui->btnBulkStop->blockSignals(false);
-
-            ui->spinInterval->blockSignals(true);
-            ui->spinInterval->setValue(cm.interval);
-            ui->spinInterval->blockSignals(false);
-
-
-        }
-    }
+    const QSignalBlocker blockRun(ui->btnBulkRun);
+    const QSignalBlocker blockStop(ui->btnBulkStop);
+    const QSignalBlocker blockInterval(ui->spinInterval);
+    ui->btnBulkRun->setChecked(cm.enabled);
+    ui->btnBulkStop->setChecked(!cm.enabled);
+    ui->spinInterval->setValue(cm.interval);
     isLoading = false;
+    if (!selected.isEmpty()) {
+        emit messageSelected(cm.msg, cm.name, cm.interfaceId, cm.dbMsg);
+    }
+}
+
+bool TxGeneratorWindow::currentMessage(BusMessage *msg, QString *name,
+                                       BusInterfaceId *interfaceId, CanDbMessage **dbMsg) const
+{
+    const auto selected = ui->treeActive->selectedItems();
+    if (selected.isEmpty()) { return false; }
+    const int row = ui->treeActive->indexOfTopLevelItem(selected.first());
+    if (row < 0 || row >= _cyclicMessages.size()) { return false; }
+
+    const CyclicMessage &cm = _cyclicMessages.at(row);
+    if (msg) { *msg = cm.msg; }
+    if (name) { *name = cm.name; }
+    if (interfaceId) { *interfaceId = cm.interfaceId; }
+    if (dbMsg) { *dbMsg = cm.dbMsg; }
+    return true;
 }
 
 void TxGeneratorWindow::treeActiveItemDoubleClicked(QTreeWidgetItem *item, int column)
@@ -619,7 +614,7 @@ void TxGeneratorWindow::treeActiveItemDoubleClicked(QTreeWidgetItem *item, int c
     dlg.resize(750, 480);
 
     auto *layout = new QVBoxLayout(&dlg);
-    auto *rawTx = new RawTxWindow(&dlg, _backend);
+    auto *rawTx = new RawTxWindow(&dlg, _backend, false);
     rawTx->setMessage(cm.msg, cm.name, cm.interfaceId, cm.dbMsg);
     layout->addWidget(rawTx);
 
@@ -762,6 +757,9 @@ void TxGeneratorWindow::onSendTimerTimeout()
 
 void TxGeneratorWindow::onSetupChanged()
 {
+    for (CyclicMessage &cm : _cyclicMessages) {
+        cm.dbMsg = nullptr;
+    }
     refreshInterfaces();
 }
 

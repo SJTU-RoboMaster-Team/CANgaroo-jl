@@ -1274,8 +1274,24 @@ QDockWidget *MainWindow::addGraphWidget(QMainWindow *parent)
 
 QDockWidget *MainWindow::addRawTxWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Message View"), QStringLiteral("dock_rawtx"),
-                    new RawTxWindow(nullptr, backend()), parent);
+    QMainWindow *tab = parent ? parent : currentTab();
+    if (!tab) { return nullptr; }
+
+    auto *rawTx = new RawTxWindow(nullptr, backend());
+    auto *dock = makeDock(tr("Message View"), QStringLiteral("dock_rawtx"), rawTx, parent);
+    dock->installEventFilter(rawTx);
+    if (auto *generator = tab->findChild<TxGeneratorWindow *>()) {
+        connect(generator, &TxGeneratorWindow::messageSelected, rawTx, &RawTxWindow::setMessage);
+
+        BusMessage message;
+        QString name;
+        BusInterfaceId interfaceId;
+        CanDbMessage *dbMessage;
+        if (generator->currentMessage(&message, &name, &interfaceId, &dbMessage)) {
+            rawTx->setMessage(message, name, interfaceId, dbMessage);
+        }
+    }
+    return dock;
 }
 
 QDockWidget *MainWindow::addLogWidget(QMainWindow *parent)
