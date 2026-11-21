@@ -42,6 +42,22 @@ QLocale toQLocale(const QString &locale)
     return QLocale(locale);
 }
 
+QStringList qtTranslationDirs()
+{
+    QStringList dirs;
+    const QString qtPath = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
+    if (!qtPath.isEmpty())
+        dirs.append(qtPath);
+    // windeployqt ships the combined meta catalogs (qt_<locale>.qm) in a
+    // "translations" directory next to the executable. On a machine without
+    // Qt installed the compiled-in translations path above does not exist.
+    const QString appPath = QCoreApplication::applicationDirPath()
+                            + QStringLiteral("/translations");
+    if (!dirs.contains(appPath))
+        dirs.append(appPath);
+    return dirs;
+}
+
 void removeTranslator(QTranslator *&translator)
 {
     if (!translator)
@@ -96,11 +112,26 @@ bool Translation::apply(const QString &locale)
     }
 
     // Qt's own strings (standard dialog buttons, built-in dialogs) need the
-    // qtbase catalog; without it a Chinese UI still shows "OK"/"Cancel".
+    // Qt translation catalog; without it a Chinese UI still shows "OK"/"Cancel".
     QTranslator *qtTranslator = new QTranslator;
-    const QString qtTranslationsPath = QLibraryInfo::path(QLibraryInfo::TranslationsPath);
-    if (qtTranslator->load(toQLocale(locale), QStringLiteral("qtbase"), QStringLiteral("_"),
-                          qtTranslationsPath))
+    QString qtCatalogFound;
+    // The development install ships qtbase_<locale>.qm, while windeployqt
+    // packages the combined qt_<locale>.qm meta catalog; try both.
+    for (const QString &dir : qtTranslationDirs())
+    {
+        for (const QString &prefix : {QStringLiteral("qtbase"), QStringLiteral("qt")})
+        {
+            if (qtTranslator->load(toQLocale(locale), prefix, QStringLiteral("_"), dir))
+            {
+                qtCatalogFound = dir + QLatin1Char('/') + prefix;
+                break;
+            }
+        }
+        if (!qtCatalogFound.isEmpty())
+            break;
+    }
+
+    if (!qtCatalogFound.isEmpty())
     {
         removeTranslator(s_qtTranslator);
         QCoreApplication::installTranslator(qtTranslator);
@@ -110,9 +141,9 @@ bool Translation::apply(const QString &locale)
     {
         delete qtTranslator;
         s_qtTranslator = nullptr;
-        log_warning(QStringLiteral("Qt base translation catalog for %1 not found in %2; "
+        log_warning(QStringLiteral("Qt base translation catalog for %1 not found in \"%2\"; "
                                    "Qt-built-in dialogs and standard buttons stay English.")
-                        .arg(locale, qtTranslationsPath));
+                        .arg(locale, qtTranslationDirs().join(QStringLiteral("\", \""))));
     }
 
     removeTranslator(s_appTranslator);
