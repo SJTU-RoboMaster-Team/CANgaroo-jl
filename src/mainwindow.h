@@ -131,6 +131,10 @@ private:
 
     QMainWindow *createTab(const QString &title, const char *titleSource = nullptr);
     QMainWindow *currentTab();
+    // Closes the tab at `index` (no-op when it would close the last remaining
+    // tab, so the window always keeps a workspace view). Marks the workspace
+    // as modified and refreshes the tab close-button visibility.
+    void closeTab(int index);
 
     // Constructor init helpers
     void initVersion();
@@ -195,6 +199,7 @@ private:
 
     QAction *_actionStandaloneGraph = nullptr;
     QAction *_actionMotorView = nullptr;
+    QAction *_actionCloseTab = nullptr;
     QAction *_actionExportFull = nullptr;
     QAction *_actionImportFull = nullptr;
 

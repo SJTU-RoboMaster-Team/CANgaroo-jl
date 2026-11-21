@@ -21,6 +21,10 @@
         <file>assets/icons/edit-clear-symbolic.svg</file>
         <file>assets/icons/drive-harddisk-usb-symbolic.svg</file>
         <file>assets/icons/checkmark-white.svg</file>
+        <file>assets/icons/tab-close-light.svg</file>
+        <file>assets/icons/tab-close-light-hover.svg</file>
+        <file>assets/icons/tab-close-dark.svg</file>
+        <file>assets/icons/tab-close-dark-hover.svg</file>
         <file>assets/fonts/IBMPlexSans-Regular.ttf</file>
         <file>assets/fonts/IBMPlexSans-Medium.ttf</file>
         <file>assets/fonts/IBMPlexSans-SemiBold.ttf</file>

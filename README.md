@@ -15,6 +15,7 @@
 * **实时 CAN / CAN-FD 解析与 DBC 支持**：标准帧与高速 CAN-FD 帧（最高 64 字节载荷）；可加载多份 `.dbc` 做实时信号解析与工程量换算。
 * **多视图信号可视化（Graph View）**：时序波形、散点图、文本监测与仪表盘视图，支持缩放、悬浮数值提示与独立弹窗。
 * **Trace 视图**：单一报文列表，可在「聚合」与「滚动日志」之间切换；支持绝对 / UTC / 相对 / 增量时间戳、按 ID/名称/正则过滤、方向与接口过滤，右键可直接按所选 CAN ID 创建触发规则。
+* **多标签工作区**：**Window → New → Trace View**（`Ctrl+Shift+T`）等命令会新建独立页签，每个页签拥有自己的 Trace 与 Dock 布局；页签上的 ✕ 或 **Ctrl+W** 可关闭当前页签（只剩一个页签时自动隐藏关闭按钮，避免出现空工作区）。关闭页签会视为工作区修改。
 * **总线状态与硬件诊断**：内置 CAN 总线状态监控；**Measurement > Hardware...** 显示所有已识别设备、总线状态、固件版本、能力掩码与可用波特率，可一键复制纯文本诊断报告。
 * **报文发送与周期生成器**。Message View 默认显示在 Trace 页签右下角，是该分组的第一个标签。在 Message View 中选择接口，启动测量后点 **Send** 发送一帧，或打开 **Repeat** 并用 **Interval** 设置周期（1–100000 ms，默认 100 ms）。周期发送会使用最新的编辑内容，停止测量、接口断开或关闭 Message View 时自动停止。状态栏统计发送请求。同一页签内，Generator View 中选中的报文会载入 Message View。Generator View 仍支持多任务周期调度。
 * **日志回放**：导入 Vector ASC、Linux `candump`、CAN/FD 原始帧 `.csv` 三种文本格式，统一由纯 QtCore 的 `TraceFileReader` 解析；回放窗口提供 Play / Pause / Resume / Stop / 单步 / 进度条定位，保留原始帧间隔 `Δt`，支持倍速、RX/TX 方向过滤与通道映射，并可 **Load to Trace** 直接载入 Trace/Graph 做离线分析。

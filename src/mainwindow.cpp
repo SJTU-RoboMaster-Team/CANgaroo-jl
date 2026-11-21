@@ -125,6 +125,16 @@ void MainWindow::initActions()
     connect(actionMotorView, &QAction::triggered, this, [this]() { addMotorWidget(); });
     _actionMotorView = actionMotorView;
 
+    auto *actionCloseTab = new QAction(tr("Close Tab"), this);
+    actionCloseTab->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_W));
+    ui->menuWindow->addAction(actionCloseTab);
+    connect(actionCloseTab, &QAction::triggered, this,
+            [this]() { closeTab(ui->mainTabs->currentIndex()); });
+    _actionCloseTab = actionCloseTab;
+
+    // Tabs are only closable while more than one tab exists (see createTab()).
+    connect(ui->mainTabs, &QTabWidget::tabCloseRequested, this, &MainWindow::closeTab);
+
     connect(ui->actionStart_Measurement, &QAction::triggered, this, &MainWindow::startMeasurement);
     connect(ui->btnStartMeasurement, &QPushButton::released, this, &MainWindow::startMeasurement);
     connect(ui->actionStop_Measurement, &QAction::triggered, this, &MainWindow::stopMeasurement);
@@ -797,12 +807,28 @@ QMainWindow *MainWindow::createTab(const QString &title, const char *titleSource
     if (titleSource)
         mm->setProperty("i18nTitleSource", QString::fromLatin1(titleSource));
     ui->mainTabs->addTab(mm, titleSource ? tr(titleSource) : title);
+    // Keep at least one tab: only show close buttons once a second tab exists
+    // so the window can never end up without a workspace view.
+    ui->mainTabs->setTabsClosable(ui->mainTabs->count() > 1);
     return mm;
 }
 
 QMainWindow *MainWindow::currentTab()
 {
     return qobject_cast<QMainWindow *>(ui->mainTabs->currentWidget());
+}
+
+void MainWindow::closeTab(int index)
+{
+    if (index < 0 || index >= ui->mainTabs->count() || ui->mainTabs->count() <= 1)
+        return;
+
+    QWidget *page = ui->mainTabs->widget(index);
+    ui->mainTabs->removeTab(index);
+    delete page;
+
+    ui->mainTabs->setTabsClosable(ui->mainTabs->count() > 1);
+    setWorkspaceModified(true);
 }
 
 void MainWindow::stopAndClearMeasurement()
@@ -1792,6 +1818,8 @@ void MainWindow::retranslateCustomUi()
         _actionStandaloneGraph->setText(tr("Standalone Graph"));
     if (_actionMotorView)
         _actionMotorView->setText(tr("Motor View"));
+    if (_actionCloseTab)
+        _actionCloseTab->setText(tr("Close Tab"));
     if (_actionExportFull)
         _actionExportFull->setText(tr("Export full trace"));
     if (_actionImportFull)
