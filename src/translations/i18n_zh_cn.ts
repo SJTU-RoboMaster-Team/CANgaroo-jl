@@ -193,7 +193,7 @@
     <message>
         <location filename="../core/BusTrace.cpp" line="172"/>
         <source>Trace exceeded %1 messages; oldest messages are being discarded and will be missing from saved traces. Increase the limit in Settings.</source>
-        <translation>Trace 已超过 %1 条消息；最早的消息将被丢弃，且不会出现在保存的 Trace 中。请在设置中提高上限。</translation>
+        <translation>Trace 已超过 %1 条报文；最早的报文将被丢弃，且不会出现在保存的 Trace 中。请在设置中提高上限。</translation>
     </message>
 </context>
 <context>
@@ -405,7 +405,7 @@
         <location filename="../driver/GenericCanSetupPage.ui" line="330"/>
         <source>Div+Seg1+Seg2 (Hex)</source>
         <oldsource>Seg1+Seg2 (Hex)</oldsource>
-        <translation>分频+段1+段2 (十六进制)</translation>
+        <translation>Div+Seg1+Seg2 (Hex)</translation>
     </message>
     <message>
         <location filename="../driver/GenericCanSetupPage.ui" line="288"/>
@@ -451,7 +451,7 @@
     <message>
         <location filename="../window/GraphWindow/GraphWindow.ui" line="14"/>
         <source>Visualization View</source>
-        <translation>可视化视图</translation>
+        <translation>Graph 视图</translation>
     </message>
     <message>
         <location filename="../window/GraphWindow/GraphWindow.ui" line="22"/>
@@ -551,7 +551,7 @@
     <message>
         <location filename="../window/GraphWindow/GraphWindow.ui" line="164"/>
         <source>Search Signals/Messages...</source>
-        <translation>搜索信号/消息...</translation>
+        <translation>搜索信号/报文...</translation>
     </message>
     <message>
         <location filename="../window/GraphWindow/GraphWindow.ui" line="172"/>
@@ -576,7 +576,7 @@
     <message>
         <location filename="../window/GraphWindow/GraphWindow.ui" line="200"/>
         <source>Add to Graph</source>
-        <translation>添加到图表</translation>
+        <translation>添加到 Graph</translation>
     </message>
     <message>
         <location filename="../window/GraphWindow/GraphWindow.cpp" line="370"/>
@@ -770,7 +770,7 @@
     <message>
         <location filename="../window/HardwareDialog/HardwareDialog.cpp" line="113"/>
         <source>Rescan USB/CAN hardware, rebind configured interfaces by Hardware Key, and resume measurement</source>
-        <translation>重新扫描 USB/CAN 硬件，按硬件标识（Hardware Key）重新绑定已配置接口并恢复测量</translation>
+        <translation>重新扫描 USB/CAN 硬件，按 Hardware Key 重新绑定已配置接口并恢复测量</translation>
     </message>
     <message>
         <location filename="../window/HardwareDialog/HardwareDialog.cpp" line="114"/>
@@ -837,7 +837,7 @@
     <message>
         <location filename="../window/HardwareDialog/HardwareDialog.cpp" line="288"/>
         <source>Hardware Key</source>
-        <translation>硬件标识</translation>
+        <translation>Hardware Key</translation>
     </message>
     <message>
         <location filename="../window/HardwareDialog/HardwareDialog.cpp" line="299"/>
@@ -1084,7 +1084,7 @@
     <message>
         <location filename="../mainwindow.ui" line="294"/>
         <source>&amp;Graph View</source>
-        <translation>&amp;图表视图</translation>
+        <translation>&amp;Graph 视图</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="297"/>
@@ -1149,13 +1149,13 @@
     <message>
         <location filename="../mainwindow.ui" line="350"/>
         <source>Graph View</source>
-        <translation>图表视图</translation>
+        <translation>Graph 视图</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="355"/>
         <location filename="../mainwindow.cpp" line="1320"/>
         <source>Message View</source>
-        <translation>消息视图</translation>
+        <translation>报文视图</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="365"/>
@@ -1227,7 +1227,7 @@
         <location filename="../mainwindow.cpp" line="1810"/>
         <location filename="../mainwindow.cpp" line="1871"/>
         <source>Standalone Graph</source>
-        <translation>独立图表</translation>
+        <translation>独立 Graph 窗口</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="122"/>
@@ -1246,7 +1246,7 @@
         <location filename="../mainwindow.cpp" line="164"/>
         <location filename="../mainwindow.cpp" line="1827"/>
         <source>Open Standalone Graph Window (Ctrl+Shift+B)</source>
-        <translation>打开独立图表窗口 (Ctrl+Shift+B)</translation>
+        <translation>打开独立 Graph 窗口 (Ctrl+Shift+B)</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="413"/>
@@ -1370,7 +1370,7 @@
     <message>
         <location filename="../mainwindow.cpp" line="798"/>
         <source>Interface &apos;%1&apos; disconnected (%2). Reconnect the USB adapter, then click &quot;Rebind &amp; Resume&quot; to restore measurement without losing trace/graph data.</source>
-        <translation>接口 &apos;%1&apos; 已断开（%2）。请重新连接 USB 适配器，然后点击“重新绑定并恢复”，即可在不丢失 Trace/图表数据的情况下恢复测量。</translation>
+        <translation>接口 &apos;%1&apos; 已断开（%2）。请重新连接 USB 适配器，然后点击“重新绑定并恢复”，即可在不丢失 Trace/Graph 数据的情况下恢复测量。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="774"/>
@@ -1390,7 +1390,7 @@ Existing Trace and Graph data have been preserved.
 Please reconnect the USB cable and click &quot;Rebind &amp; Resume&quot; in the top banner or Hardware dialog.</source>
         <translation>接口 &apos;%1&apos; 连接丢失（%2）。
 
-已有的 Trace 与图表数据已保留。
+已有的 Trace 与 Graph 数据已保留。
 请重新插好 USB 线缆，然后在顶部提示条或“硬件”对话框中点击“重新绑定并恢复”。</translation>
     </message>
     <message>
@@ -1702,7 +1702,7 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
         <location filename="../mainwindow.cpp" line="1310"/>
         <location filename="../mainwindow.cpp" line="1826"/>
         <source>Graph</source>
-        <translation>图表</translation>
+        <translation>Graph</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1338"/>
@@ -2235,7 +2235,7 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="88"/>
         <source>Send Repeat</source>
-        <translation>循环发送</translation>
+        <translation>周期发送</translation>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="112"/>
@@ -2263,7 +2263,7 @@ Latest version in %2: %3</source>
         <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="72"/>
         <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="290"/>
         <source>ID (Hex):</source>
-        <translation>ID (十六进制):</translation>
+        <translation>ID (Hex):</translation>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.cpp" line="80"/>
@@ -2368,7 +2368,7 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="32"/>
         <source>Message View</source>
-        <translation>消息视图</translation>
+        <translation>报文视图</translation>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="45"/>
@@ -2392,7 +2392,7 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="146"/>
         <source>ID (Hex)</source>
-        <translation>ID (十六进制)</translation>
+        <translation>ID (Hex)</translation>
     </message>
     <message>
         <location filename="../window/RawTxWindow/RawTxWindow.ui" line="217"/>
@@ -2787,7 +2787,7 @@ Latest version in %2: %3</source>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="87"/>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="208"/>
         <source>Restart replay after all messages were sent</source>
-        <translation>所有消息发送完毕后重新开始回放</translation>
+        <translation>所有报文发送完毕后重新开始回放</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="75"/>
@@ -2824,7 +2824,7 @@ Latest version in %2: %3</source>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="107"/>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="198"/>
         <source>Import enabled messages directly into Trace and Graph</source>
-        <translation>将已启用的报文直接导入 Trace 与图表</translation>
+        <translation>将已启用的报文直接导入 Trace 与 Graph</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="109"/>
@@ -3017,7 +3017,7 @@ Latest version in %2: %3</source>
 Messages: %2
 Duration: %3 s</source>
         <translation>文件：%1
-消息数：%2
+报文数：%2
 持续时间：%3 s</translation>
     </message>
     <message>
@@ -3220,7 +3220,7 @@ Duration: %3 s</source>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="141"/>
         <source>Hex</source>
-        <translation>十六进制</translation>
+        <translation>Hex</translation>
     </message>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="142"/>
@@ -3255,12 +3255,12 @@ Duration: %3 s</source>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="166"/>
         <source> messages</source>
-        <translation> 条消息</translation>
+        <translation> 条报文</translation>
     </message>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="167"/>
         <source>Maximum number of messages kept in memory. When exceeded, the oldest messages are discarded and are missing from saved traces. Larger values use more memory.</source>
-        <translation>内存中保留的最大消息数。超出后，最早的消息将被丢弃，且不会出现在保存的 Trace 中。数值越大占用内存越多。</translation>
+        <translation>内存中保留的最大报文数。超出后，最早的报文将被丢弃，且不会出现在保存的 Trace 中。数值越大占用内存越多。</translation>
     </message>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="171"/>
@@ -3474,7 +3474,7 @@ Reason: %2</source>
     <message>
         <location filename="../window/GraphWindow/SignalSelectorDialog.cpp" line="43"/>
         <source>Search signals or messages...</source>
-        <translation>搜索信号或消息...</translation>
+        <translation>搜索信号或报文...</translation>
     </message>
     <message>
         <location filename="../window/GraphWindow/SignalSelectorDialog.cpp" line="46"/>
@@ -3668,7 +3668,7 @@ Reason: %2</source>
     <message>
         <location filename="../window/TraceWindow/TraceFilterDialog.cpp" line="60"/>
         <source>Messages</source>
-        <translation>消息</translation>
+        <translation>报文</translation>
     </message>
     <message>
         <location filename="../window/TraceWindow/TraceFilterDialog.cpp" line="64"/>
@@ -4070,12 +4070,12 @@ Reason: %2</source>
     <message>
         <location filename="../window/TriggerCaptureDialog/TriggerCaptureDialog.cpp" line="392"/>
         <source>ID Min (hex):</source>
-        <translation>最小 ID（十六进制）：</translation>
+        <translation>最小 ID (Hex):</translation>
     </message>
     <message>
         <location filename="../window/TriggerCaptureDialog/TriggerCaptureDialog.cpp" line="393"/>
         <source>ID Max (hex):</source>
-        <translation>最大 ID（十六进制）：</translation>
+        <translation>最大 ID (Hex):</translation>
     </message>
     <message>
         <location filename="../window/TriggerCaptureDialog/TriggerCaptureDialog.cpp" line="394"/>
@@ -4085,12 +4085,12 @@ Reason: %2</source>
     <message>
         <location filename="../window/TriggerCaptureDialog/TriggerCaptureDialog.cpp" line="395"/>
         <source>Byte Mask (hex):</source>
-        <translation>字节掩码（十六进制）：</translation>
+        <translation>字节掩码 (Hex):</translation>
     </message>
     <message>
         <location filename="../window/TriggerCaptureDialog/TriggerCaptureDialog.cpp" line="396"/>
         <source>Byte Value (hex):</source>
-        <translation>字节值（十六进制）：</translation>
+        <translation>字节值 (Hex):</translation>
     </message>
     <message>
         <location filename="../window/TriggerCaptureDialog/TriggerCaptureDialog.cpp" line="397"/>
@@ -4181,17 +4181,17 @@ Reason: %2</source>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="64"/>
         <source>Available Messages (DBC)</source>
-        <translation>可用消息 (DBC)</translation>
+        <translation>可用报文 (DBC)</translation>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="74"/>
         <source>Message List</source>
-        <translation>消息列表</translation>
+        <translation>报文列表</translation>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="80"/>
         <source>Message Name or ID...</source>
-        <translation>消息名称或 ID...</translation>
+        <translation>报文名称或 ID...</translation>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="88"/>
@@ -4217,12 +4217,12 @@ Reason: %2</source>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="192"/>
         <source>Add DBC Message</source>
-        <translation>添加DBC消息</translation>
+        <translation>添加 DBC 报文</translation>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="212"/>
         <source>ID (Hex):</source>
-        <translation>ID (十六进制):</translation>
+        <translation>ID (Hex):</translation>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="225"/>
@@ -4320,7 +4320,7 @@ Reason: %2</source>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="129"/>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="154"/>
         <source>Randomize data bytes for selected messages</source>
-        <translation>为选中消息随机化数据字节</translation>
+        <translation>为选中报文随机化数据字节</translation>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="100"/>
@@ -4331,7 +4331,7 @@ Reason: %2</source>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="622"/>
         <source>Edit Message: %1 - %2</source>
-        <translation>编辑消息: %1 - %2</translation>
+        <translation>编辑报文: %1 - %2</translation>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="813"/>
