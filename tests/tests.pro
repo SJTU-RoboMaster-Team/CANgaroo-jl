@@ -20,3 +20,4 @@ SUBDIRS += \
     motor_decoder \
     motor_manager \
     motor_dbc
+SUBDIRS += raw_tx_message
