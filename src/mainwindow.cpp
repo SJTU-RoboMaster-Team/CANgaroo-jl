@@ -1204,6 +1204,7 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     QDockWidget *dockLogWidget      = addLogWidget(mm);
     QDockWidget *dockStatusWidget   = addStatusWidget(mm);
     QDockWidget *dockGeneratorWidget = addTxGeneratorWidget(mm);
+    QDockWidget *dockRawTxWidget    = addRawTxWidget(mm);
     QDockWidget *dockGraphWidget    = addGraphWidget(mm);
     QDockWidget *dockReplayWidget   = addReplayWidget(mm);
     QDockWidget *dockMotorWidget    = addMotorWidget(mm);
@@ -1214,10 +1215,12 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
 
     // splitDockWidget must come before tabifyDockWidget: tabify only works on docks
     // that are already placed in the same area of the same QMainWindow.
+    mm->splitDockWidget(dockRawTxWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockGeneratorWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockGraphWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockReplayWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockMotorWidget, dockLogWidget, Qt::Horizontal);
+    mm->tabifyDockWidget(dockRawTxWidget, dockGeneratorWidget);
     mm->tabifyDockWidget(dockGeneratorWidget, dockGraphWidget);
     mm->tabifyDockWidget(dockGraphWidget, dockReplayWidget);
     mm->tabifyDockWidget(dockReplayWidget, dockMotorWidget);
@@ -1225,16 +1228,16 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     mm->tabifyDockWidget(dockStatusWidget, dockLogWidget);
 
     // Deferred resize so it runs after the event loop settles.
-    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget]()
+    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockRawTxWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget]()
     {
         dockStatusWidget->show();
         dockStatusWidget->raise();
-        dockGeneratorWidget->show();
-        dockGeneratorWidget->raise();
+        dockRawTxWidget->show();
+        dockRawTxWidget->raise();
 
-        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget},
+        mm->resizeDocks({dockLogWidget, dockRawTxWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget},
                         {600, 600, 600, 600, 600}, Qt::Vertical);
-        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget},
+        mm->resizeDocks({dockLogWidget, dockRawTxWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget},
                         {1200, 1200, 1200, 1200, 1200}, Qt::Horizontal);
     });
 

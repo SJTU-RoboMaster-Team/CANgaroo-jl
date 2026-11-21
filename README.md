@@ -16,7 +16,7 @@
 * **多视图信号可视化（Graph View）**：时序波形、散点图、文本监测与仪表盘视图，支持缩放、悬浮数值提示与独立弹窗。
 * **Trace 视图**：单一报文列表，可在「聚合」与「滚动日志」之间切换；支持绝对 / UTC / 相对 / 增量时间戳、按 ID/名称/正则过滤、方向与接口过滤，右键可直接按所选 CAN ID 创建触发规则。
 * **总线状态与硬件诊断**：内置 CAN 总线状态监控；**Measurement > Hardware...** 显示所有已识别设备、总线状态、固件版本、能力掩码与可用波特率，可一键复制纯文本诊断报告。
-* **报文发送与周期生成器**。在 Message View 中选择接口，启动测量后点 **Send** 发送一帧，或打开 **Repeat** 并用 **Interval** 设置周期（1–100000 ms，默认 100 ms）。周期发送会使用最新的编辑内容，停止测量、接口断开或关闭 Message View 时自动停止。状态栏统计发送请求。同一页签内，Generator View 中选中的报文会载入 Message View。Generator View 仍支持多任务周期调度和随机载荷。
+* **报文发送与周期生成器**。Message View 默认显示在 Trace 页签右下角，是该分组的第一个标签。在 Message View 中选择接口，启动测量后点 **Send** 发送一帧，或打开 **Repeat** 并用 **Interval** 设置周期（1–100000 ms，默认 100 ms）。周期发送会使用最新的编辑内容，停止测量、接口断开或关闭 Message View 时自动停止。状态栏统计发送请求。同一页签内，Generator View 中选中的报文会载入 Message View。Generator View 仍支持多任务周期调度和随机载荷。
 * **日志回放**：导入 Vector ASC、Linux `candump`、CAN/FD 原始帧 `.csv` 三种文本格式，统一由纯 QtCore 的 `TraceFileReader` 解析；回放窗口提供 Play / Pause / Resume / Stop / 单步 / 进度条定位，保留原始帧间隔 `Δt`，支持倍速、RX/TX 方向过滤与通道映射，并可 **Load to Trace** 直接载入 Trace/Graph 做离线分析。
 * **大日志分段处理**：**Trace > Import full trace** 或回放载入超过 `trace/maxSize` 上限的日志时，弹窗提供「分段保存 / 在回放窗口中打开 / 仅加载前 N 帧」三种处理方式；回放窗口的 **Split Save...** 可按帧数拆分。
 * **轨迹导出与连续录制**：三种格式 —— Vector ASC、Linux `candump`、CAN/FD 原始帧 CSV（`Timestamp_s, Epoch_us, Channel, Direction, BusType, ID_Hex, Extended, FD, BRS, ESI, RTR, ErrorFlags, DLC, Data_Hex`）；录制支持按大小分卷，可选择是否在离线回放期间同时录制。
