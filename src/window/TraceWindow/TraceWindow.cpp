@@ -24,6 +24,7 @@
 #include "ui_TraceWindow.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDomDocument>
 #include <QHeaderView>
 #include <QMenu>
@@ -139,6 +140,34 @@ TraceWindow::~TraceWindow()
 void TraceWindow::retranslateUi()
 {
     ui->retranslateUi(this);
+
+    // The view/timestamp selectors are filled in code, so their items have to
+    // be rebuilt (preserving the current selection) instead of relying on
+    // ui->retranslateUi().
+    const int viewMode = ui->cbViewMode->currentData().toInt();
+    {
+        const QSignalBlocker blocker(ui->cbViewMode);
+        ui->cbViewMode->clear();
+        ui->cbViewMode->addItem(tr("Aggregated"), mode_aggregated);
+        ui->cbViewMode->addItem(tr("Rolling Log"), mode_unified);
+        const int index = ui->cbViewMode->findData(viewMode);
+        ui->cbViewMode->setCurrentIndex(index >= 0 ? index : 0);
+    }
+
+    const int timestampMode = ui->cbTimestampMode->currentData().toInt();
+    {
+        const QSignalBlocker blocker(ui->cbTimestampMode);
+        ui->cbTimestampMode->clear();
+        ui->cbTimestampMode->addItem(tr("Absolute"), timestamp_mode_absolute);
+        ui->cbTimestampMode->addItem(tr("Absolute (UTC)"), timestamp_mode_absolute_utc);
+        ui->cbTimestampMode->addItem(tr("Relative"), timestamp_mode_relative);
+        ui->cbTimestampMode->addItem(tr("Delta"), timestamp_mode_delta);
+        const int index = ui->cbTimestampMode->findData(timestampMode);
+        ui->cbTimestampMode->setCurrentIndex(index >= 0 ? index : 0);
+    }
+
+    _aggregatedTraceViewModel->retranslateHeaders();
+    _rollingModel->retranslateHeaders();
 }
 
 void TraceWindow::onTreeContextMenu(const QPoint &pos)

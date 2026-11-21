@@ -29,7 +29,7 @@ SelectCanInterfacesDialog::SelectCanInterfacesDialog(QWidget *parent) :
     ui(new Ui::SelectCanInterfacesDialog)
 {
     ui->setupUi(this);
-    ui->treeWidget->setHeaderLabels(QStringList() << "Device" << "Driver" << "Description");
+    ui->treeWidget->setHeaderLabels(QStringList() << tr("Device") << tr("Driver") << tr("Description"));
 }
 
 SelectCanInterfacesDialog::~SelectCanInterfacesDialog()

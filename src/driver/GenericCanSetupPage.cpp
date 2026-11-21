@@ -24,6 +24,7 @@
 #include "core/MeasurementInterface.h"
 #include "window/SetupDialog/SetupDialog.h"
 #include <QList>
+#include <QEvent>
 #include <QtAlgorithms>
 #include <algorithm>
 
@@ -34,6 +35,11 @@ GenericCanSetupPage::GenericCanSetupPage(QWidget *parent) :
     _enable_ui_updates(false)
 {
     ui->setupUi(this);
+    // The designer placeholder texts would otherwise be visible as "TextLabel"
+    // until an interface is selected.
+    ui->laDriver->clear();
+    ui->laInterface->clear();
+    ui->laInterfaceDetails->clear();
     connect(ui->cbBitrate, &QComboBox::currentIndexChanged, this, [this]() { updateUI(); });
     connect(ui->cbSamplePoint, &QComboBox::currentIndexChanged, this, [this]() { updateUI(); });
     connect(ui->cbBitrateFD, &QComboBox::currentIndexChanged, this, [this]() { updateUI(); });
@@ -55,6 +61,41 @@ GenericCanSetupPage::GenericCanSetupPage(QWidget *parent) :
 GenericCanSetupPage::~GenericCanSetupPage()
 {
     delete ui;
+}
+
+void GenericCanSetupPage::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::LanguageChange)
+    {
+        ui->retranslateUi(this);
+        updateInterfaceHeaderTexts(); // ui retranslation restores the .ui placeholders
+        updateUI();                   // re-applies the composed "(unavailable) %1" texts
+    }
+    QWidget::changeEvent(event);
+}
+
+void GenericCanSetupPage::updateInterfaceHeaderTexts()
+{
+    if (!_mi)
+    {
+        ui->laDriver->clear();
+        ui->laInterface->clear();
+        ui->laInterfaceDetails->clear();
+        return;
+    }
+
+    BusInterface *intf = _mi->isResolved() ? backend().getInterfaceById(_mi->busInterface()) : nullptr;
+    if (!intf)
+    {
+        ui->laDriver->setText(_mi->savedDriverName().isEmpty() ? tr("Unknown") : _mi->savedDriverName());
+        ui->laInterface->setText(tr("(unavailable) %1").arg(_mi->savedInterfaceName()));
+        ui->laInterfaceDetails->setText(tr("Device is offline. Reconnect USB and use 'Rebind & Resume' or Rescan."));
+        return;
+    }
+
+    ui->laDriver->setText(intf->getDriver()->getName());
+    ui->laInterface->setText(QString("%1 - [ID: %2]").arg(intf->getName()).arg(intf->getId()));
+    ui->laInterfaceDetails->setText(intf->getDetailsStr());
 }
 
 void GenericCanSetupPage::onSetupDialogCreated(SetupDialog &dlg)

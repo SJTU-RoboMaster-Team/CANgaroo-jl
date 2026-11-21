@@ -29,6 +29,8 @@
 #include <QStyleFactory>
 #include <QApplication>
 #include <QActionGroup>
+#include <QList>
+#include <QPair>
 
 SettingsDialog::SettingsDialog(QSettings &settings, QActionGroup *languageGroup, QWidget *parent)
     : QDialog(parent)
@@ -142,14 +144,18 @@ SettingsDialog::SettingsDialog(QSettings &settings, QActionGroup *languageGroup,
     formTrace->addRow(tr("Data display:"), m_dataDisplayCombo);
 
     m_saveFormatCombo = new QComboBox(grpTrace);
-    const QStringList saveFormats = {
-        "Vector ASC (*.asc)",
-        "CAN/FD Raw CSV (*.csv)",
-        "Linux candump (*.candump)"
+    // The display text is translated, the userData keeps the stable identifier
+    // that QFileDialog filters and the saved setting use.
+    const QList<QPair<QString, QString>> saveFormats = {
+        {tr("Vector ASC (*.asc)"), QStringLiteral("Vector ASC (*.asc)")},
+        {tr("CAN/FD Raw CSV (*.csv)"), QStringLiteral("CAN/FD Raw CSV (*.csv)")},
+        {tr("Linux candump (*.candump)"), QStringLiteral("Linux candump (*.candump)")}
     };
-    m_saveFormatCombo->addItems(saveFormats);
-    const QString savedFormat = settings.value("ui/preferredSaveFormat", saveFormats.first()).toString();
-    int fmtIdx = saveFormats.indexOf(savedFormat);
+    for (const auto &format : saveFormats)
+        m_saveFormatCombo->addItem(format.first, format.second);
+    const QString savedFormat = settings.value("ui/preferredSaveFormat",
+                                              saveFormats.first().second).toString();
+    const int fmtIdx = m_saveFormatCombo->findData(savedFormat);
     m_saveFormatCombo->setCurrentIndex(fmtIdx >= 0 ? fmtIdx : 0);
     formTrace->addRow(tr("Preferred save format:"), m_saveFormatCombo);
 
@@ -212,7 +218,7 @@ bool SettingsDialog::skipSaveWorkspacePrompt() const
 
 QString SettingsDialog::preferredSaveFormat() const
 {
-    return m_saveFormatCombo->currentText();
+    return m_saveFormatCombo->currentData().toString();
 }
 
 int SettingsDialog::defaultTraceViewMode() const

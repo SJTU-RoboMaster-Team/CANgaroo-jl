@@ -185,6 +185,12 @@ void BaseTraceViewModel::setDataAsciiMode(bool ascii)
     emit layoutChanged();
 }
 
+void BaseTraceViewModel::retranslateHeaders()
+{
+    if (columnCount(QModelIndex()) > 0)
+        emit headerDataChanged(Qt::Horizontal, 0, columnCount(QModelIndex()) - 1);
+}
+
 QVariant BaseTraceViewModel::formatTimestamp(timestamp_mode_t mode, const BusMessage &currentMsg, const BusMessage &lastMsg) const
 {
 

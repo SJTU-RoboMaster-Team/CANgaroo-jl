@@ -72,6 +72,9 @@ public:
     bool dataAsciiMode() const;
     void setDataAsciiMode(bool ascii);
 
+    /// Re-emit the (translatable) column headers after a UI language change.
+    void retranslateHeaders();
+
 protected:
     virtual QVariant data_DisplayRole(const QModelIndex &index, int role) const;
     virtual QVariant data_DisplayRole_Message(const QModelIndex &index, int role, const BusMessage &currentMsg, const BusMessage &lastMsg) const;

@@ -48,7 +48,7 @@ TimeSeriesVisualization::TimeSeriesVisualization(QWidget *parent, Backend &backe
     _chart = new QChart();
     _chart->legend()->setVisible(true);
     _chart->legend()->setAlignment(Qt::AlignBottom);
-    _chart->setTitle("Time Series Graph");
+    _chart->setTitle(tr("Time Series Graph"));
 
     _chartView = new QChartView(_chart);
     _chartView->setRenderHint(QPainter::Antialiasing);
@@ -63,13 +63,13 @@ TimeSeriesVisualization::TimeSeriesVisualization(QWidget *parent, Backend &backe
     layout->setContentsMargins(0, 0, 0, 0);
 
     QValueAxis *axisX = new QValueAxis();
-    axisX->setTitleText("Time [s]");
+    axisX->setTitleText(tr("Time [s]"));
     _chart->addAxis(axisX, Qt::AlignBottom);
     connect(axisX, &QValueAxis::rangeChanged, this, &TimeSeriesVisualization::updateYAxisRange);
     connect(axisX, &QValueAxis::rangeChanged, this, &TimeSeriesVisualization::onAxisRangeChanged);
 
     QValueAxis *axisY = new QValueAxis();
-    axisY->setTitleText("Value");
+    axisY->setTitleText(tr("Value"));
     _chart->addAxis(axisY, Qt::AlignLeft);
     
     // Create cursor line
@@ -116,6 +116,18 @@ TimeSeriesVisualization::TimeSeriesVisualization(QWidget *parent, Backend &backe
 
 TimeSeriesVisualization::~TimeSeriesVisualization()
 {
+}
+
+void TimeSeriesVisualization::retranslateUi()
+{
+    _chart->setTitle(tr("Time Series Graph"));
+    for (QAbstractAxis *axis : _chart->axes())
+    {
+        if (axis->orientation() == Qt::Horizontal)
+            axis->setTitleText(tr("Time [s]"));
+        else
+            axis->setTitleText(tr("Value"));
+    }
 }
 
 void TimeSeriesVisualization::addDecodedData(const QMap<GraphSignal*, DecodedSignalData>& newPoints)

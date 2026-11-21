@@ -51,6 +51,9 @@ public:
     bool isReflashNetworks();
     MeasurementNetwork *currentNetwork() const { return _currentNetwork; }
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 signals:
     void onShowInterfacePage(SetupDialog &dlg, MeasurementInterface *mi);
 
@@ -97,6 +100,8 @@ private:
 
     QModelIndex getSelectedIndex();
     SetupDialogTreeItem *getSelectedItem();
+
+    void retranslateUi();
 
     void addCanDb(const QModelIndex &parent, const QString &filename);
     void reloadCanDbs(const QModelIndex &parent);

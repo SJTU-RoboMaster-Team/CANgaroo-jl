@@ -47,6 +47,9 @@ public:
 
     virtual void applyTheme(ThemeManager::Theme theme) { Q_UNUSED(theme); }
 
+    /// Re-apply texts that were set once in the constructor (chart titles etc.).
+    virtual void retranslateUi() {}
+
     virtual void addMessage(const BusMessage &msg) = 0;
     virtual void addDecodedData(const QMap<GraphSignal*, DecodedSignalData>& newPoints) = 0;
     virtual void clear() = 0;

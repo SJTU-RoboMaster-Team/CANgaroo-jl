@@ -62,6 +62,9 @@ public:
     QVariant headerData(int section, Qt::Orientation orientation, int role) const override;
     QVariant data(const QModelIndex &index, int role) const override;
 
+    /// Re-emit the (translatable) column headers after a UI language change.
+    void retranslateHeaders();
+
 public slots:
     void onLogMessage(const QDateTime dt, const log_level_t level, const QString msg);
 

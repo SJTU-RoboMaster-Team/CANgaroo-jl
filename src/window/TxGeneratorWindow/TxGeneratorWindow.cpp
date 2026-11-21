@@ -97,7 +97,7 @@ TxGeneratorWindow::TxGeneratorWindow(QWidget *parent, Backend &backend) :
     _bitMatrixWidget->setCellSize(50);
     _bitMatrixWidget->setFixedSize(_bitMatrixWidget->sizeHint());
 
-    ui->spinInterval->setSuffix(" ms");
+    ui->spinInterval->setSuffix(tr(" ms"));
     ui->spinInterval->setMinimumWidth(0);
 
     ui->lineManualId->setInputMask("");
@@ -148,6 +148,15 @@ TxGeneratorWindow::~TxGeneratorWindow()
 void TxGeneratorWindow::retranslateUi()
 {
     ui->retranslateUi(this);
+
+    if (_btnRandomPayload) {
+        _btnRandomPayload->setText(tr("Randomize Data"));
+        _btnRandomPayload->setToolTip(tr("Randomize data bytes for selected messages"));
+    }
+    ui->spinInterval->setSuffix(tr(" ms"));
+
+    // Status button tooltips and the interface column are set per row in code.
+    updateActiveList();
 }
 
 bool TxGeneratorWindow::saveXML(Backend &backend, QDomDocument &xml, QDomElement &root)
@@ -816,7 +825,7 @@ void TxGeneratorWindow::updateActiveList()
         item->setText(1, "0x" + QString("%1").arg(cm.msg.getId(), 3, 16, QChar('0')).toUpper());
         item->setText(2, cm.name);
         BusInterface *intf = _backend.getInterfaceById(cm.interfaceId);
-        item->setText(3, intf ? intf->getName() : "Unknown");
+        item->setText(3, intf ? intf->getName() : tr("Unknown"));
         item->setText(4, QString::number(cm.msg.getLength()));
         item->setText(5, QString::number(cm.interval));
 
@@ -856,7 +865,7 @@ void TxGeneratorWindow::updateRowUI(int row)
     item->setText(1, "0x" + QString("%1").arg(cm.msg.getId(), 3, 16, QChar('0')).toUpper());
     item->setText(2, cm.name);
     BusInterface *intf = _backend.getInterfaceById(cm.interfaceId);
-    item->setText(3, intf ? intf->getName() : "Unknown");
+    item->setText(3, intf ? intf->getName() : tr("Unknown"));
     item->setText(4, QString::number(cm.msg.getLength()));
     item->setText(5, QString::number(cm.interval));
 

@@ -28,7 +28,6 @@
 #include <QList>
 #include <QPointer>
 #include "core/Backend.h"
-#include <QTranslator>
 #include <QSettings>
 
 // VERSION_STRING is injected by qmake (DEFINES += VERSION_STRING=...).
@@ -130,7 +129,7 @@ private:
 
     Backend &backend();
 
-    QMainWindow *createTab(const QString &title);
+    QMainWindow *createTab(const QString &title, const char *titleSource = nullptr);
     QMainWindow *currentTab();
 
     // Constructor init helpers
@@ -156,6 +155,11 @@ private:
     void onInterfaceConnectionLost(const QString &interfaceName, const QString &reason);
     void onManualRebindClicked();
     void applyDisconnectBannerTheme();
+    void updateDisconnectBannerText();
+
+    // Retranslation for widgets/menus/etc. that are built in code instead of a .ui file.
+    void retranslateCustomUi();
+    void retranslateTabAndDockTitles();
 
     // Theming helpers
     void applyCurrentTheme();
@@ -167,8 +171,8 @@ private:
 
     // Dock factory helper: creates dock, sets widget, adds to parent, wires float/reparent.
     // Returns nullptr if parent is null (no active tab).
-    QDockWidget *makeDock(const QString &title, const QString &objectName,
-                          QWidget *content, QMainWindow *parent);
+    QDockWidget *makeDock(const QString &title, const char *titleSource,
+                          const QString &objectName, QWidget *content, QMainWindow *parent);
 
     void stopAndClearMeasurement();
 
@@ -190,7 +194,14 @@ private:
     // Toolbar button whose icon has to be recolored on every theme change.
     class QPushButton *_btnOpenGraph = nullptr;
 
+    QAction *_actionStandaloneGraph = nullptr;
+    QAction *_actionMotorView = nullptr;
+    QAction *_actionExportFull = nullptr;
+    QAction *_actionImportFull = nullptr;
+
     QAction *_actionRecord = nullptr;
+    QAction *_actionRecordOptions = nullptr;
+    QAction *_actionOpenFolder = nullptr;
     class QToolButton *_btnRecord = nullptr;
     class QLabel *_recordStatusLabel = nullptr;
     class QTimer *_recordStatusTimer = nullptr;
@@ -203,6 +214,8 @@ private:
     class QLabel *_disconnectBannerLabel = nullptr;
     class QPushButton *_btnBannerRebind = nullptr;
     class QPushButton *_btnBannerDismiss = nullptr;
+    QString _disconnectBannerInterface;
+    QString _disconnectBannerReason;
 
     // Recent files
     static constexpr int MaxRecentFiles = 8;
@@ -213,7 +226,6 @@ private:
     void createLanguageMenu();
     void setupDockFloatReparent(QDockWidget *dock, QMainWindow *innerParent);
     void applyFontSize(int pointSize);
-    QTranslator m_translator;
     QActionGroup *m_languageActionGroup = nullptr;
 
     void showUpdateAvailableDialog(const UpdateCheckResult &result);

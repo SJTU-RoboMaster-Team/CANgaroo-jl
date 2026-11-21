@@ -65,6 +65,7 @@
 #include "window/HardwareDialog/HardwareDialog.h"
 #include "window/MotorView/MotorView.h"
 #include "helpers/apphelpers.h"
+#include "helpers/translation.h"
 
 #include "driver/CandleApiDriver/CandleApiDriver.h"
 
@@ -116,11 +117,13 @@ void MainWindow::initActions()
     actionStandaloneGraph->setShortcut(QKeySequence("Ctrl+Shift+B"));
     ui->menuWindow->addAction(actionStandaloneGraph);
     connect(actionStandaloneGraph, &QAction::triggered, this, &MainWindow::createStandaloneGraphWindow);
+    _actionStandaloneGraph = actionStandaloneGraph;
 
     auto *actionMotorView = new QAction(tr("Motor View"), this);
     actionMotorView->setShortcut(QKeySequence("Ctrl+Shift+M"));
     ui->menu_New->addAction(actionMotorView);
     connect(actionMotorView, &QAction::triggered, this, [this]() { addMotorWidget(); });
+    _actionMotorView = actionMotorView;
 
     connect(ui->actionStart_Measurement, &QAction::triggered, this, &MainWindow::startMeasurement);
     connect(ui->btnStartMeasurement, &QPushButton::released, this, &MainWindow::startMeasurement);
@@ -142,10 +145,12 @@ void MainWindow::initActions()
     auto *actionExportFull = new QAction(tr("Export full trace"), this);
     connect(actionExportFull, &QAction::triggered, this, &MainWindow::exportFullTrace);
     ui->menu_Trace->addAction(actionExportFull);
+    _actionExportFull = actionExportFull;
 
     auto *actionImportFull = new QAction(tr("Import full trace"), this);
     connect(actionImportFull, &QAction::triggered, this, &MainWindow::importFullTrace);
     ui->menu_Trace->addAction(actionImportFull);
+    _actionImportFull = actionImportFull;
 
     // Build "Open Recent" submenu and insert it before "Save Workspace..." in menuFile.
     m_recentFilesMenu = new QMenu(tr("Open Recent"), this);
@@ -218,7 +223,8 @@ void MainWindow::initWorkspace()
 
 void MainWindow::initAppearance()
 {
-    qApp->installTranslator(&m_translator);
+    // The translator is installed in main() before this window is constructed,
+    // so all constructor-time texts already use the saved language.
     createLanguageMenu();
 
     // Load saved application style/theme.
@@ -522,6 +528,8 @@ void MainWindow::initRecording()
 
     auto *actionRecordOptions = new QAction(tr("Recording &Options..."), this);
     auto *actionOpenFolder = new QAction(tr("Open Recording &Folder"), this);
+    _actionRecordOptions = actionRecordOptions;
+    _actionOpenFolder = actionOpenFolder;
 
     ui->menuMeasurement->insertAction(ui->actionSetup, _actionRecord);
     ui->menuMeasurement->insertAction(ui->actionSetup, actionRecordOptions);
@@ -759,13 +767,13 @@ void MainWindow::applyDisconnectBannerTheme()
 
 void MainWindow::onInterfaceConnectionLost(const QString &interfaceName, const QString &reason)
 {
-    const QString detail = reason.isEmpty() ? tr("USB/CAN device disconnected") : reason;
-    _disconnectBannerLabel->setText(
-        tr("Interface '%1' disconnected (%2). Reconnect the USB adapter, then click \"Rebind & Resume\" to restore measurement without losing trace/graph data.")
-            .arg(interfaceName, detail));
+    _disconnectBannerInterface = interfaceName;
+    _disconnectBannerReason = reason;
+    updateDisconnectBannerText();
     _disconnectBanner->setVisible(true);
     statusBar()->showMessage(tr("Interface '%1' disconnected — please manually rebind.").arg(interfaceName), 10000);
 
+    const QString detail = reason.isEmpty() ? tr("USB/CAN device disconnected") : reason;
     auto *msgBox = new QMessageBox(QMessageBox::Warning,
                                    tr("USB / CAN Interface Disconnected"),
                                    tr("Interface '%1' lost connection (%2).\n\n"
@@ -777,6 +785,18 @@ void MainWindow::onInterfaceConnectionLost(const QString &interfaceName, const Q
     msgBox->setAttribute(Qt::WA_DeleteOnClose);
     msgBox->setModal(false);
     msgBox->show();
+}
+
+void MainWindow::updateDisconnectBannerText()
+{
+    if (!_disconnectBannerLabel || _disconnectBannerInterface.isEmpty())
+        return;
+    const QString detail = _disconnectBannerReason.isEmpty()
+                               ? tr("USB/CAN device disconnected")
+                               : _disconnectBannerReason;
+    _disconnectBannerLabel->setText(
+        tr("Interface '%1' disconnected (%2). Reconnect the USB adapter, then click \"Rebind & Resume\" to restore measurement without losing trace/graph data.")
+            .arg(_disconnectBannerInterface, detail));
 }
 
 void MainWindow::onManualRebindClicked()
@@ -800,14 +820,16 @@ Backend &MainWindow::backend()
     return Backend::instance();
 }
 
-QMainWindow *MainWindow::createTab(const QString &title)
+QMainWindow *MainWindow::createTab(const QString &title, const char *titleSource)
 {
     auto *mm = new QMainWindow(this);
     QPalette pal(QApplication::palette());
     pal.setColor(QPalette::Window, tabBackgroundColor());
     mm->setAutoFillBackground(true);
     mm->setPalette(pal);
-    ui->mainTabs->addTab(mm, title);
+    if (titleSource)
+        mm->setProperty("i18nTitleSource", QString::fromLatin1(titleSource));
+    ui->mainTabs->addTab(mm, titleSource ? tr(titleSource) : title);
     return mm;
 }
 
@@ -852,10 +874,18 @@ bool MainWindow::loadWorkspaceTab(QDomElement el)
 {
     QMainWindow *mw = nullptr;
     const QString type = el.attribute("type");
+    QString title = el.attribute("title");
+    // Workspaces saved in another language carry the localized tab title; map the
+    // known defaults back onto the untranslated source so the language switch
+    // keeps working after loading.
+    if (title == QLatin1String("Trace") || title == tr("Trace"))
+        title = QString();
+    else if (title == QLatin1String("Graph") || title == tr("Graph"))
+        title = QString();
     if (type == "TraceWindow")
-        mw = createTraceWindow(el.attribute("title"));
+        mw = createTraceWindow(title);
     else if (type == "GraphWindow")
-        mw = createGraphWindow(el.attribute("title"));
+        mw = createGraphWindow(title);
     else
         return false;
 
@@ -995,7 +1025,10 @@ bool MainWindow::saveWorkspaceToFile(const QString &filename)
             continue;
 
         QDomElement tabEl = doc.createElement("tab");
-        tabEl.setAttribute("title", ui->mainTabs->tabText(i));
+        // Store the untranslated source title for default tabs so a workspace
+        // saved in one language still uses localized titles after loading.
+        const QString titleSource = w->property("i18nTitleSource").toString();
+        tabEl.setAttribute("title", titleSource.isEmpty() ? ui->mainTabs->tabText(i) : titleSource);
 
         ConfigurableWidget *mdi = dynamic_cast<ConfigurableWidget *>(w->centralWidget());
         if (!mdi || !mdi->saveXML(backend(), doc, tabEl))
@@ -1163,7 +1196,8 @@ int MainWindow::askSaveBecauseWorkspaceModified()
 
 QMainWindow *MainWindow::createTraceWindow(const QString &title)
 {
-    QMainWindow *mm = createTab(title.isNull() ? tr("Trace") : title);
+    QMainWindow *mm = createTab(title.isNull() ? tr("Trace") : title,
+                                title.isNull() ? "Trace" : nullptr);
     auto *trace = new TraceWindow(mm, backend());
     mm->setCentralWidget(trace);
 
@@ -1210,7 +1244,8 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
 
 QMainWindow *MainWindow::createGraphWindow(const QString &title)
 {
-    QMainWindow *mm = createTab(title.isNull() ? tr("Graph") : title);
+    QMainWindow *mm = createTab(title.isNull() ? tr("Graph") : title,
+                                title.isNull() ? "Graph" : nullptr);
     mm->setCentralWidget(new GraphWindow(mm, backend()));
     addLogWidget(mm);
     return mm;
@@ -1229,7 +1264,8 @@ void MainWindow::createStandaloneGraphWindow()
     gw->show();
 }
 
-QDockWidget *MainWindow::makeDock(const QString &title, const QString &objectName,
+QDockWidget *MainWindow::makeDock(const QString &title, const char *titleSource,
+                                   const QString &objectName,
                                    QWidget *content, QMainWindow *parent)
 {
     const bool tabify = (parent == nullptr);
@@ -1252,6 +1288,9 @@ QDockWidget *MainWindow::makeDock(const QString &title, const QString &objectNam
 
     auto *dock = new QDockWidget(title, parent);
     dock->setObjectName(objectName);
+    // Remember the untranslated source so a runtime language switch can retranslate it.
+    if (titleSource)
+        dock->setProperty("i18nTitleSource", QString::fromLatin1(titleSource));
     dock->setWidget(content);
     parent->addDockWidget(Qt::BottomDockWidgetArea, dock);
 
@@ -1268,7 +1307,7 @@ QDockWidget *MainWindow::makeDock(const QString &title, const QString &objectNam
 
 QDockWidget *MainWindow::addGraphWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Graph"), QStringLiteral("dock_graph"),
+    return makeDock(tr("Graph"), "Graph", QStringLiteral("dock_graph"),
                     new GraphWindow(nullptr, backend()), parent);
 }
 
@@ -1278,7 +1317,7 @@ QDockWidget *MainWindow::addRawTxWidget(QMainWindow *parent)
     if (!tab) { return nullptr; }
 
     auto *rawTx = new RawTxWindow(nullptr, backend());
-    auto *dock = makeDock(tr("Message View"), QStringLiteral("dock_rawtx"), rawTx, parent);
+    auto *dock = makeDock(tr("Message View"), "Message View", QStringLiteral("dock_rawtx"), rawTx, parent);
     dock->installEventFilter(rawTx);
     if (auto *generator = tab->findChild<TxGeneratorWindow *>()) {
         connect(generator, &TxGeneratorWindow::messageSelected, rawTx, &RawTxWindow::setMessage);
@@ -1296,31 +1335,31 @@ QDockWidget *MainWindow::addRawTxWidget(QMainWindow *parent)
 
 QDockWidget *MainWindow::addLogWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Log"), QStringLiteral("dock_log"),
+    return makeDock(tr("Log"), "Log", QStringLiteral("dock_log"),
                     new LogWindow(nullptr, backend()), parent);
 }
 
 QDockWidget *MainWindow::addStatusWidget(QMainWindow *parent)
 {
-    return makeDock(tr("BUS Status"), QStringLiteral("dock_status"),
+    return makeDock(tr("BUS Status"), "BUS Status", QStringLiteral("dock_status"),
                     new CanStatusWindow(nullptr, backend()), parent);
 }
 
 QDockWidget *MainWindow::addTxGeneratorWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Generator View"), QStringLiteral("dock_generator"),
+    return makeDock(tr("Generator View"), "Generator View", QStringLiteral("dock_generator"),
                     new TxGeneratorWindow(nullptr, backend()), parent);
 }
 
 QDockWidget *MainWindow::addReplayWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Replay"), QStringLiteral("dock_replay"),
+    return makeDock(tr("Replay"), "Replay", QStringLiteral("dock_replay"),
                     new ReplayWindow(nullptr, backend()), parent);
 }
 
 QDockWidget *MainWindow::addMotorWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Motor View"), QStringLiteral("dock_motor"),
+    return makeDock(tr("Motor View"), "Motor View", QStringLiteral("dock_motor"),
                     new MotorView(nullptr, backend()), parent);
 }
 
@@ -1409,24 +1448,25 @@ QString formatDisplayVersion(const QString &version)
 
 void MainWindow::showAboutDialog()
 {
-    QMessageBox::about(this,
-                       tr("About CANgaroo"),
-                       "CANgaroo\n"
-                       "Open Source CAN bus analyzer\n"
-                       "https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl\n"
-                       "(Upstream: https://github.com/Schildkroet/CANgaroo)"
-                       "\n\n"
-                       "Version " VERSION_STRING "\n"
-                       "\n"
-                       "(c)2024-2026 Schildkroet\n"
-                       "(c)2015-2017 Hubert Denkmair\n"
-                       "(c)2018-2022 Ethan Zonca\n"
-                       "(c)2024 WeAct Studio\n"
-                       "(c)2025 Wikilift\n"
-                       "(c)2026 Jayachandran Dharuman"
-                       "\n\n"
-                       "CANgaroo is free software licensed"
-                       "\nunder the GPL v2 license.");
+    const QString aboutText =
+        tr("CANgaroo\n"
+           "Open Source CAN bus analyzer\n"
+           "https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl\n"
+           "(Upstream: https://github.com/Schildkroet/CANgaroo)\n"
+           "\n"
+           "Version %1\n"
+           "\n"
+           "(c)2024-2026 Schildkroet\n"
+           "(c)2015-2017 Hubert Denkmair\n"
+           "(c)2018-2022 Ethan Zonca\n"
+           "(c)2024 WeAct Studio\n"
+           "(c)2025 Wikilift\n"
+           "(c)2026 Jayachandran Dharuman\n"
+           "\n"
+           "CANgaroo is free software licensed\n"
+           "under the GPL v2 license.")
+            .arg(QStringLiteral(VERSION_STRING));
+    QMessageBox::about(this, tr("About CANgaroo"), aboutText);
 }
 
 void MainWindow::checkForUpdates()
@@ -1656,9 +1696,18 @@ void MainWindow::stopMeasurement()
 
 void MainWindow::saveTraceToFile()
 {
-    const QString filters(
-        "Vector ASC (*.asc);;CAN/FD Raw CSV (*.csv);;Linux candump (*.candump)");
-    const QString defaultFilter = settings.value("ui/preferredSaveFormat", "Vector ASC (*.asc)").toString();
+    const QString ascFilter = tr("Vector ASC (*.asc)");
+    const QString csvFilter = tr("CAN/FD Raw CSV (*.csv)");
+    const QString candumpFilter = tr("Linux candump (*.candump)");
+    const QString filters(ascFilter + ";;" + csvFilter + ";;" + candumpFilter);
+    // The setting keeps the stable (untranslated) filter identifier.
+    const QString savedFormat = settings.value("ui/preferredSaveFormat",
+                                               "Vector ASC (*.asc)").toString();
+    QString defaultFilter = ascFilter;
+    if (savedFormat == QLatin1String("CAN/FD Raw CSV (*.csv)"))
+        defaultFilter = csvFilter;
+    else if (savedFormat == QLatin1String("Linux candump (*.candump)"))
+        defaultFilter = candumpFilter;
 
     QFileDialog fileDialog(nullptr, tr("Save Trace to file"), QDir::currentPath(), filters);
     fileDialog.setAcceptMode(QFileDialog::AcceptSave);
@@ -1724,18 +1773,18 @@ void MainWindow::switchLanguage(QAction *action)
 {
     const QString locale = action->data().toString();
 
-    qApp->removeTranslator(&m_translator);
-
-    if (locale == "en_US")
-        std::ignore = m_translator.load("");
-    else
+    if (!Translation::apply(locale))
     {
-        const QString qmPath = ":/translations/i18n_" + locale + ".qm";
-        if (!m_translator.load(qmPath))
-            qDebug() << "Could not load translation: " << qmPath;
+        QMessageBox::warning(
+            this, tr("Language"),
+            tr("Could not load the translation for %1. The UI language was not changed.")
+                .arg(action->text()));
+        // Keep the menu consistent with the language that is really active.
+        for (QAction *other : m_languageActionGroup->actions())
+            other->setChecked(other->data().toString() == Translation::currentLocale());
+        return;
     }
 
-    qApp->installTranslator(&m_translator);
     settings.setValue("ui/language", locale);
 }
 
@@ -1744,11 +1793,109 @@ void MainWindow::changeEvent(QEvent *event)
     if (event->type() == QEvent::LanguageChange)
     {
         ui->retranslateUi(this);
+        retranslateCustomUi();
+        retranslateTabAndDockTitles();
+        updateRecordingStatus();
+        updateTriggerStatus();
         _baseWindowTitle = tr("CANgaroo");
         setWorkspaceModified(_workspaceModified);
     }
 
     QMainWindow::changeEvent(event);
+}
+
+void MainWindow::retranslateCustomUi()
+{
+    if (_actionStandaloneGraph)
+        _actionStandaloneGraph->setText(tr("Standalone Graph"));
+    if (_actionMotorView)
+        _actionMotorView->setText(tr("Motor View"));
+    if (_actionExportFull)
+        _actionExportFull->setText(tr("Export full trace"));
+    if (_actionImportFull)
+        _actionImportFull->setText(tr("Import full trace"));
+
+    if (m_recentFilesMenu)
+    {
+        m_recentFilesMenu->setTitle(tr("Open Recent"));
+        updateRecentFilesMenu(); // rebuilds the "Clear Recent Files" action in the new language
+    }
+
+    if (_btnOpenGraph)
+    {
+        _btnOpenGraph->setText(tr("Graph"));
+        _btnOpenGraph->setToolTip(tr("Open Standalone Graph Window (Ctrl+Shift+B)"));
+    }
+
+    if (_actionRecord)
+    {
+        _actionRecord->setText(tr("&Record Trace to File"));
+        _actionRecord->setIconText(tr("Record"));
+        _actionRecord->setToolTip(tr("Continuously record all traffic to a file (Ctrl+R)"));
+    }
+    if (_actionRecordOptions)
+        _actionRecordOptions->setText(tr("Recording &Options..."));
+    if (_actionOpenFolder)
+        _actionOpenFolder->setText(tr("Open Recording &Folder"));
+
+    if (_actionTriggerCapture)
+    {
+        _actionTriggerCapture->setText(tr("&Trigger Capture (Blackbox)..."));
+        _actionTriggerCapture->setToolTip(tr("Configure pre/post-trigger blackbox slice capture"));
+    }
+    if (_btnTriggerCapture)
+    {
+        _btnTriggerCapture->setText(tr("Trigger"));
+        _btnTriggerCapture->setToolTip(tr("Configure pre/post-trigger blackbox capture"));
+    }
+
+    if (_btnBannerRebind)
+        _btnBannerRebind->setText(tr("Rebind && Resume"));
+    if (_btnBannerDismiss)
+        _btnBannerDismiss->setText(tr("Dismiss"));
+    updateDisconnectBannerText();
+
+    if (m_languageActionGroup)
+    {
+        for (QAction *languageAction : m_languageActionGroup->actions())
+        {
+            languageAction->setText(languageAction->data().toString() == QLatin1String("zh_cn")
+                                        ? tr("Chinese")
+                                        : tr("English"));
+        }
+    }
+
+    for (GraphWindow *graph : std::as_const(_standaloneGraphWindows))
+    {
+        if (graph)
+            graph->setWindowTitle(tr("Standalone Graph"));
+    }
+}
+
+void MainWindow::retranslateTabAndDockTitles()
+{
+    for (int i = 0; i < ui->mainTabs->count(); ++i)
+    {
+        QWidget *page = ui->mainTabs->widget(i);
+        if (!page)
+            continue;
+        const QString source = page->property("i18nTitleSource").toString();
+        if (!source.isEmpty())
+            ui->mainTabs->setTabText(i, tr(qPrintable(source)));
+    }
+
+    // Docks may be floating (reparented to a top-level window), so walk all
+    // widgets instead of only the docks that still resolve as children.
+    const QList<QWidget *> allWidgets = QApplication::allWidgets();
+    for (QWidget *widget : allWidgets)
+    {
+        auto *dock = qobject_cast<QDockWidget *>(widget);
+        if (!dock)
+            continue;
+        const QString source = dock->property("i18nTitleSource").toString();
+        if (!source.isEmpty())
+            dock->setWindowTitle(tr(qPrintable(source)));
+    }
 }
 
 void MainWindow::createLanguageMenu()
@@ -1762,7 +1909,7 @@ void MainWindow::createLanguageMenu()
     m_languageActionGroup = new QActionGroup(this);
     connect(m_languageActionGroup, &QActionGroup::triggered, this, &MainWindow::switchLanguage);
 
-    const QString savedLocale = settings.value("ui/language", "en_US").toString();
+    const QString savedLocale = Translation::savedLocale();
 
     for (const auto &lang : langs)
     {
@@ -1772,11 +1919,7 @@ void MainWindow::createLanguageMenu()
         m_languageActionGroup->addAction(action);
 
         if (QLatin1String(lang.locale) == savedLocale)
-        {
             action->setChecked(true);
-            if (savedLocale != QLatin1String("en_US"))
-                switchLanguage(action);
-        }
     }
 }
 

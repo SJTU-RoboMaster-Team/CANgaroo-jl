@@ -84,7 +84,7 @@ TriggerCaptureDialog::TriggerCaptureDialog(const TriggerCaptureConfig &config,
     _formatCombo = new QComboBox(this);
     _formatCombo->addItem(tr("CAN/FD Raw CSV (*.csv)"), static_cast<int>(TraceFileFormat::Csv));
     _formatCombo->addItem(tr("Vector ASC (*.asc)"), static_cast<int>(TraceFileFormat::VectorAsc));
-    _formatCombo->addItem(tr("SocketCAN candump (*.candump)"), static_cast<int>(TraceFileFormat::CanDump));
+    _formatCombo->addItem(tr("Linux candump (*.candump)"), static_cast<int>(TraceFileFormat::CanDump));
     const int fmtIdx = _formatCombo->findData(static_cast<int>(config.format));
     if (fmtIdx >= 0) {
         _formatCombo->setCurrentIndex(fmtIdx);

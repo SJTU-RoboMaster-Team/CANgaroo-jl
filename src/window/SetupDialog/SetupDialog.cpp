@@ -23,6 +23,7 @@
 #include "SetupDialog.h"
 #include "ui_SetupDialog.h"
 #include <QItemSelectionModel>
+#include <QEvent>
 #include <QMenu>
 #include <QFileDialog>
 #include <QTreeWidget>
@@ -51,11 +52,11 @@ SetupDialog::SetupDialog(Backend &backend, QWidget *parent) :
     QIcon icon(":/assets/cangaroo.png");
     setWindowIcon(icon);
 
-    _actionAddInterface = new QAction("Add...", this);
-    _actionDeleteInterface = new QAction("Delete", this);
-    _actionAddCanDb = new QAction("Add...", this);
-    _actionDeleteCanDb = new QAction("Delete", this);
-    _actionReloadCanDbs = new QAction("Reload", this);
+    _actionAddInterface = new QAction(tr("Add..."), this);
+    _actionDeleteInterface = new QAction(tr("Delete"), this);
+    _actionAddCanDb = new QAction(tr("Add..."), this);
+    _actionDeleteCanDb = new QAction(tr("Delete"), this);
+    _actionReloadCanDbs = new QAction(tr("Reload"), this);
 
     model = new SetupDialogTreeModel(_backend, this);
 
@@ -102,6 +103,32 @@ SetupDialog::~SetupDialog()
 {
     delete ui;
     delete model;
+}
+
+void SetupDialog::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+    QDialog::changeEvent(event);
+}
+
+void SetupDialog::retranslateUi()
+{
+    ui->retranslateUi(this);
+
+    if (_actionAddInterface)
+        _actionAddInterface->setText(tr("Add..."));
+    if (_actionDeleteInterface)
+        _actionDeleteInterface->setText(tr("Delete"));
+    if (_actionAddCanDb)
+        _actionAddCanDb->setText(tr("Add..."));
+    if (_actionDeleteCanDb)
+        _actionDeleteCanDb->setText(tr("Delete"));
+    if (_actionReloadCanDbs)
+        _actionReloadCanDbs->setText(tr("Reload"));
+
+    if (model)
+        model->retranslateHeaders();
 }
 
 void SetupDialog::addPage(QWidget *widget)

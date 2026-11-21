@@ -33,7 +33,9 @@
 #include <QSettings>
 #include <QShowEvent>
 #include <QCloseEvent>
+#include <QTreeWidgetItemIterator>
 #include <QtCharts/QLegendMarker>
+#include <utility>
 
 #include "core/Backend.h"
 #include "core/BusTrace.h"
@@ -365,7 +367,7 @@ GraphWindow::GraphWindow(QWidget *parent, Backend &backend) :
     colLayout->setContentsMargins(0, 0, 0, 0);
     colLayout->setSpacing(5);
 
-    _columnLabel = new QLabel("Columns:", _columnContainer);
+    _columnLabel = new QLabel(tr("Columns:"), _columnContainer);
     _columnSelector = new QComboBox(_columnContainer);
     _columnSelector->addItems({"1", "2", "3", "4"});
     _columnSelector->setCurrentIndex(1); // Default to 2
@@ -435,6 +437,17 @@ void GraphWindow::retranslateUi()
     };
     for (int i = 0; i < names.size() && i < ui->viewSelector->count(); ++i) {
         ui->viewSelector->setItemText(i, names[i]);
+    }
+
+    for (VisualizationWidget *visualization : std::as_const(_visualizations)) {
+        if (visualization)
+            visualization->retranslateUi();
+    }
+
+    // Message rows use a placeholder in the "System Node" column.
+    for (QTreeWidgetItemIterator it(ui->signalTree); *it; ++it) {
+        if ((*it)->data(0, Qt::UserRole + 2).toBool())
+            (*it)->setText(3, tr("MSG"));
     }
 }
 
@@ -967,7 +980,8 @@ void GraphWindow::populateSignalTree()
 
             QTreeWidgetItem *msgItem = new QTreeWidgetItem(root);
             msgItem->setText(0, QString("%1 (0x%2)").arg(msgName).arg(msg->getRaw_id(), 0, 16));
-            msgItem->setText(3, "MSG");
+            msgItem->setText(3, tr("MSG"));
+            msgItem->setData(0, Qt::UserRole + 2, true); // marks a message row (no GraphSignal)
             msgItem->setCheckState(0, Qt::Unchecked);
 
             QPixmap msgPix(12, 12);

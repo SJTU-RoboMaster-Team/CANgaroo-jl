@@ -60,6 +60,9 @@ public:
     void load(MeasurementSetup &setup);
     void unload();
 
+    /// Re-emit the (translatable) column headers after a UI language change.
+    void retranslateHeaders();
+
     SetupDialogTreeItem *addNetwork();
     void deleteNetwork(const QModelIndex &index);
     int getNetworkCount();

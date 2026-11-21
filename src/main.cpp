@@ -23,9 +23,9 @@
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QFileInfo>
-#include <QTranslator>
 
 #include <core/Log.h>
+#include <helpers/translation.h>
 
 int main(int argc, char *argv[])
 {
@@ -36,6 +36,12 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName("CANgaroo");
 
     QCoreApplication::setApplicationVersion(QStringLiteral(VERSION_STRING));
+
+    // Install the saved UI language before any window is constructed. Doing it
+    // here (instead of after MainWindow was built) is what keeps strings that
+    // are only set once in constructors - dock titles, tab titles, menus built
+    // in code - in the selected language.
+    Translation::apply(Translation::savedLocale());
 
     QCommandLineParser parser;
     parser.setApplicationDescription("CANgaroo CAN Bus Analyzer");

@@ -320,3 +320,9 @@ void SetupDialogTreeModel::unload()
     endResetModel();
 }
 
+void SetupDialogTreeModel::retranslateHeaders()
+{
+    if (columnCount(QModelIndex()) > 0)
+        emit headerDataChanged(Qt::Horizontal, 0, columnCount(QModelIndex()) - 1);
+}
+

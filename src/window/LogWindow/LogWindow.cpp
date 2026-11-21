@@ -70,6 +70,7 @@ LogWindow::~LogWindow()
 void LogWindow::retranslateUi()
 {
     ui->retranslateUi(this);
+    _backend->getLogModel().retranslateHeaders();
 }
 
 bool LogWindow::saveXML(Backend &backend, QDomDocument &xml, QDomElement &root)
