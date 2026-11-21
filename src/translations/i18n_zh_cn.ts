@@ -579,78 +579,78 @@
         <translation>添加到 Graph</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="371"/>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="431"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="379"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="439"/>
         <source>Columns:</source>
         <translation>列数：</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="434"/>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="463"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="442"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="471"/>
         <source>Graph (Time-series)</source>
         <translation>图表（时间序列）</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="435"/>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="463"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="443"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="471"/>
         <source>Scatter Chart</source>
         <translation>散点图</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="436"/>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="463"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="444"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="471"/>
         <source>Text</source>
         <translation>文本</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="437"/>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="463"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="445"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="471"/>
         <source>Gauge</source>
         <translation>仪表盘</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="451"/>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="988"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="459"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1018"/>
         <source>MSG</source>
         <translation>报文</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1022"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1052"/>
         <source>CAN — %1</source>
         <translation>CAN — %1</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1065"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1095"/>
         <source>Motor (built-in)</source>
         <translation>电机（内置）</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1004"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1034"/>
         <source>Unsigned</source>
         <translation>无符号</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1004"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1034"/>
         <source>Signed</source>
         <translation>有符号</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1037"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1067"/>
         <source>Bus Load — %1</source>
         <translation>总线负载 — %1</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1044"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1074"/>
         <source>Virtual</source>
         <translation>虚拟</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1050"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1080"/>
         <source>0..100 %</source>
         <translation>0..100 %</translation>
     </message>
     <message>
-        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1051"/>
+        <location filename="../window/GraphWindow/GraphWindow.cpp" line="1081"/>
         <source>1 s rolling window</source>
         <translation>1 秒滚动窗口</translation>
     </message>
@@ -4206,7 +4206,7 @@ Reason: %2</source>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="88"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="280"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="317"/>
         <source>ID</source>
         <translation>ID</translation>
     </message>
@@ -4231,122 +4231,316 @@ Reason: %2</source>
         <translation>添加 DBC 报文</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="212"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="195"/>
+        <source>Add the selected DBC message (double-click the list also adds it)</source>
+        <translation>添加选中的 DBC 报文（双击列表项也可添加）</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="219"/>
         <source>ID (Hex):</source>
         <translation>ID (Hex):</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="225"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="232"/>
         <source>HHHHHHHH</source>
         <translation>HHHHHHHH</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="228"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="235"/>
         <source>000</source>
         <translation>000</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="235"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="242"/>
         <source>DLC:</source>
         <translation>DLC:</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="252"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="259"/>
         <source>Add Manual</source>
         <translation>手动添加</translation>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="262"/>
+        <source>Add a message; Enter in the ID or Data field also adds it</source>
+        <translation>添加一条报文；在 ID 或 Data 输入框中按回车也可添加</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="269"/>
+        <source>Data (Hex):</source>
+        <translation>数据 (十六进制):</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="276"/>
+        <source>00 11 22 33 (optional)</source>
+        <translation>00 11 22 33（可选）</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="296"/>
         <source>Active Cyclic Transmissions</source>
         <translation>活动的周期发送</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="275"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="312"/>
         <source>Status</source>
         <translation>状态</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="290"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="327"/>
+        <source>Data</source>
+        <translation>数据</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="332"/>
         <source>Interface</source>
         <translation>接口</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="295"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="337"/>
         <source>DLC</source>
         <translation>DLC</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="300"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="342"/>
         <source>Interval (ms)</source>
         <translation>间隔 (ms)</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="310"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="352"/>
         <source>RUN</source>
         <translation>运行</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="320"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="362"/>
         <source>STOP</source>
         <translation>停止</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="330"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="372"/>
         <source>Interval:</source>
         <translation>间隔:</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="367"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="416"/>
         <source>Send</source>
         <translation>发送</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="374"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="423"/>
         <source>Select All Rows</source>
         <translation>全选</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="381"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="430"/>
         <source>Deselect All</source>
         <translation>取消全选</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="388"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="437"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="143"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="222"/>
         <source>Remove</source>
         <translation>移除</translation>
     </message>
     <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="93"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="285"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.ui" line="322"/>
         <source>Name</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="100"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="143"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="163"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="214"/>
         <source> ms</source>
         <translation> 毫秒</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="609"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="819"/>
         <source>Edit Message: %1 - %2</source>
         <translation>编辑报文: %1 - %2</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="800"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="844"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="131"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="219"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="1141"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="1188"/>
         <source>Stop</source>
         <translation>停止</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="800"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="844"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="119"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="216"/>
+        <source>Edit...</source>
+        <translation>编辑...</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="125"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="217"/>
+        <source>Send Once</source>
+        <translation>单次发送</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="128"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="218"/>
+        <source>Run</source>
+        <translation>运行</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="134"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="220"/>
+        <source>Duplicate</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="137"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="221"/>
+        <source>Rename...</source>
+        <translation>重命名...</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="180"/>
+        <source>Right-click a row to edit, send once, duplicate, rename or remove it.</source>
+        <translation>右键点击一行可编辑、单次发送、复制、重命名或删除。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="465"/>
+        <source>Select a DBC message in the list first.</source>
+        <translation>请先在列表中选择一条 DBC 报文。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="502"/>
+        <source>No DBC message selected.</source>
+        <translation>未选择 DBC 报文。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="517"/>
+        <source>Added %1 message(s).</source>
+        <translation>已添加 %1 条报文。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="530"/>
+        <source>Manual message: enter a hexadecimal CAN ID first.</source>
+        <translation>手动添加：请先输入十六进制 CAN ID。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="539"/>
+        <source>Manual message: CAN FD DLC must be 0-8, 12, 16, 20, 24, 32, 48 or 64 bytes.</source>
+        <translation>手动添加：CAN FD 的 DLC 必须是 0–8、12、16、20、24、32、48 或 64 字节。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="546"/>
+        <source>Manual message: &quot;%1&quot; is not a valid hex byte string (e.g. 00 11 22).</source>
+        <translation>手动添加：“%1”不是有效的十六进制字节串（例如 00 11 22）。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="551"/>
+        <source>Manual message: at most %1 data bytes are supported.</source>
+        <translation>手动添加：最多支持 %1 个数据字节。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="556"/>
+        <source>Manual message: payload length %1 is not a valid CAN FD DLC (12, 16, 20, 24, 32, 48 or 64).</source>
+        <translation>手动添加：数据长度 %1 不是有效的 CAN FD DLC（12、16、20、24、32、48 或 64）。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="571"/>
+        <source>Manual 0x%1</source>
+        <translation>手动 0x%1</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="590"/>
+        <source>Added %1.</source>
+        <translation>已添加 %1。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="628"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="659"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="714"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="743"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="898"/>
+        <source>Select at least one row first.</source>
+        <translation>请先选择至少一行。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="641"/>
+        <source>Removed %1 row(s).</source>
+        <translation>已移除 %1 行。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="675"/>
+        <source>TxGeneratorWindow: Interface %1 is not open.</source>
+        <translation>Generator View：接口 %1 未打开。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="683"/>
+        <source>Nothing was sent: the selected interface is not open.</source>
+        <translation>未发送任何帧：所选接口未打开。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="685"/>
+        <source>Sent %1 frame(s).</source>
+        <translation>已发送 %1 帧。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="693"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="718"/>
+        <source>Start the measurement first.</source>
+        <translation>请先启动测量。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="729"/>
+        <source>Started %1 row(s).</source>
+        <translation>已启动 %1 行。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="730"/>
+        <source>Stopped %1 row(s).</source>
+        <translation>已停止 %1 行。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="855"/>
+        <source>Updated %1.</source>
+        <translation>已更新 %1。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="908"/>
+        <source>%1 copy</source>
+        <translation>%1 副本</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="922"/>
+        <source>Duplicated %1 row(s).</source>
+        <translation>已复制 %1 行。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="933"/>
+        <source>Rename Message</source>
+        <translation>重命名报文</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="933"/>
+        <source>Name:</source>
+        <translation>名称：</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="941"/>
+        <source>Renamed to %1.</source>
+        <translation>已重命名为 %1。</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="970"/>
+        <source>Running %1 · sent %2</source>
+        <translation>运行 %1 条 · 已发送 %2</translation>
+    </message>
+    <message>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="1141"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="1188"/>
         <source>Start</source>
         <translation>启动</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="815"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="855"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="1157"/>
+        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="1200"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
