@@ -4373,37 +4373,45 @@ Reason: %2</source>
 <context>
     <name>UpdateChecker</name>
     <message>
-        <location filename="../core/UpdateChecker.cpp" line="399"/>
+        <location filename="../core/UpdateChecker.cpp" line="435"/>
         <source>Invalid release metadata received from GitHub (%1).</source>
         <translation>从 GitHub 收到的发行版元数据无效 (%1)。</translation>
     </message>
     <message>
-        <location filename="../core/UpdateChecker.cpp" line="408"/>
+        <location filename="../core/UpdateChecker.cpp" line="444"/>
         <source>Latest release entry in %1 is still marked as draft.</source>
         <translation>%1 中的最新发布记录仍处于草稿状态。</translation>
     </message>
     <message>
-        <location filename="../core/UpdateChecker.cpp" line="422"/>
+        <location filename="../core/UpdateChecker.cpp" line="458"/>
+        <location filename="../core/UpdateChecker.cpp" line="635"/>
         <source>Could not parse release version &quot;%1&quot; from %2.</source>
         <translation>无法解析来自 %2 的版本号 &quot;%1&quot;。</translation>
     </message>
     <message>
-        <location filename="../core/UpdateChecker.cpp" line="464"/>
+        <location filename="../core/UpdateChecker.cpp" line="500"/>
         <source>Invalid tag metadata received from GitHub (%1).</source>
         <translation>从 GitHub 收到的标签元数据无效 (%1)。</translation>
     </message>
     <message>
-        <location filename="../core/UpdateChecker.cpp" line="492"/>
+        <location filename="../core/UpdateChecker.cpp" line="528"/>
+        <location filename="../core/UpdateChecker.cpp" line="620"/>
         <source>No published releases or version tags were found in %1.</source>
         <translation>在 %1 中未找到已发布的版本或版本标签。</translation>
     </message>
     <message>
-        <location filename="../core/UpdateChecker.cpp" line="590"/>
-        <source>GitHub API rate limit exceeded. Please try again later or check the releases page directly.</source>
-        <translation>GitHub API 请求频率受限，请稍后再试或直接打开发布页面查看。</translation>
+        <location filename="../core/UpdateChecker.cpp" line="612"/>
+        <source>Invalid release feed received from GitHub (%1).</source>
+        <translation>从 GitHub 收到的发布源数据无效（%1）。</translation>
     </message>
     <message>
-        <location filename="../core/UpdateChecker.cpp" line="597"/>
+        <location filename="../core/UpdateChecker.cpp" line="764"/>
+        <source>GitHub API rate limit exceeded and the release feed could not be read (%1). Please try again later or check the releases page directly.</source>
+        <translation>GitHub API 请求频率受限，且无法读取发布源（%1）。请稍后再试或直接打开发布页面查看。</translation>
+    </message>
+    <message>
+        <location filename="../core/UpdateChecker.cpp" line="762"/>
+        <location filename="../core/UpdateChecker.cpp" line="772"/>
         <source>HTTP %1: %2</source>
         <translation>HTTP %1: %2</translation>
     </message>
