@@ -324,6 +324,14 @@ GraphWindow::GraphWindow(QWidget *parent, Backend &backend) :
 
     setupVisualizations();
 
+    // Connected after setupVisualizations() so the visualizations' own
+    // applyTheme() (chart theme) runs first and these colour updates win.
+    connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this](ThemeManager::Theme) {
+                refreshSignalTreeIcons();
+                applyThemeSignalColors();
+            });
+
     connect(ui->viewSelector, &QComboBox::currentIndexChanged, this, &GraphWindow::onViewTypeChanged);
     connect(ui->durationSelector, &QComboBox::currentIndexChanged, this, &GraphWindow::onDurationChanged);
     onDurationChanged(ui->durationSelector->currentIndex());
@@ -739,6 +747,20 @@ void GraphWindow::onLegendMarkerClicked()
             for (auto v : _visualizations) {
                 if (v) v->setSignalColor(targetSignal, color);
             }
+            // Keep the tree swatch in sync with an explicit colour choice, and
+            // mark it so a later theme switch does not replace it.
+            QTreeWidgetItemIterator it(ui->signalTree);
+            while (*it) {
+                auto *sig = static_cast<GraphSignal*>((*it)->data(0, Qt::UserRole).value<void*>());
+                if (sig == targetSignal) {
+                    QPixmap pix(12, 12);
+                    pix.fill(color);
+                    (*it)->setIcon(0, QIcon(pix));
+                    (*it)->setData(0, Qt::UserRole + 4, color);
+                    break;
+                }
+                ++it;
+            }
         }
     }
 }
@@ -847,10 +869,15 @@ void GraphWindow::applyPendingSignals()
 
                 if (match) {
                     item->setCheckState(0, Qt::Checked);
-                    // Restore color on the item icon so onAddGraphClicked picks it up
-                    QPixmap pix(12, 12);
-                    pix.fill(ps.color.isValid() ? ps.color : Qt::white);
-                    item->setIcon(0, QIcon(pix));
+                    // Restore an explicit (saved/user) colour on the item icon
+                    // so onAddGraphClicked picks it up. Without one, the themed
+                    // channel swatch stays and follows later theme switches.
+                    if (ps.color.isValid()) {
+                        QPixmap pix(12, 12);
+                        pix.fill(ps.color);
+                        item->setIcon(0, QIcon(pix));
+                        item->setData(0, Qt::UserRole + 4, ps.color);
+                    }
                     break;
                 }
             }
@@ -971,6 +998,9 @@ void GraphWindow::populateSignalTree()
         const int channelIndex = int(qHash(sigName) % uint(signalChannels.size()));
         pix.fill(signalChannels[channelIndex]);
         sigItem->setIcon(0, QIcon(pix));
+        // Remember the channel index so theme switches can recolour the swatch
+        // without rebuilding the tree.
+        sigItem->setData(0, Qt::UserRole + 3, channelIndex);
     };
 
     QTreeWidgetItem *virtRoot = nullptr;
@@ -1072,6 +1102,66 @@ void GraphWindow::populateSignalTree()
 
     if (!_pendingSignals.isEmpty())
         QTimer::singleShot(0, this, &GraphWindow::applyPendingSignals);
+}
+
+void GraphWindow::refreshSignalTreeIcons()
+{
+    const ThemeColors &colors = ThemeManager::instance().colors();
+    const int channelCount = int(colors.channels.size());
+    if (channelCount <= 0)
+        return;
+
+    QTreeWidgetItemIterator it(ui->signalTree);
+    while (*it) {
+        QTreeWidgetItem *item = *it;
+        if (item->data(0, Qt::UserRole + 2).toBool()) {
+            // Message row: neutral swatch.
+            QPixmap pix(12, 12);
+            pix.fill(colors.inkMuted);
+            item->setIcon(0, QIcon(pix));
+        } else if (!item->data(0, Qt::UserRole + 4).isValid()) {
+            // Explicit user/saved colours (UserRole + 4) are kept as-is.
+            void *ptr = item->data(0, Qt::UserRole).value<void*>();
+            if (ptr) {
+                auto *gs = static_cast<GraphSignal*>(ptr);
+                QColor color;
+                if (gs->isBusLoad()) {
+                    color = colors.statusWarning;
+                } else if (item->data(0, Qt::UserRole + 3).isValid()) {
+                    color = colors.channels[item->data(0, Qt::UserRole + 3).toInt() % channelCount];
+                }
+                if (color.isValid()) {
+                    QPixmap pix(12, 12);
+                    pix.fill(color);
+                    item->setIcon(0, QIcon(pix));
+                }
+            }
+        }
+        ++it;
+    }
+}
+
+void GraphWindow::applyThemeSignalColors()
+{
+    if (_visualizations.isEmpty())
+        return;
+
+    // Use the (already refreshed) tree swatches as the colour source, exactly
+    // like onAddGraphClicked() does when signals are first added.
+    QTreeWidgetItemIterator it(ui->signalTree);
+    while (*it) {
+        if ((*it)->checkState(0) == Qt::Checked) {
+            auto *sig = static_cast<GraphSignal*>((*it)->data(0, Qt::UserRole).value<void*>());
+            if (sig) {
+                const QColor color = (*it)->icon(0).pixmap(1, 1).toImage().pixelColor(0, 0);
+                for (VisualizationWidget *v : std::as_const(_visualizations)) {
+                    if (v)
+                        v->setSignalColor(sig, color);
+                }
+            }
+        }
+        ++it;
+    }
 }
 
 void GraphWindow::onSearchTextChanged(const QString &text)

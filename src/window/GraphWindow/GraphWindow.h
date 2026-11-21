@@ -164,6 +164,12 @@ private:
     void filterSignalTree(const QString &searchText);
     bool shouldShowSignalItem(class QTreeWidgetItem *item, const QString &searchText);
 
+    // Runtime theme switches: QChart::setTheme() resets explicit series colours,
+    // so the signal-tree swatches and the series colours are refreshed together
+    // (without rebuilding the tree, which would lose the check state).
+    void refreshSignalTreeIcons();
+    void applyThemeSignalColors();
+
     void applyPendingSignals();
 
     struct PendingSignal {

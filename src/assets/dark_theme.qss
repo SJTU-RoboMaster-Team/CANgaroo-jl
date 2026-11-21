@@ -7,6 +7,12 @@ QWidget {
     color: #DCDCDC;
 }
 
+/* A stylesheet colour on a widget replaces the palette's Disabled group, so
+   disabled labels/checkboxes would keep full-contrast text without this. */
+QWidget:disabled {
+    color: #656565;
+}
+
 QMainWindow,
 QDialog {
     background-color: #2D2D30;
@@ -177,6 +183,21 @@ QPushButton:disabled {
 }
 QPushButton:default {
     border-color: #007ACC;
+}
+
+QPushButton:checked {
+    background: #1F3A4D;
+    color: #DCDCDC;
+    border: 1px solid #007ACC;
+}
+QPushButton:checked:hover {
+    background: #264F78;
+    border-color: #1A8AD4;
+}
+QPushButton:checked:disabled {
+    background: #253238;
+    color: #656565;
+    border-color: #2F4A5A;
 }
 
 QPushButton[uiRole="primary"],
@@ -408,6 +429,9 @@ QGroupBox::title {
     padding: 0 4px;
     color: #DCDCDC;
     font-weight: 600;
+}
+QGroupBox::title:disabled {
+    color: #656565;
 }
 
 QProgressBar {
