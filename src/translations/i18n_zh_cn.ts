@@ -4311,18 +4311,6 @@ Reason: %2</source>
         <translation>名称</translation>
     </message>
     <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="128"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="153"/>
-        <source>Randomize Data</source>
-        <translation>随机化数据</translation>
-    </message>
-    <message>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="129"/>
-        <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="154"/>
-        <source>Randomize data bytes for selected messages</source>
-        <translation>为选中报文随机化数据字节</translation>
-    </message>
-    <message>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="100"/>
         <location filename="../window/TxGeneratorWindow/TxGeneratorWindow.cpp" line="156"/>
         <source> ms</source>
