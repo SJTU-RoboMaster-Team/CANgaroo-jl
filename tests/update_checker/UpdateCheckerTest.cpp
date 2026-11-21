@@ -91,6 +91,23 @@ QByteArray buildHttpResponse(int statusCode, const QByteArray &statusText,
     return resp;
 }
 
+QByteArray buildAtomFeed(const QByteArray &tag, const QByteArray &escapedHtmlNotes)
+{
+    return QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                      "<feed xmlns=\"http://www.w3.org/2005/Atom\">\n"
+                      "  <id>tag:github.com,2008:Repository/1462580845/")
+           + tag + "</id>\n"
+           "  <entry>\n"
+           "    <id>tag:github.com,2008:Repository/1462580845/" + tag + "</id>\n"
+           "    <updated>2026-12-01T10:00:00Z</updated>\n"
+           "    <link rel=\"alternate\" type=\"text/html\" "
+           "href=\"https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl/releases/tag/" + tag + "\"/>\n"
+           "    <title>" + tag + ": Test release</title>\n"
+           "    <content type=\"html\">" + escapedHtmlNotes + "</content>\n"
+           "  </entry>\n"
+           "</feed>\n";
+}
+
 } // namespace
 
 class UpdateCheckerTest : public QObject
@@ -104,9 +121,11 @@ private slots:
     void evaluateReleaseJson_updateAvailableAndAssets();
     void evaluateReleaseJson_upToDateDevAndErrors();
     void evaluateTagsJson_picksHighestVersion();
+    void evaluateReleasesAtomPayload_parsesFeed();
     void httpLatestReleaseSuccess();
     void httpFallsBackToTagsOn404();
-    void httpReportsRateLimit();
+    void httpFallsBackToAtomFeedOnRateLimit();
+    void httpReportsRateLimitWhenFeedAlsoFails();
     void cancelAbortsInFlightCheck();
 };
 
@@ -123,6 +142,8 @@ void UpdateCheckerTest::defaultRepositoryIsFork()
              QStringLiteral("https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl"));
     QCOMPARE(UpdateChecker::releasesPageUrl(),
              QStringLiteral("https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl/releases"));
+    QCOMPARE(UpdateChecker::releasesAtomUrl(),
+             QStringLiteral("https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl/releases.atom"));
 }
 
 void UpdateCheckerTest::parseAndCompareVersions()
@@ -236,6 +257,34 @@ void UpdateCheckerTest::evaluateTagsJson_picksHighestVersion()
     QCOMPARE(emptyRes.status, UpdateCheckResult::Status::Error);
 }
 
+void UpdateCheckerTest::evaluateReleasesAtomPayload_parsesFeed()
+{
+    const QByteArray feed = buildAtomFeed("V0.8.0", "&lt;p&gt;Bug fixes&lt;br&gt;and more&lt;/p&gt;");
+
+    const UpdateCheckResult res = UpdateChecker::evaluateReleasesAtomPayload(feed, "0.7.2");
+    QCOMPARE(res.status, UpdateCheckResult::Status::UpdateAvailable);
+    QCOMPARE(res.sourceKind, UpdateSourceKind::ReleasesAtom);
+    QCOMPARE(res.latestTag, QStringLiteral("V0.8.0"));
+    QCOMPARE(res.latestVersion, QStringLiteral("0.8.0"));
+    QCOMPARE(res.releasePageUrl,
+             QStringLiteral("https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl/releases/tag/V0.8.0"));
+    QCOMPARE(res.releaseNotes, QStringLiteral("Bug fixes\nand more"));
+    QCOMPARE(res.publishedAt, QStringLiteral("2026-12-01T10:00:00Z"));
+
+    const UpdateCheckResult upToDate = UpdateChecker::evaluateReleasesAtomPayload(feed, "0.8.0");
+    QCOMPARE(upToDate.status, UpdateCheckResult::Status::UpToDate);
+
+    const UpdateCheckResult devBuild = UpdateChecker::evaluateReleasesAtomPayload(feed, "dev");
+    QCOMPARE(devBuild.status, UpdateCheckResult::Status::DevBuild);
+
+    const UpdateCheckResult emptyFeed = UpdateChecker::evaluateReleasesAtomPayload(
+        R"(<feed xmlns="http://www.w3.org/2005/Atom"><title>No releases</title></feed>)", "0.7.2");
+    QCOMPARE(emptyFeed.status, UpdateCheckResult::Status::Error);
+
+    const UpdateCheckResult badXml = UpdateChecker::evaluateReleasesAtomPayload("<feed", "0.7.2");
+    QCOMPARE(badXml.status, UpdateCheckResult::Status::Error);
+}
+
 void UpdateCheckerTest::httpLatestReleaseSuccess()
 {
     QByteArray seenRequest;
@@ -310,19 +359,76 @@ void UpdateCheckerTest::httpFallsBackToTagsOn404()
     QCOMPARE(res.latestTag, QStringLiteral("V0.7.2"));
 }
 
-void UpdateCheckerTest::httpReportsRateLimit()
+void UpdateCheckerTest::httpFallsBackToAtomFeedOnRateLimit()
 {
-    MockHttpServer server([&](const QByteArray &, QTcpSocket *sock) {
-        sock->write(buildHttpResponse(
-            403, "Forbidden",
-            R"({"message":"API rate limit exceeded"})",
-            "X-RateLimit-Remaining: 0\r\n"));
+    QList<QByteArray> paths;
+    QByteArray atomRequest;
+    MockHttpServer server([&](const QByteArray &req, QTcpSocket *sock) {
+        paths.append(req.left(req.indexOf("\r\n")));
+        if (req.contains("/releases/latest"))
+        {
+            sock->write(buildHttpResponse(
+                403, "Forbidden",
+                R"({"message":"API rate limit exceeded"})",
+                "X-RateLimit-Remaining: 0\r\n"));
+        }
+        else if (req.contains("/releases.atom"))
+        {
+            atomRequest = req;
+            sock->write(buildHttpResponse(200, "OK",
+                                          buildAtomFeed("V0.8.1", "&lt;p&gt;Feed fallback&lt;/p&gt;")));
+        }
+        else
+        {
+            sock->write(buildHttpResponse(400, "Bad Request", "{}"));
+        }
         sock->disconnectFromHost();
     });
     QVERIFY(server.listen(QHostAddress::LocalHost, 0));
 
     UpdateChecker checker;
     checker.setApiBaseUrl(server.baseUrl());
+    checker.setWebBaseUrl(server.baseUrl());
+    QSignalSpy finishedSpy(&checker, &UpdateChecker::checkFinished);
+
+    checker.checkForUpdates("0.7.2");
+    QTRY_COMPARE_WITH_TIMEOUT(finishedSpy.count(), 1, 5000);
+
+    QCOMPARE(paths.size(), 2);
+    QVERIFY(paths[0].startsWith("GET /repos/SJTU-RoboMaster-Team/CANgaroo-jl/releases/latest "));
+    QVERIFY(paths[1].startsWith("GET /SJTU-RoboMaster-Team/CANgaroo-jl/releases.atom "));
+    QVERIFY(atomRequest.contains("User-Agent: CANgaroo-jl/0.7.2"));
+
+    const auto res = qvariant_cast<UpdateCheckResult>(finishedSpy.at(0).at(0));
+    QCOMPARE(res.status, UpdateCheckResult::Status::UpdateAvailable);
+    QCOMPARE(res.sourceKind, UpdateSourceKind::ReleasesAtom);
+    QCOMPARE(res.latestVersion, QStringLiteral("0.8.1"));
+    QCOMPARE(res.releaseNotes, QStringLiteral("Feed fallback"));
+    QVERIFY(res.downloadUrl.isEmpty());
+    QVERIFY(!checker.isChecking());
+}
+
+void UpdateCheckerTest::httpReportsRateLimitWhenFeedAlsoFails()
+{
+    MockHttpServer server([&](const QByteArray &req, QTcpSocket *sock) {
+        if (req.contains("/releases.atom"))
+        {
+            sock->write(buildHttpResponse(503, "Service Unavailable", "{}"));
+        }
+        else
+        {
+            sock->write(buildHttpResponse(
+                403, "Forbidden",
+                R"({"message":"API rate limit exceeded"})",
+                "X-RateLimit-Remaining: 0\r\n"));
+        }
+        sock->disconnectFromHost();
+    });
+    QVERIFY(server.listen(QHostAddress::LocalHost, 0));
+
+    UpdateChecker checker;
+    checker.setApiBaseUrl(server.baseUrl());
+    checker.setWebBaseUrl(server.baseUrl());
     QSignalSpy finishedSpy(&checker, &UpdateChecker::checkFinished);
 
     checker.checkForUpdates("0.7.2");

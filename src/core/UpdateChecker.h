@@ -43,7 +43,8 @@ struct SemanticVersion
 enum class UpdateSourceKind
 {
     Release,
-    TagFallback
+    TagFallback,
+    ReleasesAtom
 };
 
 struct UpdateCheckResult
@@ -105,6 +106,11 @@ public:
         const QString &repository = QString::fromLatin1(defaultRepository()),
         const QString &webBaseUrl = QString::fromLatin1(defaultWebBaseUrl()));
 
+    /// Atom feed of the published releases, used when the GitHub API is rate limited.
+    [[nodiscard]] static QString releasesAtomUrl(
+        const QString &repository = QString::fromLatin1(defaultRepository()),
+        const QString &webBaseUrl = QString::fromLatin1(defaultWebBaseUrl()));
+
     [[nodiscard]] static QString normalizeVersionString(const QString &raw);
     [[nodiscard]] static std::optional<SemanticVersion> parseVersion(const QString &versionString);
     [[nodiscard]] static int compareVersions(const SemanticVersion &lhs, const SemanticVersion &rhs);
@@ -129,6 +135,12 @@ public:
         const QString &repository = QString::fromLatin1(defaultRepository()),
         const QString &webBaseUrl = QString::fromLatin1(defaultWebBaseUrl()));
 
+    [[nodiscard]] static UpdateCheckResult evaluateReleasesAtomPayload(
+        const QByteArray &atomBytes,
+        const QString &currentVersion,
+        const QString &repository = QString::fromLatin1(defaultRepository()),
+        const QString &webBaseUrl = QString::fromLatin1(defaultWebBaseUrl()));
+
 signals:
     void checkFinished(const UpdateCheckResult &result);
     void checkCancelled();
@@ -137,10 +149,12 @@ private:
     enum class RequestPhase
     {
         LatestRelease,
-        TagsFallback
+        TagsFallback,
+        ReleasesAtom
     };
 
     void startRequest(const QUrl &url, RequestPhase phase);
+    void startReleasesAtomFallback();
     void handleReplyFinished(QNetworkReply *reply, RequestPhase phase);
     void finishWithError(const QString &errorMessage);
 

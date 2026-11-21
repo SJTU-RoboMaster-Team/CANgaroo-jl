@@ -28,7 +28,9 @@
 #include <QNetworkProxy>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QUrl>
+#include <QXmlStreamReader>
 
 namespace {
 
@@ -47,6 +49,35 @@ bool isHttpUrl(const QUrl &url)
         return false;
     const QString scheme = url.scheme().toLower();
     return scheme == QLatin1String("https") || scheme == QLatin1String("http");
+}
+
+/// Release notes in the Atom feed arrive as escaped HTML; turn them into the
+/// plain text the update dialog shows.
+QString atomContentToPlainText(const QString &html)
+{
+    static const QRegularExpression lineBreak(QStringLiteral("<br\\s*/?>"),
+                                              QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression paragraphEnd(QStringLiteral("</p\\s*>"),
+                                                 QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression tags(QStringLiteral("<[^>]*>"));
+    static const QRegularExpression blankLines(QStringLiteral("\\n{3,}"));
+
+    QString text = html;
+    text.replace(lineBreak, QStringLiteral("\n"));
+    text.replace(paragraphEnd, QStringLiteral("\n"));
+    text.remove(tags);
+    text.replace(blankLines, QStringLiteral("\n\n"));
+    return text.trimmed();
+}
+
+/// "/owner/repo/releases/tag/V0.8.0" -> "V0.8.0"
+QString releaseTagFromUrl(const QString &urlString)
+{
+    const QUrl url(urlString);
+    if (!isHttpUrl(url))
+        return {};
+    const QString lastSegment = url.path().section(QLatin1Char('/'), -1);
+    return QUrl::fromPercentEncoding(lastSegment.toUtf8());
 }
 
 int comparePreReleaseIdentifiers(const QString &lhs, const QString &rhs)
@@ -248,6 +279,11 @@ QString UpdateChecker::repositoryWebUrl(const QString &repository, const QString
 QString UpdateChecker::releasesPageUrl(const QString &repository, const QString &webBaseUrl)
 {
     return repositoryWebUrl(repository, webBaseUrl) + QStringLiteral("/releases");
+}
+
+QString UpdateChecker::releasesAtomUrl(const QString &repository, const QString &webBaseUrl)
+{
+    return repositoryWebUrl(repository, webBaseUrl) + QStringLiteral("/releases.atom");
 }
 
 QString UpdateChecker::normalizeVersionString(const QString &raw)
@@ -501,6 +537,117 @@ UpdateCheckResult UpdateChecker::evaluateTagsPayload(
     return buildComparisonResult(std::move(result), *bestVer);
 }
 
+UpdateCheckResult UpdateChecker::evaluateReleasesAtomPayload(
+    const QByteArray &atomBytes,
+    const QString &currentVersion,
+    const QString &repository,
+    const QString &webBaseUrl)
+{
+    UpdateCheckResult result;
+    result.repository = repository;
+    result.currentVersion = currentVersion;
+    result.sourceKind = UpdateSourceKind::ReleasesAtom;
+    result.releasePageUrl = releasesPageUrl(repository, webBaseUrl);
+
+    QXmlStreamReader reader(atomBytes);
+    QString entryTitle;
+    QString entryLink;
+    QString entryUpdated;
+    QString entryContent;
+    bool inEntry = false;
+    bool haveEntry = false;
+
+    while (!reader.atEnd())
+    {
+        reader.readNext();
+        if (reader.isStartElement())
+        {
+            if (reader.name() == QLatin1String("entry"))
+            {
+                inEntry = true;
+                entryTitle.clear();
+                entryLink.clear();
+                entryUpdated.clear();
+                entryContent.clear();
+            }
+            else if (inEntry)
+            {
+                if (reader.name() == QLatin1String("title"))
+                {
+                    entryTitle = reader.readElementText().trimmed();
+                }
+                else if (reader.name() == QLatin1String("updated"))
+                {
+                    entryUpdated = reader.readElementText().trimmed();
+                }
+                else if (reader.name() == QLatin1String("content"))
+                {
+                    entryContent = reader.readElementText();
+                }
+                else if (reader.name() == QLatin1String("link"))
+                {
+                    const QXmlStreamAttributes attrs = reader.attributes();
+                    const QString rel = attrs.value(QLatin1String("rel")).toString();
+                    const QString href = attrs.value(QLatin1String("href")).toString();
+                    if ((rel.isEmpty() || rel == QLatin1String("alternate")) && entryLink.isEmpty()
+                        && isHttpUrl(QUrl(href)))
+                    {
+                        entryLink = href;
+                    }
+                }
+            }
+        }
+        else if (reader.isEndElement() && reader.name() == QLatin1String("entry") && inEntry)
+        {
+            // The feed lists the most recent release first.
+            haveEntry = true;
+            inEntry = false;
+            break;
+        }
+    }
+
+    if (reader.hasError())
+    {
+        result.status = UpdateCheckResult::Status::Error;
+        result.errorMessage = tr("Invalid release feed received from GitHub (%1).")
+                                  .arg(reader.errorString());
+        return result;
+    }
+
+    if (!haveEntry)
+    {
+        result.status = UpdateCheckResult::Status::Error;
+        result.errorMessage = tr("No published releases or version tags were found in %1.")
+                                  .arg(repository);
+        return result;
+    }
+
+    // The entry title usually reads "V0.8.0: some headline"; the tag in the
+    // release URL is authoritative.
+    QString tagName = releaseTagFromUrl(entryLink);
+    if (tagName.isEmpty())
+        tagName = entryTitle.trimmed();
+
+    const auto parsedLatest = parseVersion(tagName);
+    if (!parsedLatest.has_value())
+    {
+        result.status = UpdateCheckResult::Status::Error;
+        result.errorMessage = tr("Could not parse release version \"%1\" from %2.")
+                                  .arg(tagName, repository);
+        return result;
+    }
+
+    result.latestTag = tagName;
+    result.latestVersion = normalizeVersionString(tagName);
+    result.releaseName = entryTitle;
+    result.releaseNotes = atomContentToPlainText(entryContent);
+    result.publishedAt = entryUpdated;
+    if (!entryLink.isEmpty())
+        result.releasePageUrl = entryLink;
+
+    return buildComparisonResult(std::move(result), *parsedLatest);
+}
+
 void UpdateChecker::checkForUpdates(const QString &currentVersion)
 {
     if (_checking)
@@ -531,11 +678,24 @@ void UpdateChecker::cancel()
         _activeReply->abort();
 }
 
+void UpdateChecker::startReleasesAtomFallback()
+{
+    const QUrl atomUrl(releasesAtomUrl(_repository, _webBaseUrl));
+    startRequest(atomUrl, RequestPhase::ReleasesAtom);
+}
+
 void UpdateChecker::startRequest(const QUrl &url, RequestPhase phase)
 {
     QNetworkRequest req(url);
-    req.setRawHeader("Accept", "application/vnd.github+json");
-    req.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+    if (phase == RequestPhase::ReleasesAtom)
+    {
+        req.setRawHeader("Accept", "application/atom+xml, application/xml;q=0.9, */*;q=0.8");
+    }
+    else
+    {
+        req.setRawHeader("Accept", "application/vnd.github+json");
+        req.setRawHeader("X-GitHub-Api-Version", "2022-11-28");
+    }
     const QByteArray userAgent = QStringLiteral("CANgaroo-jl/%1")
                                      .arg(_currentVersion.isEmpty() ? QStringLiteral("dev") : _currentVersion)
                                      .toUtf8();
@@ -570,9 +730,7 @@ void UpdateChecker::handleReplyFinished(QNetworkReply *reply, RequestPhase phase
         return;
     }
 
-    const QByteArray payload = (netErr == QNetworkReply::NoError && reply->isOpen())
-        ? reply->readAll()
-        : QByteArray();
+    const QByteArray payload = reply->isOpen() ? reply->readAll() : QByteArray();
     reply->deleteLater();
 
     // New forks / tag-only repos return 404 on /releases/latest; fall back to version tags.
@@ -585,9 +743,26 @@ void UpdateChecker::handleReplyFinished(QNetworkReply *reply, RequestPhase phase
         return;
     }
 
-    if ((statusCode == 403 || statusCode == 429) && rateRemaining == QByteArrayLiteral("0"))
+    // Unauthenticated API requests are limited to 60 per hour and the limit is
+    // shared by every client behind the same NAT address. The release feed is
+    // served like a normal web page and carries the same version information,
+    // so use it instead of failing the check.
+    const bool rateLimited = (statusCode == 403 || statusCode == 429)
+        && (rateRemaining == QByteArrayLiteral("0")
+            || payload.toLower().contains(QByteArrayLiteral("rate limit")));
+    if (rateLimited && phase != RequestPhase::ReleasesAtom)
     {
-        finishWithError(tr("GitHub API rate limit exceeded. Please try again later or check the releases page directly."));
+        startReleasesAtomFallback();
+        return;
+    }
+
+    if (phase == RequestPhase::ReleasesAtom && netErr != QNetworkReply::NoError)
+    {
+        const QString detail = statusCode > 0
+            ? tr("HTTP %1: %2").arg(statusCode).arg(errStr)
+            : errStr;
+        finishWithError(tr("GitHub API rate limit exceeded and the release feed could not be read (%1). "
+                           "Please try again later or check the releases page directly.").arg(detail));
         return;
     }
 
@@ -600,9 +775,20 @@ void UpdateChecker::handleReplyFinished(QNetworkReply *reply, RequestPhase phase
         return;
     }
 
-    UpdateCheckResult result = (phase == RequestPhase::LatestRelease)
-        ? evaluateLatestReleasePayload(payload, _currentVersion, _repository, currentPlatformKey(), _webBaseUrl)
-        : evaluateTagsPayload(payload, _currentVersion, _repository, _webBaseUrl);
+    UpdateCheckResult result;
+    switch (phase)
+    {
+    case RequestPhase::LatestRelease:
+        result = evaluateLatestReleasePayload(payload, _currentVersion, _repository,
+                                              currentPlatformKey(), _webBaseUrl);
+        break;
+    case RequestPhase::TagsFallback:
+        result = evaluateTagsPayload(payload, _currentVersion, _repository, _webBaseUrl);
+        break;
+    case RequestPhase::ReleasesAtom:
+        result = evaluateReleasesAtomPayload(payload, _currentVersion, _repository, _webBaseUrl);
+        break;
+    }
 
     _checking = false;
     emit checkFinished(result);
