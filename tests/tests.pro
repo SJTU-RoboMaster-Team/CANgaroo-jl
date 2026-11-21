@@ -21,3 +21,4 @@ SUBDIRS += \
     motor_manager \
     motor_dbc
 SUBDIRS += raw_tx_message
+SUBDIRS += hex_data

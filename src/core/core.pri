@@ -17,7 +17,8 @@ SOURCES += \
     $$PWD/TraceRecorder.cpp \
     $$PWD/TriggerCaptureManager.cpp \
     $$PWD/MotorManager.cpp \
-    $$PWD/UpdateChecker.cpp
+    $$PWD/UpdateChecker.cpp \
+    $$PWD/HexData.cpp
 
 HEADERS += \
     $$PWD/portable_endian.h \
@@ -39,4 +40,5 @@ HEADERS += \
     $$PWD/TriggerCaptureManager.h \
     $$PWD/MotorManager.h \
     $$PWD/TraceFileFormat.h \
-    $$PWD/UpdateChecker.h
+    $$PWD/UpdateChecker.h \
+    $$PWD/HexData.h
