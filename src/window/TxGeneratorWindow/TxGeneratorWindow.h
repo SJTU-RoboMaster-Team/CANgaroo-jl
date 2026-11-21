@@ -38,6 +38,7 @@ class TxGeneratorWindow;
 #include "db/model/CanDbMessage.h"
 #include "db/model/CanDbSignal.h"
 
+class QAction;
 class QDomDocument;
 class QDomElement;
 
@@ -81,6 +82,9 @@ private slots:
     void on_treeAvailable_itemSelectionChanged();
     void on_treeActive_itemSelectionChanged();
     void treeActiveItemDoubleClicked(QTreeWidgetItem *item, int column);
+    void showActiveContextMenu(const QPoint &pos);
+    /// Keeps the DLC spin box in sync when a valid payload is typed.
+    void on_lineManualData_textChanged(const QString &text);
     void onSendTimerTimeout();
     void onSetupChanged();
     void on_btnSelectAll_released();
@@ -91,10 +95,33 @@ private slots:
     void refreshInterfaces();
 
 private:
+    enum Column {
+        colStatus = 0,
+        colId,
+        colName,
+        colData,
+        colInterface,
+        colDlc,
+        colInterval,
+        colCount
+    };
+
     Ui::TxGeneratorWindow *ui;
     Backend &_backend;
     QTimer *_sendTimer;
     BitMatrixWidget *_bitMatrixWidget;
+    QTimer *_hintTimer = nullptr;
+
+    QAction *_actionEditMessage = nullptr;
+    QAction *_actionSendOnce = nullptr;
+    QAction *_actionRun = nullptr;
+    QAction *_actionStop = nullptr;
+    QAction *_actionDuplicate = nullptr;
+    QAction *_actionRename = nullptr;
+    QAction *_actionRemove = nullptr;
+
+    /// Cumulative number of frames submitted by this Generator window.
+    quint64 _sentFrames = 0;
 
     /// Monotonic clock for the TX schedule; unaffected by wall-clock (NTP) steps.
     using TxClock = std::chrono::steady_clock;
@@ -134,5 +161,26 @@ private:
     void setInterval(int row, int interval_ms);
     /// Enables/disables a row, restarting its schedule on the off->on edge.
     void setEnabled(int row, bool enabled);
-};
 
+    // ── Generator View usability helpers ────────────────────────────────────
+    /// Adds one or more DBC messages to the active list and selects the new rows.
+    void addAvailableMessages(const QList<QTreeWidgetItem *> &items);
+    /// Validates the manual entry fields, appends the message and reports errors
+    /// in the hint label instead of failing silently.
+    void addManualMessage();
+    /// Opens the embedded Message View editor for one active row.
+    void openMessageEditor(int row);
+    /// Sends the selected rows once and updates the frame counter.
+    void sendOnceRows(const QList<int> &rows);
+    void setRowsEnabled(const QList<int> &rows, bool enabled);
+    void duplicateRows(const QList<int> &rows);
+    void renameRow(int row);
+    void removeRows(const QList<int> &rows);
+    /// Rows currently selected in the active tree (in list order).
+    [[nodiscard]] QList<int> selectedRows() const;
+    /// Space-separated upper-case hex preview of the payload.
+    [[nodiscard]] static QString dataPreview(const BusMessage &msg);
+    void updateRunStatus();
+    void setHint(const QString &text);
+    void clearHint();
+};

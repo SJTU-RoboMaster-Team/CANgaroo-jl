@@ -191,6 +191,9 @@
            <property name="text">
             <string>Add DBC Message</string>
            </property>
+           <property name="toolTip">
+            <string>Add the selected DBC message (double-click the list also adds it)</string>
+           </property>
           </widget>
          </item>
          <item>
@@ -206,18 +209,28 @@
            </property>
           </spacer>
          </item>
-         <item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QGridLayout" name="gridLayoutManual">
+         <item row="0" column="0">
           <widget class="QLabel" name="labelManualId">
            <property name="text">
             <string>ID (Hex):</string>
            </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="1">
           <widget class="QLineEdit" name="lineManualId">
+           <property name="minimumSize">
+            <size>
+             <width>70</width>
+             <height>0</height>
+            </size>
+           </property>
            <property name="maximumSize">
             <size>
-             <width>80</width>
+             <width>90</width>
              <height>16777215</height>
             </size>
            </property>
@@ -229,14 +242,14 @@
            </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="2">
           <widget class="QLabel" name="labelManualDlc">
            <property name="text">
             <string>DLC:</string>
            </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="3">
           <widget class="QSpinBox" name="spinManualDlc">
            <property name="maximum">
             <number>64</number>
@@ -246,14 +259,41 @@
            </property>
           </widget>
          </item>
-         <item>
+         <item row="0" column="4">
           <widget class="QPushButton" name="btnAddManual">
            <property name="text">
             <string>Add Manual</string>
            </property>
+           <property name="toolTip">
+            <string>Add a message; Enter in the ID or Data field also adds it</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="labelManualData">
+           <property name="text">
+            <string>Data (Hex):</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1" colspan="4">
+          <widget class="QLineEdit" name="lineManualData">
+           <property name="placeholderText">
+            <string>00 11 22 33 (optional)</string>
+           </property>
           </widget>
          </item>
         </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="labelManualHint">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -264,6 +304,9 @@
       <layout class="QVBoxLayout" name="verticalLayoutActive">
        <item>
         <widget class="QTreeWidget" name="treeActive">
+         <property name="contextMenuPolicy">
+          <enum>Qt::CustomContextMenu</enum>
+         </property>
          <property name="editTriggers">
           <set>QAbstractItemView::NoEditTriggers</set>
          </property>
@@ -283,6 +326,11 @@
          <column>
           <property name="text">
            <string>Name</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Data</string>
           </property>
          </column>
          <column>
@@ -356,6 +404,13 @@
             </size>
            </property>
           </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="labelRunStatus">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>

@@ -25,7 +25,11 @@
 #include <optional>
 
 #include <QTreeWidgetItem>
+#include <QAction>
 #include <QHeaderView>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QMenu>
 #include <QTimer>
 #include <QDialog>
 #include <QVBoxLayout>
@@ -33,6 +37,7 @@
 #include <QComboBox>
 #include <QSignalBlocker>
 #include "core/Backend.h"
+#include "core/HexData.h"
 #include "core/ThemeManager.h"
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementSetup.h"
@@ -41,6 +46,20 @@
 #include "driver/CanDriver.h"
 #include "window/RawTxWindow/RawTxWindow.h"
 #include <chrono>
+
+namespace
+{
+/// CAN / CAN-FD DLC values that a frame may legally use.
+bool isCanFdPayloadLength(int length)
+{
+    if (length < 0 || length > BusMessage::k_maxDataBytes)
+        return false;
+    if (length <= 8)
+        return true;
+    return length == 12 || length == 16 || length == 20 || length == 24
+        || length == 32 || length == 48 || length == 64;
+}
+} // namespace
 
 TxGeneratorWindow::TxGeneratorWindow(QWidget *parent, Backend &backend) :
     ConfigurableWidget(parent),
@@ -84,6 +103,50 @@ TxGeneratorWindow::TxGeneratorWindow(QWidget *parent, Backend &backend) :
 
     connect(ui->treeAvailable, &QTreeWidget::itemSelectionChanged, this, &TxGeneratorWindow::on_treeAvailable_itemSelectionChanged);
 
+    // Manual entry: Enter in either field adds the message, and a valid payload
+    // keeps the DLC spin box in sync while typing.
+    connect(ui->lineManualId, &QLineEdit::returnPressed, this, [this]() { addManualMessage(); });
+    connect(ui->lineManualData, &QLineEdit::returnPressed, this, [this]() { addManualMessage(); });
+
+    // Hint label under the manual entry; auto-clears so errors do not pile up.
+    _hintTimer = new QTimer(this);
+    _hintTimer->setSingleShot(true);
+    _hintTimer->setInterval(6000);
+    connect(_hintTimer, &QTimer::timeout, this, &TxGeneratorWindow::clearHint);
+
+    // Context-menu actions for the active list. They are children of this
+    // window so they survive menu instances and can be triggered by tests.
+    _actionEditMessage = new QAction(tr("Edit..."), this);
+    _actionEditMessage->setObjectName(QStringLiteral("actionGeneratorEdit"));
+    connect(_actionEditMessage, &QAction::triggered, this, [this]() {
+        const QList<int> rows = selectedRows();
+        if (rows.size() == 1) { openMessageEditor(rows.first()); }
+    });
+    _actionSendOnce = new QAction(tr("Send Once"), this);
+    _actionSendOnce->setObjectName(QStringLiteral("actionGeneratorSendOnce"));
+    connect(_actionSendOnce, &QAction::triggered, this, [this]() { sendOnceRows(selectedRows()); });
+    _actionRun = new QAction(tr("Run"), this);
+    _actionRun->setObjectName(QStringLiteral("actionGeneratorRun"));
+    connect(_actionRun, &QAction::triggered, this, [this]() { setRowsEnabled(selectedRows(), true); });
+    _actionStop = new QAction(tr("Stop"), this);
+    _actionStop->setObjectName(QStringLiteral("actionGeneratorStop"));
+    connect(_actionStop, &QAction::triggered, this, [this]() { setRowsEnabled(selectedRows(), false); });
+    _actionDuplicate = new QAction(tr("Duplicate"), this);
+    _actionDuplicate->setObjectName(QStringLiteral("actionGeneratorDuplicate"));
+    connect(_actionDuplicate, &QAction::triggered, this, [this]() { duplicateRows(selectedRows()); });
+    _actionRename = new QAction(tr("Rename..."), this);
+    _actionRename->setObjectName(QStringLiteral("actionGeneratorRename"));
+    connect(_actionRename, &QAction::triggered, this, [this]() {
+        const QList<int> rows = selectedRows();
+        if (rows.size() == 1) { renameRow(rows.first()); }
+    });
+    _actionRemove = new QAction(tr("Remove"), this);
+    _actionRemove->setObjectName(QStringLiteral("actionGeneratorRemove"));
+    connect(_actionRemove, &QAction::triggered, this, [this]() { removeRows(selectedRows()); });
+
+    connect(ui->treeActive, &QWidget::customContextMenuRequested,
+            this, &TxGeneratorWindow::showActiveContextMenu);
+
     _bitMatrixWidget = new BitMatrixWidget(this);
     // REMOVED redundant addWidget to verticalLayoutTabLayout
 
@@ -114,15 +177,24 @@ TxGeneratorWindow::TxGeneratorWindow(QWidget *parent, Backend &backend) :
     ui->treeActive->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->treeAvailable->setSelectionMode(QAbstractItemView::ExtendedSelection);
     ui->btnAddToList->setEnabled(false);
+    ui->treeActive->setToolTip(tr("Right-click a row to edit, send once, duplicate, rename or remove it."));
 
-    // Fit columns to content; let Name column stretch
-    ui->treeActive->header()->setSectionResizeMode(0, QHeaderView::Fixed); // Status
-    ui->treeActive->header()->resizeSection(0, 75);
-    ui->treeActive->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents); // ID
-    ui->treeActive->header()->setSectionResizeMode(2, QHeaderView::Stretch);           // Name
-    ui->treeActive->header()->setSectionResizeMode(3, QHeaderView::ResizeToContents); // Interface
-    ui->treeActive->header()->setSectionResizeMode(4, QHeaderView::ResizeToContents); // DLC
-    ui->treeActive->header()->setSectionResizeMode(5, QHeaderView::ResizeToContents); // Interval
+    // The active list is the main work area; give it a bit more room than the
+    // DBC picker when the dock is resized.
+    ui->splitter->setStretchFactor(0, 4);
+    ui->splitter->setStretchFactor(1, 6);
+    ui->splitter->setSizes({400, 700});
+
+    // Fit columns to content; Name and Data share the remaining width.
+    ui->treeActive->header()->setStretchLastSection(false);
+    ui->treeActive->header()->setSectionResizeMode(colStatus, QHeaderView::Fixed);
+    ui->treeActive->header()->resizeSection(colStatus, 48);
+    ui->treeActive->header()->setSectionResizeMode(colId, QHeaderView::ResizeToContents);
+    ui->treeActive->header()->setSectionResizeMode(colName, QHeaderView::Stretch);
+    ui->treeActive->header()->setSectionResizeMode(colData, QHeaderView::Stretch);
+    ui->treeActive->header()->setSectionResizeMode(colInterface, QHeaderView::ResizeToContents);
+    ui->treeActive->header()->setSectionResizeMode(colDlc, QHeaderView::ResizeToContents);
+    ui->treeActive->header()->setSectionResizeMode(colInterval, QHeaderView::ResizeToContents);
 
     refreshInterfaces();
     updateMeasurementState();
@@ -142,8 +214,17 @@ void TxGeneratorWindow::retranslateUi()
 
     ui->spinInterval->setSuffix(tr(" ms"));
 
+    if (_actionEditMessage) { _actionEditMessage->setText(tr("Edit...")); }
+    if (_actionSendOnce) { _actionSendOnce->setText(tr("Send Once")); }
+    if (_actionRun) { _actionRun->setText(tr("Run")); }
+    if (_actionStop) { _actionStop->setText(tr("Stop")); }
+    if (_actionDuplicate) { _actionDuplicate->setText(tr("Duplicate")); }
+    if (_actionRename) { _actionRename->setText(tr("Rename...")); }
+    if (_actionRemove) { _actionRemove->setText(tr("Remove")); }
+
     // Status button tooltips and the interface column are set per row in code.
     updateActiveList();
+    updateRunStatus();
 }
 
 bool TxGeneratorWindow::saveXML(Backend &backend, QDomDocument &xml, QDomElement &root)
@@ -375,17 +456,29 @@ void TxGeneratorWindow::on_cbLayoutCompact_toggled(bool checked)
 
 void TxGeneratorWindow::on_btnAddToList_released()
 {
-    QList<QTreeWidgetItem*> selected = ui->treeAvailable->selectedItems();
+    QList<QTreeWidgetItem *> selected = ui->treeAvailable->selectedItems();
     if (selected.isEmpty()) {
         QTreeWidgetItem *current = ui->treeAvailable->currentItem();
-        if (current) selected.append(current);
+        if (current) { selected.append(current); }
     }
 
-    if (selected.isEmpty()) return;
+    if (selected.isEmpty()) {
+        setHint(tr("Select a DBC message in the list first."));
+        return;
+    }
 
-    for (auto *item : selected) {
-        CanDbMessage *dbMsg = static_cast<CanDbMessage*>(item->data(0, Qt::UserRole).value<void*>());
-        if (!dbMsg) continue;
+    addAvailableMessages(selected);
+}
+
+void TxGeneratorWindow::addAvailableMessages(const QList<QTreeWidgetItem *> &items)
+{
+    const int firstNew = _cyclicMessages.size();
+    int added = 0;
+
+    for (auto *item : items) {
+        if (!item) { continue; }
+        CanDbMessage *dbMsg = static_cast<CanDbMessage *>(item->data(0, Qt::UserRole).value<void *>());
+        if (!dbMsg) { continue; }
 
         CyclicMessage cm;
         cm.msg = BusMessage(); // Ensure fresh instance
@@ -393,31 +486,90 @@ void TxGeneratorWindow::on_btnAddToList_released()
         cm.msg.setLength(dbMsg->getDlc());
         cm.msg.setExtended(dbMsg->getRaw_id() > 0x7FF);
         cm.name = dbMsg->getName();
-        cm.interval = 100;
+        // Use the interval the user configured in the Generator View instead of
+        // silently hardcoding it. A row added from the DBC list can still be
+        // changed with the interval spin box afterwards.
+        cm.interval = ui->spinInterval->value();
         cm.enabled = false;
         cm.nextDue = {};
         cm.interfaceId = static_cast<BusInterfaceId>(ui->comboBoxInterface->currentData().toUInt());
         cm.dbMsg = dbMsg;
 
         _cyclicMessages.append(cm);
+        ++added;
     }
+
+    if (added == 0) {
+        setHint(tr("No DBC message selected."));
+        return;
+    }
+
     updateActiveList();
+    ui->treeActive->clearSelection();
+    for (int row = firstNew; row < _cyclicMessages.size(); ++row) {
+        if (QTreeWidgetItem *newItem = ui->treeActive->topLevelItem(row)) {
+            newItem->setSelected(true);
+        }
+    }
+    if (QTreeWidgetItem *first = ui->treeActive->topLevelItem(firstNew)) {
+        ui->treeActive->setCurrentItem(first);
+    }
     ui->treeActive->scrollToBottom();
+    setHint(tr("Added %1 message(s).").arg(added));
 }
 
 void TxGeneratorWindow::on_btnAddManual_released()
 {
-    bool ok;
-    uint32_t id = ui->lineManualId->text().toUInt(&ok, 16);
-    if (!ok) return;
+    addManualMessage();
+}
+
+void TxGeneratorWindow::addManualMessage()
+{
+    bool ok = false;
+    const uint32_t id = ui->lineManualId->text().toUInt(&ok, 16);
+    if (!ok) {
+        setHint(tr("Manual message: enter a hexadecimal CAN ID first."));
+        return;
+    }
+
+    const QString dataText = ui->lineManualData->text().trimmed();
+    QByteArray payload;
+    if (dataText.isEmpty()) {
+        const int dlc = ui->spinManualDlc->value();
+        if (!isCanFdPayloadLength(dlc)) {
+            setHint(tr("Manual message: CAN FD DLC must be 0-8, 12, 16, 20, 24, 32, 48 or 64 bytes."));
+            return;
+        }
+        payload = QByteArray(dlc, '\0');
+    } else {
+        const auto parsed = HexData::parseByteString(dataText);
+        if (!parsed) {
+            setHint(tr("Manual message: \"%1\" is not a valid hex byte string (e.g. 00 11 22).").arg(dataText));
+            return;
+        }
+        payload = *parsed;
+        if (payload.size() > BusMessage::k_maxDataBytes) {
+            setHint(tr("Manual message: at most %1 data bytes are supported.")
+                        .arg(BusMessage::k_maxDataBytes));
+            return;
+        }
+        if (!isCanFdPayloadLength(payload.size())) {
+            setHint(tr("Manual message: payload length %1 is not a valid CAN FD DLC "
+                       "(12, 16, 20, 24, 32, 48 or 64).").arg(payload.size()));
+            return;
+        }
+    }
 
     CyclicMessage cm;
     cm.msg = BusMessage(); // Ensure fresh instance
     cm.msg.setId(id);
-    cm.msg.setLength(ui->spinManualDlc->value());
+    cm.msg.setLength(static_cast<uint8_t>(payload.size()));
     cm.msg.setExtended(id > 0x7FF || ui->lineManualId->text().length() > 3);
-    cm.msg.setFD(ui->spinManualDlc->value() > 8);
-    cm.name = "Manual";
+    cm.msg.setFD(payload.size() > 8);
+    for (int i = 0; i < payload.size(); ++i) {
+        cm.msg.setDataAt(static_cast<uint8_t>(i), static_cast<uint8_t>(payload.at(i)));
+    }
+    cm.name = tr("Manual 0x%1").arg(QString::number(id, 16).toUpper());
     cm.interval = ui->spinInterval->value();
     cm.enabled = false;
     cm.nextDue = {};
@@ -425,59 +577,113 @@ void TxGeneratorWindow::on_btnAddManual_released()
     cm.dbMsg = nullptr;
 
     _cyclicMessages.append(cm);
+
+    const QSignalBlocker blockDlc(ui->spinManualDlc);
+    ui->spinManualDlc->setValue(payload.size());
+
     updateActiveList();
+    ui->treeActive->clearSelection();
+    if (QTreeWidgetItem *newItem = ui->treeActive->topLevelItem(_cyclicMessages.size() - 1)) {
+        newItem->setSelected(true);
+        ui->treeActive->setCurrentItem(newItem);
+    }
     ui->treeActive->scrollToBottom();
+    setHint(tr("Added %1.").arg(cm.name));
+}
+
+void TxGeneratorWindow::on_lineManualData_textChanged(const QString &text)
+{
+    if (text.trimmed().isEmpty()) {
+        return;
+    }
+    const auto parsed = HexData::parseByteString(text);
+    if (!parsed || parsed->size() > BusMessage::k_maxDataBytes
+        || !isCanFdPayloadLength(parsed->size())) {
+        return;
+    }
+    const QSignalBlocker blockDlc(ui->spinManualDlc);
+    ui->spinManualDlc->setValue(parsed->size());
+}
+
+QList<int> TxGeneratorWindow::selectedRows() const
+{
+    QList<int> rows;
+    for (QTreeWidgetItem *item : ui->treeActive->selectedItems()) {
+        const int row = ui->treeActive->indexOfTopLevelItem(item);
+        if (row >= 0 && !rows.contains(row)) {
+            rows.append(row);
+        }
+    }
+    std::sort(rows.begin(), rows.end());
+    return rows;
 }
 
 void TxGeneratorWindow::on_btnRemove_released()
 {
-    QList<QTreeWidgetItem*> selected = ui->treeActive->selectedItems();
-    if (selected.isEmpty()) return;
+    removeRows(selectedRows());
+}
 
-    // To avoid index shifting issues, we collect rows and remove from highest to lowest
-    QList<int> rows;
-    for (auto *item : selected) {
-        int row = ui->treeActive->indexOfTopLevelItem(item);
-        if (row >= 0) rows.append(row);
+void TxGeneratorWindow::removeRows(const QList<int> &rows)
+{
+    if (rows.isEmpty()) {
+        setHint(tr("Select at least one row first."));
+        return;
     }
-    std::sort(rows.begin(), rows.end(), std::greater<int>());
 
-    for (auto row : rows) {
+    // Remove from the highest index down so the remaining rows keep their indices.
+    QList<int> sorted = rows;
+    std::sort(sorted.begin(), sorted.end(), std::greater<int>());
+    for (int row : sorted) {
         if (row >= 0 && row < _cyclicMessages.size()) {
             _cyclicMessages.removeAt(row);
         }
     }
     updateActiveList();
+    setHint(tr("Removed %1 row(s).").arg(sorted.size()));
 }
 
 void TxGeneratorWindow::on_btnSendOnce_released()
 {
-    QList<QTreeWidgetItem*> selected = ui->treeActive->selectedItems();
-    if (selected.isEmpty()) {
-        int row = ui->treeActive->currentIndex().row();
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            selected.append(ui->treeActive->currentItem());
+    QList<int> rows = selectedRows();
+    if (rows.isEmpty()) {
+        const int current = ui->treeActive->currentIndex().row();
+        if (current >= 0 && current < _cyclicMessages.size()) {
+            rows.append(current);
+        }
+    }
+    sendOnceRows(rows);
+}
+
+void TxGeneratorWindow::sendOnceRows(const QList<int> &rows)
+{
+    if (rows.isEmpty()) {
+        setHint(tr("Select at least one row first."));
+        return;
+    }
+
+    int sent = 0;
+    for (int row : rows) {
+        if (row < 0 || row >= _cyclicMessages.size()) {
+            continue;
+        }
+        CyclicMessage &cm = _cyclicMessages[row];
+        BusInterface *intf = _backend.getInterfaceById(cm.interfaceId);
+        if (intf && intf->isOpen()) {
+            cm.msg.setInterfaceId(cm.interfaceId);
+            intf->sendMessage(cm.msg);
+            ++sent;
+        } else {
+            log_error(tr("TxGeneratorWindow: Interface %1 is not open.")
+                          .arg(intf ? intf->getName() : QString::number(cm.interfaceId)));
         }
     }
 
-    for (auto *item : selected) {
-        int row = ui->treeActive->indexOfTopLevelItem(item);
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            CyclicMessage &cm = _cyclicMessages[row];
-            BusInterface *intf = _backend.getInterfaceById(cm.interfaceId);
-            if (intf && intf->isOpen()) {
-                cm.msg.setInterfaceId(cm.interfaceId);
-                intf->sendMessage(cm.msg);
-                /*BusMessage loopback = cm.msg;
-                loopback.setRX(false);
-                auto now = std::chrono::system_clock::now().time_since_epoch();
-                loopback.setTimestamp_us(std::chrono::duration_cast<std::chrono::microseconds>(now).count());
-                emit loopbackFrame(loopback);*/
-            } else {
-                QString errorMsg = QString("TxGeneratorWindow: Interface %1 is not open.").arg(intf ? intf->getName() : QString::number(cm.interfaceId));
-                log_error(errorMsg);
-            }
-        }
+    _sentFrames += static_cast<quint64>(sent);
+    updateRunStatus();
+    if (sent == 0) {
+        setHint(tr("Nothing was sent: the selected interface is not open."));
+    } else {
+        setHint(tr("Sent %1 frame(s).").arg(sent));
     }
 }
 
@@ -485,63 +691,61 @@ void TxGeneratorWindow::on_btnBulkRun_clicked()
 {
     if (!_backend.isMeasurementRunning()) {
         ui->btnBulkRun->setChecked(false);
+        setHint(tr("Start the measurement first."));
         return;
     }
-
-    QList<QTreeWidgetItem*> selected = ui->treeActive->selectedItems();
-    if (selected.isEmpty()) return;
-
-    for (auto *item : selected) {
-        int row = ui->treeActive->indexOfTopLevelItem(item);
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            setEnabled(row, true);
-        }
-    }
-
-    ui->btnBulkRun->setChecked(true);
-    ui->btnBulkStop->setChecked(false);
-    updateSendTimer();
+    setRowsEnabled(selectedRows(), true);
 }
 
 void TxGeneratorWindow::on_btnBulkStop_clicked()
 {
-    QList<QTreeWidgetItem*> selected = ui->treeActive->selectedItems();
-    if (selected.isEmpty()) {
-        // Fallback to active index if nothing selected
-        int row = ui->treeActive->currentIndex().row();
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            setEnabled(row, false);
-        }
-    } else {
-        for (auto *item : selected) {
-            int row = ui->treeActive->indexOfTopLevelItem(item);
-            if (row >= 0 && row < _cyclicMessages.size()) {
-                _cyclicMessages[row].enabled = false;
-                updateRowUI(row);
-            }
+    QList<int> rows = selectedRows();
+    if (rows.isEmpty()) {
+        const int current = ui->treeActive->currentIndex().row();
+        if (current >= 0 && current < _cyclicMessages.size()) {
+            rows.append(current);
         }
     }
+    setRowsEnabled(rows, false);
+}
 
-    ui->btnBulkRun->setChecked(false);
-    ui->btnBulkStop->setChecked(true);
+void TxGeneratorWindow::setRowsEnabled(const QList<int> &rows, bool enabled)
+{
+    if (rows.isEmpty()) {
+        setHint(tr("Select at least one row first."));
+        return;
+    }
+    if (enabled && !_backend.isMeasurementRunning()) {
+        setHint(tr("Start the measurement first."));
+        return;
+    }
+
+    for (int row : rows) {
+        setEnabled(row, enabled);
+    }
+    ui->btnBulkRun->setChecked(enabled);
+    ui->btnBulkStop->setChecked(!enabled);
     updateSendTimer();
+    updateRunStatus();
+    setHint(enabled ? tr("Started %1 row(s).").arg(rows.size())
+                    : tr("Stopped %1 row(s).").arg(rows.size()));
 }
 
 void TxGeneratorWindow::on_spinInterval_valueChanged(int i)
 {
-    QList<QTreeWidgetItem*> selected = ui->treeActive->selectedItems();
-    if (selected.isEmpty()) {
-        int row = ui->treeActive->currentIndex().row();
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            setInterval(row, i);
+    QList<int> rows = selectedRows();
+    if (rows.isEmpty()) {
+        const int current = ui->treeActive->currentIndex().row();
+        if (current >= 0 && current < _cyclicMessages.size()) {
+            rows.append(current);
         }
-    } else {
-        for (auto *item : selected) {
-            int row = ui->treeActive->indexOfTopLevelItem(item);
-            if (row >= 0 && row < _cyclicMessages.size()) {
-                setInterval(row, i);
-            }
-        }
+    }
+    if (rows.isEmpty()) {
+        setHint(tr("Select at least one row first."));
+        return;
+    }
+    for (int row : rows) {
+        setInterval(row, i);
     }
     updateSendTimer();
 }
@@ -555,9 +759,8 @@ void TxGeneratorWindow::on_comboBoxInterface_currentIndexChanged(int index)
 
 void TxGeneratorWindow::on_treeAvailable_itemDoubleClicked(QTreeWidgetItem *item, int column)
 {
-    Q_UNUSED(item);
     Q_UNUSED(column);
-    on_btnAddToList_released();
+    addAvailableMessages({item});
 }
 
 void TxGeneratorWindow::on_treeActive_itemSelectionChanged()
@@ -600,13 +803,21 @@ bool TxGeneratorWindow::currentMessage(BusMessage *msg, QString *name,
 void TxGeneratorWindow::treeActiveItemDoubleClicked(QTreeWidgetItem *item, int column)
 {
     Q_UNUSED(column);
-    int row = ui->treeActive->indexOfTopLevelItem(item);
+    const int row = ui->treeActive->indexOfTopLevelItem(item);
+    if (row >= 0) {
+        openMessageEditor(row);
+    }
+}
+
+void TxGeneratorWindow::openMessageEditor(int row)
+{
     if (row < 0 || row >= _cyclicMessages.size()) { return; }
 
     CyclicMessage &cm = _cyclicMessages[row];
+    QTreeWidgetItem *item = ui->treeActive->topLevelItem(row);
 
     QDialog dlg(this);
-    dlg.setWindowTitle(tr("Edit Message: %1 - %2").arg(item->text(1), cm.name));
+    dlg.setWindowTitle(tr("Edit Message: %1 - %2").arg(item ? item->text(colId) : QString(), cm.name));
     dlg.resize(750, 480);
 
     auto *layout = new QVBoxLayout(&dlg);
@@ -642,6 +853,139 @@ void TxGeneratorWindow::treeActiveItemDoubleClicked(QTreeWidgetItem *item, int c
         cm.interfaceId   = editedInterfaceId;
         cm.interfaceName = editedInterfaceName;
         updateRowUI(row);
+        setHint(tr("Updated %1.").arg(cm.name));
+    }
+}
+
+void TxGeneratorWindow::showActiveContextMenu(const QPoint &pos)
+{
+    QTreeWidgetItem *item = ui->treeActive->itemAt(pos);
+    if (!item) {
+        return;
+    }
+    if (!item->isSelected()) {
+        ui->treeActive->clearSelection();
+        item->setSelected(true);
+        ui->treeActive->setCurrentItem(item);
+    }
+
+    const QList<int> rows = selectedRows();
+    if (rows.isEmpty()) {
+        return;
+    }
+
+    _actionEditMessage->setEnabled(rows.size() == 1);
+    _actionRename->setEnabled(rows.size() == 1);
+    _actionSendOnce->setEnabled(_backend.isMeasurementRunning());
+    _actionRun->setEnabled(_backend.isMeasurementRunning());
+
+    QMenu menu(this);
+    menu.addAction(_actionEditMessage);
+    menu.addSeparator();
+    menu.addAction(_actionSendOnce);
+    menu.addAction(_actionRun);
+    menu.addAction(_actionStop);
+    menu.addSeparator();
+    menu.addAction(_actionDuplicate);
+    menu.addAction(_actionRename);
+    menu.addSeparator();
+    menu.addAction(_actionRemove);
+    menu.exec(ui->treeActive->viewport()->mapToGlobal(pos));
+}
+
+void TxGeneratorWindow::duplicateRows(const QList<int> &rows)
+{
+    if (rows.isEmpty()) {
+        setHint(tr("Select at least one row first."));
+        return;
+    }
+
+    const int firstNew = _cyclicMessages.size();
+    for (int row : rows) {
+        if (row < 0 || row >= _cyclicMessages.size()) {
+            continue;
+        }
+        CyclicMessage copy = _cyclicMessages.at(row);
+        copy.name = tr("%1 copy").arg(copy.name);
+        copy.enabled = false;
+        copy.nextDue = {};
+        _cyclicMessages.append(copy);
+    }
+
+    updateActiveList();
+    ui->treeActive->clearSelection();
+    for (int row = firstNew; row < _cyclicMessages.size(); ++row) {
+        if (QTreeWidgetItem *newItem = ui->treeActive->topLevelItem(row)) {
+            newItem->setSelected(true);
+        }
+    }
+    ui->treeActive->scrollToBottom();
+    setHint(tr("Duplicated %1 row(s).").arg(_cyclicMessages.size() - firstNew));
+}
+
+void TxGeneratorWindow::renameRow(int row)
+{
+    if (row < 0 || row >= _cyclicMessages.size()) {
+        return;
+    }
+
+    bool ok = false;
+    const QString currentName = _cyclicMessages.at(row).name;
+    const QString name = QInputDialog::getText(this, tr("Rename Message"), tr("Name:"),
+                                               QLineEdit::Normal, currentName, &ok).trimmed();
+    if (!ok || name.isEmpty()) {
+        return;
+    }
+
+    _cyclicMessages[row].name = name;
+    updateRowUI(row);
+    setHint(tr("Renamed to %1.").arg(name));
+}
+
+QString TxGeneratorWindow::dataPreview(const BusMessage &msg)
+{
+    const int length = msg.getLength();
+    if (length <= 0) {
+        return QString();
+    }
+    QStringList bytes;
+    bytes.reserve(length);
+    for (int i = 0; i < length; ++i) {
+        bytes.append(QStringLiteral("%1").arg(msg.getByte(static_cast<uint8_t>(i)), 2, 16,
+                                             QLatin1Char('0')).toUpper());
+    }
+    return bytes.join(QLatin1Char(' '));
+}
+
+void TxGeneratorWindow::updateRunStatus()
+{
+    if (!ui->labelRunStatus) {
+        return;
+    }
+    int running = 0;
+    for (const CyclicMessage &cm : std::as_const(_cyclicMessages)) {
+        if (cm.enabled) {
+            ++running;
+        }
+    }
+    ui->labelRunStatus->setText(tr("Running %1 · sent %2").arg(running).arg(_sentFrames));
+}
+
+void TxGeneratorWindow::setHint(const QString &text)
+{
+    if (!ui->labelManualHint) {
+        return;
+    }
+    ui->labelManualHint->setText(text);
+    if (_hintTimer) {
+        _hintTimer->start();
+    }
+}
+
+void TxGeneratorWindow::clearHint()
+{
+    if (ui->labelManualHint) {
+        ui->labelManualHint->clear();
     }
 }
 
@@ -649,9 +993,9 @@ void TxGeneratorWindow::on_treeActive_itemChanged(QTreeWidgetItem *item, int col
 {
     int row = ui->treeActive->indexOfTopLevelItem(item);
     if (row >= 0 && row < _cyclicMessages.size()) {
-        if (column == 5) {
+        if (column == colInterval) {
             bool ok;
-            int interval = item->text(5).toInt(&ok);
+            int interval = item->text(colInterval).toInt(&ok);
             if (ok && interval > 0 && _cyclicMessages[row].interval != interval) {
                 setInterval(row, interval);
 
@@ -730,6 +1074,7 @@ void TxGeneratorWindow::onSendTimerTimeout()
         if (intf && intf->isOpen()) {
             cm.msg.setInterfaceId(cm.interfaceId);
             intf->sendMessage(cm.msg);
+            ++_sentFrames;
 
             // Advance from the scheduled deadline, never from the actual send
             // time, so event-loop latency cannot accumulate into cycle drift.
@@ -748,6 +1093,7 @@ void TxGeneratorWindow::onSendTimerTimeout()
                 .arg(intf ? intf->getName() : QString::number(cm.interfaceId)));
         }
     }
+    updateRunStatus();
     updateSendTimer();
 }
 
@@ -778,11 +1124,7 @@ void TxGeneratorWindow::updateMeasurementState()
 void TxGeneratorWindow::updateActiveList()
 {
     // Save selection
-    QList<int> selectedRows;
-    for (auto *item : ui->treeActive->selectedItems()) {
-        int row = ui->treeActive->indexOfTopLevelItem(item);
-        if (row >= 0) selectedRows.append(row);
-    }
+    QList<int> selected = selectedRows();
     int currentRow = ui->treeActive->currentIndex().row();
 
     ui->treeActive->blockSignals(true);
@@ -807,16 +1149,18 @@ void TxGeneratorWindow::updateActiveList()
         // Starting needs a running measurement; stopping is always allowed.
         btnStatus->setEnabled(cm.enabled || _backend.isMeasurementRunning());
         connect(btnStatus, &QPushButton::clicked, this, &TxGeneratorWindow::onStatusButtonClicked);
-        ui->treeActive->setItemWidget(item, 0, btnStatus);
+        ui->treeActive->setItemWidget(item, colStatus, btnStatus);
 
-        item->setText(1, "0x" + QString("%1").arg(cm.msg.getId(), 3, 16, QChar('0')).toUpper());
-        item->setText(2, cm.name);
+        item->setText(colId, "0x" + QString("%1").arg(cm.msg.getId(), 3, 16, QChar('0')).toUpper());
+        item->setText(colName, cm.name);
+        item->setText(colData, dataPreview(cm.msg));
         BusInterface *intf = _backend.getInterfaceById(cm.interfaceId);
-        item->setText(3, intf ? intf->getName() : tr("Unknown"));
-        item->setText(4, QString::number(cm.msg.getLength()));
-        item->setText(5, QString::number(cm.interval));
+        item->setText(colInterface, intf ? intf->getName() : tr("Unknown"));
+        item->setText(colDlc, QString::number(cm.msg.getLength()));
+        item->setText(colInterval, QString::number(cm.interval));
+        item->setToolTip(colData, dataPreview(cm.msg));
 
-        if (selectedRows.contains(i)) {
+        if (selected.contains(i)) {
             item->setSelected(true);
         }
         if (i == currentRow) {
@@ -824,6 +1168,7 @@ void TxGeneratorWindow::updateActiveList()
         }
     }
     ui->treeActive->blockSignals(false);
+    updateRunStatus();
 }
 
 void TxGeneratorWindow::updateRowUI(int row)
@@ -836,8 +1181,8 @@ void TxGeneratorWindow::updateRowUI(int row)
 
     ui->treeActive->blockSignals(true);
 
-    // Update button in column 0
-    QPushButton *btnStatus = qobject_cast<QPushButton*>(ui->treeActive->itemWidget(item, 0));
+    // Update the status button in the Status column
+    QPushButton *btnStatus = qobject_cast<QPushButton*>(ui->treeActive->itemWidget(item, colStatus));
     if (btnStatus) {
         const ThemeColors &colors = ThemeManager::instance().colors();
         btnStatus->setText(cm.enabled ? QStringLiteral("■") : QStringLiteral("▶"));
@@ -849,14 +1194,17 @@ void TxGeneratorWindow::updateRowUI(int row)
         btnStatus->setEnabled(cm.enabled || _backend.isMeasurementRunning());
     }
 
-    item->setText(1, "0x" + QString("%1").arg(cm.msg.getId(), 3, 16, QChar('0')).toUpper());
-    item->setText(2, cm.name);
+    item->setText(colId, "0x" + QString("%1").arg(cm.msg.getId(), 3, 16, QChar('0')).toUpper());
+    item->setText(colName, cm.name);
+    item->setText(colData, dataPreview(cm.msg));
     BusInterface *intf = _backend.getInterfaceById(cm.interfaceId);
-    item->setText(3, intf ? intf->getName() : tr("Unknown"));
-    item->setText(4, QString::number(cm.msg.getLength()));
-    item->setText(5, QString::number(cm.interval));
+    item->setText(colInterface, intf ? intf->getName() : tr("Unknown"));
+    item->setText(colDlc, QString::number(cm.msg.getLength()));
+    item->setText(colInterval, QString::number(cm.interval));
+    item->setToolTip(colData, dataPreview(cm.msg));
 
     ui->treeActive->blockSignals(false);
+    updateRunStatus();
 }
 
 
@@ -868,6 +1216,7 @@ void TxGeneratorWindow::stopAll()
     }
     ui->btnBulkRun->setChecked(false);
     ui->btnBulkStop->setChecked(false);
+    updateRunStatus();
 }
 
 QSize TxGeneratorWindow::sizeHint() const
