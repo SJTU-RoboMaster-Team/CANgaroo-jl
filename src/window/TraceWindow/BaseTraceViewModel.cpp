@@ -388,8 +388,7 @@ QVariant BaseTraceViewModel::data_TextColorRole_Signal(const QModelIndex &index,
     if (dbsignal->isPresentInMessage(msg)) {
         return QVariant(); // default text color
     } else {
-        bool isDark = ThemeManager::instance().isDarkMode();
-        return QVariant::fromValue(isDark ? QColor(100, 100, 100) : QColor(200, 200, 200));
+        return QVariant::fromValue(ThemeManager::instance().colors().inkFaint);
     }
 }
 

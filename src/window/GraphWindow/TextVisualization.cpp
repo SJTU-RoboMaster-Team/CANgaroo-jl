@@ -25,6 +25,9 @@
 #include <QFrame>
 #include <QGridLayout>
 #include <QRegularExpression>
+#include <QScrollArea>
+
+#include "helpers/appfonts.h"
 
 TextVisualization::TextVisualization(QWidget *parent, Backend &backend)
     : VisualizationWidget(parent, backend)
@@ -144,16 +147,15 @@ void TextVisualization::applyTheme(ThemeManager::Theme theme)
 
         if (it.value().valueLabel) {
             it.value().valueLabel->setStyleSheet(
-                QString("font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: %1;")
-                    .arg(colors.text.name()));
+                QString("color: %1;").arg(colors.text.name()));
         }
         auto labels = card->findChildren<QLabel*>();
         for (QLabel *label : labels) {
             if (label == it.value().valueLabel) continue;
             if (label->property("role") == QLatin1String("name")) {
-                label->setStyleSheet(QString("font-weight: bold; font-size: 13px; color: %1;").arg(colors.text.name()));
+                label->setStyleSheet(QString("color: %1;").arg(colors.text.name()));
             } else if (label->property("role") == QLatin1String("unit")) {
-                label->setStyleSheet(QString("font-size: 12px; font-weight: bold; color: %1;").arg(colors.graphAxisText.name()));
+                label->setStyleSheet(QString("color: %1;").arg(colors.graphAxisText.name()));
             }
         }
         index++;
@@ -238,7 +240,8 @@ void TextVisualization::createSignalCard(GraphSignal *signal)
     // 2. Signal Name (Expanding)
     QLabel *nameLabel = new QLabel(signal->name(), card);
     nameLabel->setProperty("role", QStringLiteral("name"));
-    nameLabel->setStyleSheet(QString("font-weight: bold; font-size: 13px; color: %1;").arg(ThemeManager::instance().colors().text.name())); 
+    nameLabel->setFont(AppFonts::uiFont(9.5, QFont::Medium));
+    nameLabel->setStyleSheet(QString("color: %1;").arg(ThemeManager::instance().colors().text.name())); 
     nameLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     // Elide text if too long
     QFontMetrics fm(nameLabel->font());
@@ -252,7 +255,8 @@ void TextVisualization::createSignalCard(GraphSignal *signal)
     QLabel *valueLabel = new QLabel("0.00", card);
     valueLabel->setFixedWidth(120);
     valueLabel->setMinimumWidth(100);
-    valueLabel->setStyleSheet(QString("font-family: 'Courier New', monospace; font-size: 18px; font-weight: bold; color: %1;").arg(ThemeManager::instance().colors().text.name())); 
+    valueLabel->setFont(AppFonts::monoFont(13.5, QFont::DemiBold));
+    valueLabel->setStyleSheet(QString("color: %1;").arg(ThemeManager::instance().colors().text.name())); 
     valueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     layout->addWidget(valueLabel);
     
@@ -260,7 +264,8 @@ void TextVisualization::createSignalCard(GraphSignal *signal)
     QLabel *unitLabel = new QLabel(signal->unit(), card);
     unitLabel->setProperty("role", QStringLiteral("unit"));
     unitLabel->setFixedWidth(60);
-    unitLabel->setStyleSheet(QString("font-size: 12px; font-weight: bold; color: %1;").arg(ThemeManager::instance().colors().graphAxisText.name())); 
+    unitLabel->setFont(AppFonts::uiFont(9, QFont::Medium));
+    unitLabel->setStyleSheet(QString("color: %1;").arg(ThemeManager::instance().colors().graphAxisText.name())); 
     unitLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     layout->addWidget(unitLabel);
 

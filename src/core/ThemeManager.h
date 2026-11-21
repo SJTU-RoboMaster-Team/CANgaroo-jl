@@ -21,12 +21,14 @@
 
 #pragma once
 
-#include <QObject>
 #include <QColor>
+#include <QObject>
 #include <QPalette>
 #include <QString>
+#include <array>
 
 struct ThemeColors {
+    // Qt palette roles
     QColor window;
     QColor windowText;
     QColor base;
@@ -40,7 +42,29 @@ struct ThemeColors {
     QColor link;
     QColor highlight;
     QColor highlightedText;
-    
+
+    // Chrome surfaces
+    QColor chrome;       // menu bar / toolbars / status bar / dock chrome
+    QColor panel;        // dock headers, table headers, group bands
+    QColor border;       // 1px borders and grid lines
+    QColor borderStrong; // input borders and focus frames
+    QColor inkMuted;     // secondary text
+    QColor inkFaint;     // disabled / placeholder text
+    QColor tabBackground;// inner tab page background
+
+    // Action accent (used for primary actions, focus and selection accents)
+    QColor accent;
+    QColor accentHover;
+    QColor accentPressed;
+    QColor accentSoft;
+    QColor onAccent;
+
+    // Data semantics
+    QColor rx;
+    QColor tx;
+    QColor dataChanged;
+    std::array<QColor, 8> channels;
+
     // Graph specific
     QColor graphBackground;
     QColor graphGrid;
@@ -71,14 +95,13 @@ public:
 
     static ThemeManager& instance();
 
-    // When nativeStyling is true, CANgaroo defers to the active QStyle and the
-    // desktop platform theme: no custom palette or global stylesheet is applied.
-    void applyTheme(Theme theme, bool nativeStyling = false);
-    [[nodiscard]] static QPalette resolveNativePalette();
+    // Applies the bundled palette and stylesheet for the given theme. CANgaroo
+    // ships its own visual language; the native OS palette is no longer used.
+    void applyTheme(Theme theme);
+
     Theme currentTheme() const { return _currentTheme; }
-    bool nativeStyling() const { return _nativeStyling; }
     bool isDarkMode() const { return _currentTheme == Dark; }
-    
+
     const ThemeColors& colors() const { return _colors; }
 
 signals:
@@ -87,7 +110,6 @@ signals:
 private:
     explicit ThemeManager(QObject *parent = nullptr);
     Theme _currentTheme;
-    bool _nativeStyling = false;
     ThemeColors _colors;
 
     void updateColors(Theme theme);

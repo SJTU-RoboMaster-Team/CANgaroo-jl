@@ -40,6 +40,7 @@
 #include <QtCharts/QScatterSeries>
 #include <QtCharts/QChartView>
 #include "core/ThemeManager.h"
+#include "helpers/appfonts.h"
 
 ScatterVisualization::ScatterVisualization(QWidget *parent, Backend &backend)
     : VisualizationWidget(parent, backend), _windowDuration(0), _autoScroll(true), _isUpdatingRange(false)
@@ -399,11 +400,13 @@ void ScatterVisualization::handleHover(QPointF pos)
     QDateTime dt = QDateTime::fromMSecsSinceEpoch(currentUsecs / 1000);
     QString timeStr = dt.toString("yyyy-MM-dd HH:mm:ss.zzz t");
 
-    QString tooltipHtml = QString("<div style='font-family: Arial; font-size: 11px; padding: 5px; background: %1; color: %2;'>"
-                           "<b>%3</b><br/><br/>")
-                           .arg(ThemeManager::instance().currentTheme() == ThemeManager::Dark ? "#333333" : "#ffffff")
-                           .arg(ThemeManager::instance().currentTheme() == ThemeManager::Dark ? "#ffffff" : "#000000")
-                           .arg(timeStr);
+    const ThemeColors &tipColors = ThemeManager::instance().colors();
+    QString tooltipHtml = QStringLiteral("<div style=\"font-family:'%1'; font-size: 11px; padding: 5px; background: %2; color: %3;\">"
+                                         "<b>%4</b><br/><br/>")
+                              .arg(AppFonts::uiFamily())
+                              .arg(tipColors.toolTipBase.name())
+                              .arg(tipColors.toolTipText.name())
+                              .arg(timeStr);
 
     bool hasAnyTracer = false;
 
@@ -562,9 +565,10 @@ void ScatterVisualization::addSignal(GraphSignal *signal, const BusInterfaceIdLi
     series->setMarkerShape(QScatterSeries::MarkerShapeCircle);
     series->setMarkerSize(7.2);
     
-    // Assign a color from a list if chart doesn't provide a distinct one yet
-    static const QList<Qt::GlobalColor> palette = { Qt::red, Qt::blue, Qt::green, Qt::magenta, Qt::darkYellow, Qt::cyan };
-    QColor color = palette[_seriesMap.size() % palette.size()];
+    // Assign a colour from the themed channel palette so scatter series match
+    // the rest of the UI instead of using the default global colours.
+    const auto &channels = ThemeManager::instance().colors().channels;
+    QColor color = channels[std::size_t(_seriesMap.size()) % channels.size()];
     series->setColor(color);
     
     _chart->addSeries(series);

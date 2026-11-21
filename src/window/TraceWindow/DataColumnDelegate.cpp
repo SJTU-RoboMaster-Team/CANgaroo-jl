@@ -59,8 +59,7 @@ void DataColumnDelegate::paint(QPainter *painter, const QStyleOptionViewItem &op
         normalColor = fgVariant.value<QColor>();
     }
 
-    const bool isDark = ThemeManager::instance().isDarkMode();
-    QColor changedColor = isDark ? QColor(210, 120, 0) : QColor(180, 90, 0);
+    QColor changedColor = ThemeManager::instance().colors().dataChanged;
     changedColor.setAlpha(normalColor.alpha());
 
     // Models return no mask for error frames, whose text is not per-byte.

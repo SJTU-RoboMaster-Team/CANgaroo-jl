@@ -32,6 +32,7 @@
 #include <QHeaderView>
 #include <QRegularExpressionValidator>
 #include <QSplitter>
+#include <QApplication>
 #include <QDomDocument>
 #include <QEvent>
 #include <QFont>
@@ -50,6 +51,7 @@
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementInterface.h"
 #include "driver/BusInterface.h"
+#include "helpers/appfonts.h"
 
 namespace {
 constexpr int FdEnabledRole = Qt::UserRole + 1;
@@ -110,6 +112,7 @@ RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend, bool enableSending)
         auto *sendLayout = new QHBoxLayout();
         sendLayout->setSpacing(8);
         _btnSend = new QPushButton(tr("Send"), this);
+        _btnSend->setProperty("uiRole", QStringLiteral("primary"));
         _btnRepeat = new QPushButton(tr("Repeat"), this);
         _btnRepeat->setCheckable(true);
         _labelInterval = new QLabel(tr("Interval"), this);
@@ -161,7 +164,7 @@ RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend, bool enableSending)
     _dataTable->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     _dataTable->setSelectionMode(QAbstractItemView::SingleSelection);
 
-    QFont mono("Monospace");
+    QFont mono = AppFonts::monoFont(QApplication::font().pointSizeF());
     mono.setStyleHint(QFont::TypeWriter);
     _dataTable->setFont(mono);
 

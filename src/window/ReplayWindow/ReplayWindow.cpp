@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDomDocument>
@@ -43,6 +44,7 @@
 #include <QTimer>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
+#include "helpers/appfonts.h"
 #include <QVBoxLayout>
 
 #include "core/Backend.h"
@@ -132,7 +134,7 @@ ReplayWindow::ReplayWindow(QWidget *parent, Backend &backend)
     _progressBar->setMaximumHeight(14);
     mainLayout->addWidget(_progressBar);
 
-    QFont mono(QStringLiteral("Monospace"));
+    QFont mono = AppFonts::monoFont(QApplication::font().pointSizeF());
     mono.setStyleHint(QFont::TypeWriter);
 
     _infoBox = new QPlainTextEdit(this);

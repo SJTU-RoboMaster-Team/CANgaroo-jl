@@ -2,13 +2,25 @@
 #include <QToolTip>
 #include <QHelpEvent>
 
+#include "core/ThemeManager.h"
+
 BitMatrixWidget::BitMatrixWidget(QWidget *parent)
     : QWidget(parent), _msg(nullptr), _cellSize(50), _compactMode(false)
 {
-    _signalColors << QColor("#3498db") << QColor("#e74c3c") << QColor("#2ecc71")
-                  << QColor("#f1c40f") << QColor("#9b59b6") << QColor("#1abc9c")
-                  << QColor("#e67e22") << QColor("#34495e");
-    
+    auto refreshColors = [this]()
+    {
+        _signalColors.clear();
+        for (const QColor &color : ThemeManager::instance().colors().channels)
+            _signalColors << color;
+    };
+    refreshColors();
+    connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this, refreshColors](ThemeManager::Theme)
+            {
+                refreshColors();
+                update();
+            });
+
     setMouseTracking(true);
 }
 

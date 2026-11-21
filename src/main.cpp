@@ -23,19 +23,27 @@
 #include <QCommandLineParser>
 #include <QCoreApplication>
 #include <QFileInfo>
+#include <QStyleFactory>
 
 #include <core/Log.h>
+#include <helpers/appfonts.h>
 #include <helpers/translation.h>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
+    // CANgaroo ships its own palette and stylesheet; Fusion keeps the widget
+    // rendering predictable across Windows versions and DPI settings.
+    a.setStyle(QStyleFactory::create(QStringLiteral("Fusion")));
+
     QCoreApplication::setOrganizationName("CANgaroo/Schildkroet");
     QCoreApplication::setOrganizationDomain("CANgaroo/Schildkroet");
     QCoreApplication::setApplicationName("CANgaroo");
 
     QCoreApplication::setApplicationVersion(QStringLiteral(VERSION_STRING));
+
+    AppFonts::install();
 
     // Install the saved UI language before any window is constructed. Doing it
     // here (instead of after MainWindow was built) is what keeps strings that

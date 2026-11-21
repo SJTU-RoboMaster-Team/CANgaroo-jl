@@ -46,6 +46,7 @@
 #include "core/ThemeManager.h"
 #include "core/TriggerCaptureManager.h"
 #include "db/model/CanDbMessage.h"
+#include "helpers/appfonts.h"
 
 #include "TimeSeriesVisualization.h"
 #include "ScatterVisualization.h"
@@ -650,12 +651,16 @@ void GraphWindow::onMouseMove(QMouseEvent *event)
         timeStr = QStringLiteral("+%1 s").arg(t, 0, 'f', 4);
     }
 
-    const bool darkTip = ThemeManager::instance().isDarkMode();
-    const QString tipBg = darkTip ? "#2d2d30" : "#ffffff";
-    const QString tipFg = darkTip ? "#dcdcdc" : "#000000";
-    QString html = QString("<div style='font-family: Arial; font-size: 11px; padding: 5px; "
-                           "background: %1; color: %2;'>"
-                           "<b>%3</b><br/><br/>").arg(tipBg, tipFg, timeStr);
+    const ThemeColors &tipColors = ThemeManager::instance().colors();
+    const QString tipBg = tipColors.toolTipBase.name();
+    const QString tipFg = tipColors.toolTipText.name();
+    QString html = QStringLiteral("<div style=\"font-family:'%1'; font-size: 11px; padding: 5px; "
+                                  "background: %2; color: %3;\">"
+                                  "<b>%4</b><br/><br/>")
+                       .arg(AppFonts::uiFamily())
+                       .arg(tipBg)
+                       .arg(tipFg)
+                       .arg(timeStr);
 
     bool foundAny = false;
 
@@ -962,9 +967,9 @@ void GraphWindow::populateSignalTree()
         sigItem->setData(0, Qt::UserRole + 1, interfaceData);
 
         QPixmap pix(12, 12);
-        uint h = qHash(sigName);
-        QColor c = QColor::fromHsl(h % 360, 180, 150);
-        pix.fill(c);
+        const auto &signalChannels = ThemeManager::instance().colors().channels;
+        const int channelIndex = int(qHash(sigName) % uint(signalChannels.size()));
+        pix.fill(signalChannels[channelIndex]);
         sigItem->setIcon(0, QIcon(pix));
     };
 
@@ -985,7 +990,7 @@ void GraphWindow::populateSignalTree()
             msgItem->setCheckState(0, Qt::Unchecked);
 
             QPixmap msgPix(12, 12);
-            msgPix.fill(QColor("#607d8b"));
+            msgPix.fill(ThemeManager::instance().colors().inkMuted);
             msgItem->setIcon(0, QIcon(msgPix));
 
             for (CanDbSignal *sig : msg->getSignals()) {
@@ -1049,7 +1054,7 @@ void GraphWindow::populateSignalTree()
             sigItem->setData(0, Qt::UserRole + 1, QVariant::fromValue(BusInterfaceIdList{ifId}));
 
             QPixmap pix(12, 12);
-            pix.fill(QColor("#ff8f00"));
+            pix.fill(ThemeManager::instance().colors().statusWarning);
             sigItem->setIcon(0, QIcon(pix));
         }
     }

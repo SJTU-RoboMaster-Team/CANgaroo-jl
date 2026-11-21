@@ -292,57 +292,9 @@ bool SignalSelectorDialog::shouldShowItem(QTreeWidgetItem *item, const QString &
 
 void SignalSelectorDialog::applyTheme(ThemeManager::Theme theme)
 {
-    bool isDark = (theme == ThemeManager::Dark);
-
-    // Revert dialog-level background styling to keep original view
+    Q_UNUSED(theme);
+    // Checkbox / tree indicators are styled by the global theme stylesheet.
     this->setStyleSheet("");
-
-    if (isDark) {
-        // Targeted styling for tree indicators (CAN messages and signals)
-        QString treeStyle =
-            "QTreeView::indicator {"
-            "  width: 14px;"
-            "  height: 14px;"
-            "  border: 1px solid #999;"
-            "  border-radius: 2px;"
-            "  background-color: #333;"
-            "}"
-            "QTreeView::indicator:checked {"
-            "  background-color: #27ae60;"
-            "  border: 1px solid #2ecc71;"
-            "}"
-            "QTreeView::indicator:unchecked {"
-            "  background-color: #333;"
-            "}"
-            "QTreeView::indicator:unchecked:hover {"
-            "  border: 1px solid #ccc;"
-            "}"
-            "QTreeView::indicator:indeterminate {"
-            "  background-color: #555;"
-            "}";
-
-        // Targeted styling for the standalone "Show selection only" checkbox
-        QString checkStyle =
-            "QCheckBox::indicator {"
-            "  width: 14px;"
-            "  height: 14px;"
-            "  border: 1px solid #999;"
-            "  border-radius: 2px;"
-            "  background-color: #333;"
-            "}"
-            "QCheckBox::indicator:checked {"
-            "  background-color: #27ae60;"
-            "  border: 1px solid #2ecc71;"
-            "}"
-            "QCheckBox::indicator:unchecked:hover {"
-            "  border: 1px solid #ccc;"
-            "}";
-
-        _tree->setStyleSheet(treeStyle);
-        _showSelectedOnly->setStyleSheet(checkStyle);
-    } else {
-        // Restore standard Light Mode styling
-        _tree->setStyleSheet("");
-        _showSelectedOnly->setStyleSheet("");
-    }
+    _tree->setStyleSheet("");
+    _showSelectedOnly->setStyleSheet("");
 }

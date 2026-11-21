@@ -322,10 +322,10 @@ QVariant UnifiedTraceViewModel::data_DisplayRole(const QModelIndex &index, [[may
 QVariant UnifiedTraceViewModel::data_TextColorRole(const QModelIndex &index, [[maybe_unused]] int role) const
 {
     UnifiedTraceItem *item = static_cast<UnifiedTraceItem*>(index.internalPointer());
-    const bool isDark = ThemeManager::instance().isDarkMode();
 
     const BusMessage& msg = item->rawFrame();
-    if (msg.isErrorFrame()) return isDark ? QColor(255, 100, 100) : QColor(Qt::red);
+    if (msg.isErrorFrame())
+        return ThemeManager::instance().colors().statusError;
     return QVariant();
 }
 

@@ -165,7 +165,6 @@ private:
     void applyCurrentTheme();
     void applyActionIcons();
     QIcon symbolicIcon(const QString &name) const;
-    void applyControlButtonStyles();
     void applyTabBackgrounds();
     QColor tabBackgroundColor() const;
 

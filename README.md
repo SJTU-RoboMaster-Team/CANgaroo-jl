@@ -24,7 +24,7 @@
 * **Graph 双游标测量**：**Cursors (Δt/Δy)** 开关，左键放置游标 A，右键或 Shift+左键放置游标 B，显示 `Δt`、`1/|Δt|` 与首个信号的 `Δy`。
 * **USB 掉线提示与手动重新绑定**：测量中接口异常断开时，主窗口顶部显示提示条并弹出非阻塞提示，不会静默自动重连；重新插好设备后点击 **Rebind & Resume**（顶部提示条或 **Measurement > Hardware...**），按 `Hardware Key`（Candle 设备为去掉接口后缀的 USB 设备路径 + 通道号；旧工作空间无该字段时按驱动 + 唯一接口名匹配，缺失或歧义会明确报错）重新绑定并继续测量，已有 Trace 与 Graph 曲线保留。
 * **电机协议解码（Motor View）**：**Window → New → Motor View**（`Ctrl+Shift+M`）内置解码 DJI M3508 / M2006 / GM6020 与达妙 DM（MIT 模式）的反馈帧，一屏显示角度、转速、电流/转矩、温度与在线状态；Pmax/Vmax/Tmax 等按型号可配。配置会自动生成一份内置 DBC，Trace 显示信号子行、Graph 的 **Motor (built-in)** 树可直接画曲线，也可用 **Export DBC...** 导出 `.dbc`。详见 [docs/motor_protocols.md](docs/motor_protocols.md)。
-* **原生深浅主题与在线更新检测**：跟随 Windows 11 系统原生深/浅色模式，也可以在设置里切换 Qt 窗口样式（QStyle）；**Help > Check for Updates...** 从本仓库检测新版本。GitHub API 的免认证请求频率受限时，会自动改用 Releases 原子源（`releases.atom`）完成检测；两者都不可用才提示打开发布页手动确认。
+* **Claude 风格浅色主题与在线更新检测**：默认使用暖色浅色界面（奶油底、陶土色强调），设置里可切换「浅色 / 深色 / 跟随系统」；界面与数据分别使用 IBM Plex Sans / IBM Plex Mono（中文回退 Microsoft YaHei UI，字体按 OFL 许可随包分发，见 `src/assets/fonts/OFL.txt`）。**Help > Check for Updates...** 从本仓库检测新版本。GitHub API 的免认证请求频率受限时，会自动改用 Releases 原子源（`releases.atom`）完成检测；两者都不可用才提示打开发布页手动确认。
 
 <br>![Cangaroo Trace View](docs/view.png)<br>
 

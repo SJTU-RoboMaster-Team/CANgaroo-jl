@@ -34,8 +34,8 @@ class SettingsDialog : public QDialog
 public:
     explicit SettingsDialog(QSettings &settings, QActionGroup *languageGroup, QWidget *parent = nullptr);
 
-    QString selectedTheme() const;
-    bool nativeStylingEnabled() const;
+    // "light" (default), "dark" or "system".
+    QString selectedThemeMode() const;
     QString selectedLanguage() const;
     bool restoreWindowEnabled() const;
     bool clearTraceOnStart() const;
@@ -48,13 +48,12 @@ public:
     int maxTraceSize() const;
 
 private:
-    QComboBox *m_themeCombo;
+    QComboBox *m_themeModeCombo;
     QComboBox *m_languageCombo;
     QComboBox *m_saveFormatCombo;
     QComboBox *m_defaultTraceViewCombo;
     QComboBox *m_defaultTimestampCombo;
     QComboBox *m_dataDisplayCombo;
-    QCheckBox *m_nativeStylingCheck;
     QCheckBox *m_restoreWindowCheck;
     QCheckBox *m_clearTraceOnStartCheck;
     QCheckBox *m_skipSaveWorkspacePromptCheck;

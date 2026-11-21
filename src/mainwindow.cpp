@@ -227,28 +227,16 @@ void MainWindow::initAppearance()
     // so all constructor-time texts already use the saved language.
     createLanguageMenu();
 
-    // Load saved application style/theme.
-    const QString savedStyle = settings.value("ui/applicationStyle", "").toString();
-    if (!savedStyle.isEmpty())
-    {
-        const QStringList availableStyles = QStyleFactory::keys();
-        const bool styleFound = std::any_of(availableStyles.begin(), availableStyles.end(),
-            [&](const QString &s) { return s.compare(savedStyle, Qt::CaseInsensitive) == 0; });
-        if (styleFound)
-            QApplication::setStyle(QStyleFactory::create(savedStyle));
-        else
-            qWarning() << "Saved style" << savedStyle << "is not available, keeping"
-                       << QApplication::style()->name() << "- available styles:" << availableStyles;
-    }
+    // Theme mode: light (default), dark, or follow the system. Older profiles
+    // stored a QStyle name / "native styling" flag instead; P1 migrates them
+    // to the bundled Claude-like light theme.
+    if (!settings.contains(QStringLiteral("ui/themeMode")))
+        settings.setValue(QStringLiteral("ui/themeMode"), QStringLiteral("light"));
 
-    // Style must be set before applyTheme: ThemeManager resets the palette to
-    // style()->standardPalette(), which needs the correct style active.
-    // applyCurrentTheme() also (re)applies the action icons so they recolor
-    // with the active palette.
-    applyControlButtonStyles();
     applyCurrentTheme();
 
-    // Follow live light/dark switches of the desktop (e.g. GNOME appearance toggle).
+    // Follow live light/dark switches of the desktop when the user chose the
+    // "follow system" mode.
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
             this, [this](Qt::ColorScheme) { applyCurrentTheme(); });
@@ -265,25 +253,27 @@ void MainWindow::initAppearance()
 
 void MainWindow::applyCurrentTheme()
 {
-    const bool nativeStyling = settings.value("ui/nativeStyling", true).toBool();
+    const QString mode = settings.value(QStringLiteral("ui/themeMode"), QStringLiteral("light")).toString();
 
-    // In native mode the dark/light decision must follow the active style's
-    // resolved palette (e.g. Windows 11 system palette or "adwaita-dark"), so
-    // content colors match what the style actually paints. In the bundled
-    // (non-native) theme we follow the desktop's color scheme instead.
-    bool dark;
-    if (nativeStyling)
+    ThemeManager::Theme theme = ThemeManager::Light;
+    if (mode == QLatin1String("dark"))
     {
-        const QPalette pal = ThemeManager::resolveNativePalette();
-        dark = pal.color(QPalette::Window).lightness() < 128;
+        theme = ThemeManager::Dark;
     }
-    else
+    else if (mode == QLatin1String("system"))
     {
-        dark = isDarkMode();
+        bool systemDark = false;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+        systemDark = QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+#else
+        const QPalette defaultPalette;
+        systemDark = defaultPalette.color(QPalette::WindowText).lightness()
+                     > defaultPalette.color(QPalette::Window).lightness();
+#endif
+        theme = systemDark ? ThemeManager::Dark : ThemeManager::Light;
     }
 
-    ThemeManager::instance().applyTheme(dark ? ThemeManager::Dark : ThemeManager::Light,
-                                        nativeStyling);
+    ThemeManager::instance().applyTheme(theme);
 
     applyTabBackgrounds();
     applyActionIcons();
@@ -311,8 +301,7 @@ void MainWindow::applyTabBackgrounds()
 
 QColor MainWindow::tabBackgroundColor() const
 {
-    const QColor base = QApplication::palette().color(QPalette::Window);
-    return ThemeManager::instance().isDarkMode() ? base.darker(112) : base.darker(108);
+    return ThemeManager::instance().colors().tabBackground;
 }
 
 QIcon MainWindow::symbolicIcon(const QString &name) const
@@ -356,25 +345,6 @@ void MainWindow::applyActionIcons()
 
     if (_btnOpenGraph)
         _btnOpenGraph->setIcon(AppHelpers::themedIcon("office-chart-line", ":/assets/graph.svg"));
-}
-
-void MainWindow::applyControlButtonStyles()
-{
-    // Start/Stop accent colors are applied per-widget (not via the global stylesheet)
-    // so they survive native styling, where the global stylesheet is empty.
-    ui->btnStartMeasurement->setStyleSheet(
-        "QPushButton { background-color: #2e7d32; color: white; border: none;"
-        " border-radius: 12px; padding: 5px 15px; font-weight: bold; }"
-        "QPushButton:hover { background-color: #388e3c; }"
-        "QPushButton:pressed { background-color: #1b5e20; }"
-        "QPushButton:disabled { background-color: #88b98a; }");
-
-    ui->btnStopMeasurement->setStyleSheet(
-        "QPushButton { background-color: #c62828; color: white; border: none;"
-        " border-radius: 12px; padding: 5px 15px; font-weight: bold; }"
-        "QPushButton:hover { background-color: #d32f2f; }"
-        "QPushButton:pressed { background-color: #8e1c1c; }"
-        "QPushButton:disabled { background-color: #d99a9a; }");
 }
 
 void MainWindow::addToRecentFiles(const QString &filename)
@@ -456,15 +426,7 @@ bool MainWindow::isMaximizedWindow()
 
 bool MainWindow::isDarkMode()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    const auto scheme = QGuiApplication::styleHints()->colorScheme();
-    return scheme == Qt::ColorScheme::Dark;
-#else
-    const QPalette defaultPalette;
-    const auto text = defaultPalette.color(QPalette::WindowText);
-    const auto window = defaultPalette.color(QPalette::Window);
-    return text.lightness() > window.lightness();
-#endif
+    return ThemeManager::instance().isDarkMode();
 }
 
 void MainWindow::updateMeasurementActions()
@@ -540,14 +502,12 @@ void MainWindow::initRecording()
     recordMenu->addAction(actionOpenFolder);
 
     _btnRecord = new QToolButton(this);
+    _btnRecord->setObjectName(QStringLiteral("btnRecord"));
     _btnRecord->setDefaultAction(_actionRecord);
     _btnRecord->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     _btnRecord->setPopupMode(QToolButton::MenuButtonPopup);
     _btnRecord->setMenu(recordMenu);
     _btnRecord->setCursor(Qt::PointingHandCursor);
-    _btnRecord->setStyleSheet(QStringLiteral(
-        "QToolButton:checked { background-color: #c62828; color: white; font-weight: bold;"
-        " border: none; border-radius: 4px; padding: 3px 6px; }"));
 
     _recordStatusLabel = new QLabel(this);
     _recordStatusLabel->setVisible(false);
@@ -621,7 +581,9 @@ void MainWindow::updateRecordingStatus()
         _recordStatusLabel->setToolTip(tr("%1\n%2 frames written")
                                            .arg(QDir::toNativeSeparators(recorder->currentFilePath()))
                                            .arg(recorder->framesWritten()));
-        _recordStatusLabel->setStyleSheet(QStringLiteral("QLabel { color: #c62828; font-weight: bold; }"));
+        _recordStatusLabel->setStyleSheet(
+            QStringLiteral("QLabel { color: %1; font-weight: bold; }")
+                .arg(ThemeManager::instance().colors().statusError.name()));
         _recordStatusLabel->setVisible(true);
     }
     else if (recorder->isArmed())
@@ -823,6 +785,11 @@ Backend &MainWindow::backend()
 QMainWindow *MainWindow::createTab(const QString &title, const char *titleSource)
 {
     auto *mm = new QMainWindow(this);
+    // Allow docks to be rearranged/resized by the user (needed for the
+    // split/tabified default layout built in createTraceWindow()).
+    mm->setDockOptions(QMainWindow::AnimatedDocks | QMainWindow::AllowTabbedDocks
+                       | QMainWindow::AllowNestedDocks);
+    mm->setDockNestingEnabled(true);
     QPalette pal(QApplication::palette());
     pal.setColor(QPalette::Window, tabBackgroundColor());
     mm->setAutoFillBackground(true);
@@ -1294,6 +1261,9 @@ QDockWidget *MainWindow::makeDock(const QString &title, const char *titleSource,
 
     auto *dock = new QDockWidget(title, parent);
     dock->setObjectName(objectName);
+    // A small explicit minimum keeps panel contents from freezing the dock
+    // separator at their full size hint; the QSS paints the 6 px grab handle.
+    dock->setMinimumSize(160, 80);
     // Remember the untranslated source so a runtime language switch can retranslate it.
     if (titleSource)
         dock->setProperty("i18nTitleSource", QString::fromLatin1(titleSource));
@@ -1323,7 +1293,13 @@ QDockWidget *MainWindow::addRawTxWidget(QMainWindow *parent)
     if (!tab) { return nullptr; }
 
     auto *rawTx = new RawTxWindow(nullptr, backend());
-    auto *dock = makeDock(tr("Message View"), "Message View", QStringLiteral("dock_rawtx"), rawTx, parent);
+    // The Message View header row is intrinsically wide; a scroll area keeps the
+    // dock shrinkable so the bottom dock separator can actually be dragged.
+    auto *rawTxScroll = new QScrollArea;
+    rawTxScroll->setWidgetResizable(true);
+    rawTxScroll->setFrameShape(QFrame::NoFrame);
+    rawTxScroll->setWidget(rawTx);
+    auto *dock = makeDock(tr("Message View"), "Message View", QStringLiteral("dock_rawtx"), rawTxScroll, parent);
     dock->installEventFilter(rawTx);
     if (auto *generator = tab->findChild<TxGeneratorWindow *>()) {
         connect(generator, &TxGeneratorWindow::messageSelected, rawTx, &RawTxWindow::setMessage);
@@ -2070,23 +2046,15 @@ void MainWindow::showSettingsDialog()
     if (dlg.exec() != QDialog::Accepted)
         return;
 
-    // Apply theme.
-    const QString newTheme = dlg.selectedTheme();
-    const QString currentTheme = QApplication::style()->objectName();
-    const bool styleChanged = newTheme.compare(currentTheme, Qt::CaseInsensitive) != 0;
-
-    const bool newNativeStyling = dlg.nativeStylingEnabled();
-    const bool nativeStylingChanged = newNativeStyling != settings.value("ui/nativeStyling", true).toBool();
-
-    if (styleChanged)
+    // Apply theme mode.
+    const QString newThemeMode = dlg.selectedThemeMode();
+    const QString currentThemeMode = settings.value(QStringLiteral("ui/themeMode"),
+                                                    QStringLiteral("light")).toString();
+    if (newThemeMode != currentThemeMode)
     {
-        QApplication::setStyle(QStyleFactory::create(newTheme));
-        settings.setValue("ui/applicationStyle", newTheme);
-    }
-    settings.setValue("ui/nativeStyling", newNativeStyling);
-
-    if (styleChanged || nativeStylingChanged)
+        settings.setValue(QStringLiteral("ui/themeMode"), newThemeMode);
         applyCurrentTheme();
+    }
 
     // Apply language.
     const QString newLocale = dlg.selectedLanguage();

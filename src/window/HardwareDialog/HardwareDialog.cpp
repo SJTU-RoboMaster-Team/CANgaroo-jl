@@ -39,6 +39,7 @@
 #include "core/Backend.h"
 #include "core/MeasurementInterface.h"
 #include "core/MeasurementNetwork.h"
+#include "core/ThemeManager.h"
 #include "driver/BusInterface.h"
 
 using namespace std::chrono_literals;
@@ -226,10 +227,11 @@ void HardwareDialog::refreshStatus()
 
             const uint32_t state = open ? intf->getState() : static_cast<uint32_t>(BusInterface::state_unknown);
             QBrush brush = palette().brush(QPalette::Text);
+            const ThemeColors &stateColors = ThemeManager::instance().colors();
             if (state == BusInterface::state_bus_off || state == BusInterface::state_passive)
-                brush = QBrush(Qt::red);
+                brush = QBrush(stateColors.statusError);
             else if (state == BusInterface::state_warning)
-                brush = QBrush(QColor(0xE0, 0x90, 0x00));
+                brush = QBrush(stateColors.statusWarning);
             item->setForeground(column_bus_state, brush);
         }
     }

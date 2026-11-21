@@ -23,6 +23,7 @@
 #include "TraceWindow.h"
 #include "ui_TraceWindow.h"
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDomDocument>
@@ -36,6 +37,7 @@
 #include "core/BusTrace.h"
 #include "core/ThemeManager.h"
 #include "core/TriggerCaptureManager.h"
+#include "helpers/appfonts.h"
 #include "helpers/apphelpers.h"
 #include "window/TriggerCaptureDialog/TriggerCaptureDialog.h"
 
@@ -71,9 +73,7 @@ TraceWindow::TraceWindow(QWidget *parent, Backend &backend) :
     _rollingFilterModel->setSourceModel(_rollingModel);
 
     QTreeView *tree = ui->treeAgg;
-    QFont font("Monospace");
-    font.setStyleHint(QFont::TypeWriter);
-    tree->setFont(font);
+    tree->setFont(AppFonts::monoFont(QApplication::font().pointSizeF()));
     tree->setAlternatingRowColors(true);
     tree->setUniformRowHeights(true);
     tree->setRootIsDecorated(true);

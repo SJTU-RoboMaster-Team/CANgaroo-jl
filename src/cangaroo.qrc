@@ -20,5 +20,12 @@
         <file>assets/icons/help-about-symbolic.svg</file>
         <file>assets/icons/edit-clear-symbolic.svg</file>
         <file>assets/icons/drive-harddisk-usb-symbolic.svg</file>
+        <file>assets/icons/checkmark-white.svg</file>
+        <file>assets/fonts/IBMPlexSans-Regular.ttf</file>
+        <file>assets/fonts/IBMPlexSans-Medium.ttf</file>
+        <file>assets/fonts/IBMPlexSans-SemiBold.ttf</file>
+        <file>assets/fonts/IBMPlexMono-Regular.ttf</file>
+        <file>assets/fonts/IBMPlexMono-Medium.ttf</file>
+        <file>assets/fonts/OFL.txt</file>
     </qresource>
 </RCC>

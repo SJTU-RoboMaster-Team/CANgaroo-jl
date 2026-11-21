@@ -26,7 +26,6 @@
 #include <QCheckBox>
 #include <QSpinBox>
 #include <QDialogButtonBox>
-#include <QStyleFactory>
 #include <QApplication>
 #include <QActionGroup>
 #include <QList>
@@ -44,25 +43,16 @@ SettingsDialog::SettingsDialog(QSettings &settings, QActionGroup *languageGroup,
     auto *grpAppearance = new QGroupBox(tr("Appearance"), this);
     auto *formAppearance = new QFormLayout(grpAppearance);
 
-    m_nativeStylingCheck = new QCheckBox(tr("Use native system styling (GNOME/Adwaita)"), grpAppearance);
-    m_nativeStylingCheck->setToolTip(tr("Defer to the selected style and the desktop theme instead of "
-                                        "applying CANgaroo's own palette and colors."));
-    m_nativeStylingCheck->setChecked(settings.value("ui/nativeStyling", true).toBool());
-    formAppearance->addRow(m_nativeStylingCheck);
-
-    m_themeCombo = new QComboBox(grpAppearance);
-    QStringList styles = QStyleFactory::keys();
-    m_themeCombo->addItems(styles);
-    const QString currentStyle = settings.value("ui/applicationStyle", QApplication::style()->name()).toString();
-    for (int i = 0; i < styles.size(); ++i)
+    m_themeModeCombo = new QComboBox(grpAppearance);
+    m_themeModeCombo->addItem(tr("Light"), QStringLiteral("light"));
+    m_themeModeCombo->addItem(tr("Dark"), QStringLiteral("dark"));
+    m_themeModeCombo->addItem(tr("Follow system"), QStringLiteral("system"));
     {
-        if (styles[i].compare(currentStyle, Qt::CaseInsensitive) == 0)
-        {
-            m_themeCombo->setCurrentIndex(i);
-            break;
-        }
+        const QString savedMode = settings.value("ui/themeMode", QStringLiteral("light")).toString();
+        int modeIndex = m_themeModeCombo->findData(savedMode);
+        m_themeModeCombo->setCurrentIndex(modeIndex >= 0 ? modeIndex : 0);
     }
-    formAppearance->addRow(tr("Theme:"), m_themeCombo);
+    formAppearance->addRow(tr("Theme:"), m_themeModeCombo);
 
     m_languageCombo = new QComboBox(grpAppearance);
     QString savedLocale = settings.value("ui/language", "en_US").toString();
@@ -181,14 +171,9 @@ SettingsDialog::SettingsDialog(QSettings &settings, QActionGroup *languageGroup,
     mainLayout->addWidget(buttons);
 }
 
-QString SettingsDialog::selectedTheme() const
+QString SettingsDialog::selectedThemeMode() const
 {
-    return m_themeCombo->currentText();
-}
-
-bool SettingsDialog::nativeStylingEnabled() const
-{
-    return m_nativeStylingCheck->isChecked();
+    return m_themeModeCombo->currentData().toString();
 }
 
 QString SettingsDialog::selectedLanguage() const

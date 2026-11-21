@@ -75,9 +75,9 @@ TxGeneratorWindow::TxGeneratorWindow(QWidget *parent, Backend &backend) :
     connect(ui->btnBulkRun, &QPushButton::clicked, this, &TxGeneratorWindow::on_btnBulkRun_clicked);
     connect(ui->btnBulkStop, &QPushButton::clicked, this, &TxGeneratorWindow::on_btnBulkStop_clicked);
 
-    // Initial styling
-    ui->btnBulkRun->setStyleSheet("QPushButton { font-weight: bold; background: #218838; color: white; border-radius: 4px; padding: 4px 8px; } QPushButton:hover { background: #28a745; } QPushButton:pressed { background: #196b2c; } QPushButton:disabled { background: #94d3a2; }");
-    ui->btnBulkStop->setStyleSheet("QPushButton { font-weight: bold; background: #c82333; color: white; border-radius: 4px; padding: 4px 8px; } QPushButton:hover { background: #dc3545; } QPushButton:pressed { background: #a71d2a; } QPushButton:disabled { background: #f1aeb5; }");
+    // Semantic button roles are styled by the global theme stylesheet.
+    ui->btnBulkRun->setProperty("uiRole", QStringLiteral("primary"));
+    ui->btnBulkStop->setProperty("uiRole", QStringLiteral("danger"));
 
     connect(ui->treeActive, &QTreeWidget::itemChanged, this, &TxGeneratorWindow::on_treeActive_itemChanged);
     connect(ui->treeActive, &QTreeWidget::itemDoubleClicked, this, &TxGeneratorWindow::treeActiveItemDoubleClicked);

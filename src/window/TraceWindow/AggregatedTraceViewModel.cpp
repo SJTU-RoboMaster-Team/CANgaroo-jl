@@ -319,7 +319,7 @@ QVariant AggregatedTraceViewModel::data_ChangedBytesRole(const QModelIndex &inde
 QVariant AggregatedTraceViewModel::data_TextColorRole(const QModelIndex &index, int role) const
 {
     (void) role;
-    bool isDark = ThemeManager::instance().isDarkMode();
+    const ThemeColors &themeColors = ThemeManager::instance().colors();
 
     AggregatedTraceViewItem *item = static_cast<AggregatedTraceViewItem *>(index.internalPointer());
     if (!item) { return QVariant(); }
@@ -345,8 +345,8 @@ QVariant AggregatedTraceViewModel::data_TextColorRole(const QModelIndex &index, 
     }
 
     QColor color = msg.isErrorFrame()
-        ? (isDark ? QColor(255, 100, 100) : QColor(Qt::red))
-        : ThemeManager::instance().colors().text;
+        ? themeColors.statusError
+        : themeColors.text;
 
     color.setAlpha(alpha);
     return color;
