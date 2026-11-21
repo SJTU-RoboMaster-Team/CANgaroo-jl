@@ -26,7 +26,7 @@
     <message>
         <location filename="../core/Backend.cpp" line="256"/>
         <source>All active interfaces disconnected. Measurement paused (trace preserved).</source>
-        <translation>所有活动接口均已断开，测量已暂停（跟踪数据已保留）。</translation>
+        <translation>所有活动接口均已断开，测量已暂停（Trace 数据已保留）。</translation>
     </message>
     <message>
         <location filename="../core/Backend.cpp" line="284"/>
@@ -193,7 +193,7 @@
     <message>
         <location filename="../core/BusTrace.cpp" line="172"/>
         <source>Trace exceeded %1 messages; oldest messages are being discarded and will be missing from saved traces. Increase the limit in Settings.</source>
-        <translation>跟踪已超过 %1 条消息；最早的消息将被丢弃，且不会出现在保存的跟踪中。请在设置中提高上限。</translation>
+        <translation>Trace 已超过 %1 条消息；最早的消息将被丢弃，且不会出现在保存的 Trace 中。请在设置中提高上限。</translation>
     </message>
 </context>
 <context>
@@ -1003,7 +1003,7 @@
     <message>
         <location filename="../mainwindow.ui" line="201"/>
         <source>&amp;Trace</source>
-        <translation>&amp;跟踪</translation>
+        <translation>&amp;Trace</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="215"/>
@@ -1019,7 +1019,7 @@
     <message>
         <location filename="../mainwindow.ui" line="223"/>
         <source>&amp;Trace View</source>
-        <translation>&amp;跟踪视图</translation>
+        <translation>&amp;Trace 视图</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="226"/>
@@ -1079,7 +1079,7 @@
     <message>
         <location filename="../mainwindow.ui" line="286"/>
         <source>&amp;Save Trace to file...</source>
-        <translation>&amp;保存跟踪到文件...</translation>
+        <translation>&amp;保存 Trace 到文件...</translation>
     </message>
     <message>
         <location filename="../mainwindow.ui" line="294"/>
@@ -1219,7 +1219,7 @@
         <location filename="../mainwindow.cpp" line="145"/>
         <location filename="../mainwindow.cpp" line="1814"/>
         <source>Export full trace</source>
-        <translation>导出完整跟踪</translation>
+        <translation>导出完整 Trace</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="116"/>
@@ -1257,7 +1257,7 @@
         <location filename="../mainwindow.cpp" line="522"/>
         <location filename="../mainwindow.cpp" line="1832"/>
         <source>&amp;Record Trace to File</source>
-        <translation>录制跟踪到文件(&amp;R)</translation>
+        <translation>录制 Trace 到文件(&amp;R)</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="525"/>
@@ -1370,7 +1370,7 @@
     <message>
         <location filename="../mainwindow.cpp" line="798"/>
         <source>Interface &apos;%1&apos; disconnected (%2). Reconnect the USB adapter, then click &quot;Rebind &amp; Resume&quot; to restore measurement without losing trace/graph data.</source>
-        <translation>接口 &apos;%1&apos; 已断开（%2）。请重新连接 USB 适配器，然后点击“重新绑定并恢复”，即可在不丢失跟踪/图表数据的情况下恢复测量。</translation>
+        <translation>接口 &apos;%1&apos; 已断开（%2）。请重新连接 USB 适配器，然后点击“重新绑定并恢复”，即可在不丢失 Trace/图表数据的情况下恢复测量。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="774"/>
@@ -1390,13 +1390,13 @@ Existing Trace and Graph data have been preserved.
 Please reconnect the USB cable and click &quot;Rebind &amp; Resume&quot; in the top banner or Hardware dialog.</source>
         <translation>接口 &apos;%1&apos; 连接丢失（%2）。
 
-已有的跟踪与图表数据已保留。
+已有的 Trace 与图表数据已保留。
 请重新插好 USB 线缆，然后在顶部提示条或“硬件”对话框中点击“重新绑定并恢复”。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="807"/>
         <source>Interfaces rebound and measurement resumed (trace preserved).</source>
-        <translation>接口已重新绑定，测量已恢复（跟踪数据已保留）。</translation>
+        <translation>接口已重新绑定，测量已恢复（Trace 数据已保留）。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="812"/>
@@ -1541,29 +1541,29 @@ CANgaroo 是基于 GPL v2 许可证的自由软件。</translation>
     <message>
         <location filename="../mainwindow.cpp" line="1930"/>
         <source>Export Full Trace</source>
-        <translation>导出完整跟踪</translation>
+        <translation>导出完整 Trace</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1930"/>
         <source>Current trace is empty.</source>
-        <translation>当前跟踪为空。</translation>
+        <translation>当前 Trace 为空。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1936"/>
         <source>Trace Was Pruned</source>
-        <translation>跟踪已被裁剪</translation>
+        <translation>Trace 已被裁剪</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1937"/>
         <source>The in-memory trace exceeded %1 frames and older frames were pruned.
 For lossless long recordings, enable Continuous Recording (Ctrl+R) before measurement.</source>
-        <translation>内存中的跟踪超过 %1 帧，较早的帧已被裁剪。
+        <translation>内存中的 Trace 超过 %1 帧，较早的帧已被裁剪。
 如需无损的长时间记录，请在测量前启用连续录制 (Ctrl+R)。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1948"/>
         <source>Import Trace File</source>
-        <translation>导入跟踪文件</translation>
+        <translation>导入 Trace 文件</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1965"/>
@@ -1573,22 +1573,22 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
     <message>
         <location filename="../mainwindow.cpp" line="1967"/>
         <source>Failed to parse trace file or file is empty.</source>
-        <translation>解析跟踪文件失败，或文件为空。</translation>
+        <translation>解析 Trace 文件失败，或文件为空。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1977"/>
         <source>Large Trace File</source>
-        <translation>大型跟踪文件</translation>
+        <translation>大型 Trace 文件</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1978"/>
         <source>This file contains %1 frames, exceeding the in-memory Trace limit (%2).</source>
-        <translation>该文件包含 %1 帧，超过内存跟踪上限（%2）。</translation>
+        <translation>该文件包含 %1 帧，超过内存 Trace 上限（%2）。</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1981"/>
         <source>Choose how to handle this large trace:</source>
-        <translation>请选择如何处理该大型跟踪：</translation>
+        <translation>请选择如何处理该大型 Trace：</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1982"/>
@@ -1608,7 +1608,7 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
     <message>
         <location filename="../mainwindow.cpp" line="1992"/>
         <source>Split Trace by Frame Count</source>
-        <translation>按帧数分割跟踪</translation>
+        <translation>按帧数分割 Trace</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1993"/>
@@ -1618,7 +1618,7 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
     <message>
         <location filename="../mainwindow.cpp" line="2003"/>
         <source>Save Split Trace Files</source>
-        <translation>保存分段跟踪文件</translation>
+        <translation>保存分段 Trace 文件</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="2021"/>
@@ -1660,7 +1660,7 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
     <message>
         <location filename="../mainwindow.cpp" line="1712"/>
         <source>Save Trace to file</source>
-        <translation>将跟踪保存到文件</translation>
+        <translation>将 Trace 保存到文件</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1732"/>
@@ -1682,7 +1682,7 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
         <location filename="../mainwindow.cpp" line="150"/>
         <location filename="../mainwindow.cpp" line="1816"/>
         <source>Import full trace</source>
-        <translation>导入完整跟踪</translation>
+        <translation>导入完整 Trace</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="1497"/>
@@ -1693,7 +1693,7 @@ For lossless long recordings, enable Continuous Recording (Ctrl+R) before measur
         <location filename="../mainwindow.cpp" line="881"/>
         <location filename="../mainwindow.cpp" line="1199"/>
         <source>Trace</source>
-        <translation>跟踪</translation>
+        <translation>Trace</translation>
     </message>
     <message>
         <location filename="../mainwindow.cpp" line="163"/>
@@ -2650,7 +2650,7 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/RecordingDialog/RecordingDialog.cpp" line="41"/>
         <source>Record Trace</source>
-        <translation>录制跟踪</translation>
+        <translation>录制 Trace</translation>
     </message>
     <message>
         <location filename="../window/RecordingDialog/RecordingDialog.cpp" line="47"/>
@@ -2730,7 +2730,7 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/RecordingDialog/RecordingDialog.cpp" line="99"/>
         <source>Also record during offline trace replay</source>
-        <translation>离线跟踪回放期间同时录制</translation>
+        <translation>离线 Trace 回放期间同时录制</translation>
     </message>
     <message>
         <location filename="../window/RecordingDialog/RecordingDialog.cpp" line="103"/>
@@ -2811,20 +2811,20 @@ Latest version in %2: %3</source>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="105"/>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="209"/>
         <source>No trace file loaded</source>
-        <translation>未加载跟踪文件</translation>
+        <translation>未加载 Trace 文件</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="106"/>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="197"/>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="629"/>
         <source>Load to Trace</source>
-        <translation>载入跟踪</translation>
+        <translation>载入 Trace</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="107"/>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="198"/>
         <source>Import enabled messages directly into Trace and Graph</source>
-        <translation>将已启用的报文直接导入跟踪与图表</translation>
+        <translation>将已启用的报文直接导入 Trace 与图表</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="109"/>
@@ -2836,13 +2836,13 @@ Latest version in %2: %3</source>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="110"/>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="200"/>
         <source>Split large trace into smaller files by frame count</source>
-        <translation>按帧数将大型跟踪分割为多个较小文件</translation>
+        <translation>按帧数将大型 Trace 分割为多个较小文件</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="141"/>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="210"/>
         <source>Trace file info...</source>
-        <translation>跟踪文件信息...</translation>
+        <translation>Trace 文件信息...</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="147"/>
@@ -2907,7 +2907,7 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="218"/>
         <source>Load Trace File</source>
-        <translation>加载跟踪文件</translation>
+        <translation>加载 Trace 文件</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="220"/>
@@ -2922,7 +2922,7 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="240"/>
         <source>Failed to parse trace file or file is empty.</source>
-        <translation>解析跟踪文件失败，或文件为空。</translation>
+        <translation>解析 Trace 文件失败，或文件为空。</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="242"/>
@@ -2947,17 +2947,17 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="638"/>
         <source>Large Trace File</source>
-        <translation>大型跟踪文件</translation>
+        <translation>大型 Trace 文件</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="639"/>
         <source>Selected trace contains %1 messages, exceeding the in-memory limit (%2).</source>
-        <translation>所选跟踪包含 %1 条报文，超过内存上限（%2）。</translation>
+        <translation>所选 Trace 包含 %1 条报文，超过内存上限（%2）。</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="642"/>
         <source>You can split it into smaller files, or load the first %1 messages into Trace.</source>
-        <translation>可将其分割为多个较小文件，或仅将前 %1 条报文载入跟踪。</translation>
+        <translation>可将其分割为多个较小文件，或仅将前 %1 条报文载入 Trace。</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="643"/>
@@ -2972,12 +2972,12 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="658"/>
         <source>Loaded %1 replay messages into Trace.</source>
-        <translation>已将 %1 条回放报文载入跟踪。</translation>
+        <translation>已将 %1 条回放报文载入 Trace。</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="671"/>
         <source>Split Trace by Frame Count</source>
-        <translation>按帧数分割跟踪</translation>
+        <translation>按帧数分割 Trace</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="672"/>
@@ -2987,7 +2987,7 @@ Latest version in %2: %3</source>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="684"/>
         <source>Save Split Trace Files</source>
-        <translation>保存分段跟踪文件</translation>
+        <translation>保存分段 Trace 文件</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="711"/>
@@ -3028,7 +3028,7 @@ Duration: %3 s</source>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="329"/>
         <source>Trace only</source>
-        <translation>仅跟踪</translation>
+        <translation>仅 Trace</translation>
     </message>
     <message>
         <location filename="../window/ReplayWindow/ReplayWindow.cpp" line="347"/>
@@ -3165,7 +3165,7 @@ Duration: %3 s</source>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="102"/>
         <source>Clear trace on measurement start</source>
-        <translation>测量开始时清除跟踪</translation>
+        <translation>测量开始时清除 Trace</translation>
     </message>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="106"/>
@@ -3175,7 +3175,7 @@ Duration: %3 s</source>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="113"/>
         <source>Trace Window</source>
-        <translation>跟踪窗口</translation>
+        <translation>Trace 窗口</translation>
     </message>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="117"/>
@@ -3260,12 +3260,12 @@ Duration: %3 s</source>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="167"/>
         <source>Maximum number of messages kept in memory. When exceeded, the oldest messages are discarded and are missing from saved traces. Larger values use more memory.</source>
-        <translation>内存中保留的最大消息数。超出后，最早的消息将被丢弃，且不会出现在保存的跟踪中。数值越大占用内存越多。</translation>
+        <translation>内存中保留的最大消息数。超出后，最早的消息将被丢弃，且不会出现在保存的 Trace 中。数值越大占用内存越多。</translation>
     </message>
     <message>
         <location filename="../window/SettingsDialog/SettingsDialog.cpp" line="171"/>
         <source>Max trace size:</source>
-        <translation>最大跟踪大小：</translation>
+        <translation>最大 Trace 大小：</translation>
     </message>
 </context>
 <context>
@@ -3565,12 +3565,12 @@ Reason: %2</source>
     <message>
         <location filename="../core/TraceFileReader.cpp" line="415"/>
         <source>CSV trace file is empty.</source>
-        <translation>CSV 跟踪文件为空。</translation>
+        <translation>CSV Trace 文件为空。</translation>
     </message>
     <message>
         <location filename="../core/TraceFileReader.cpp" line="443"/>
         <source>Invalid CSV trace header: missing required CAN columns (Timestamp_s/Epoch_us, ID_Hex, DLC, Data_Hex).</source>
-        <translation>CSV 跟踪文件表头无效：缺少必需的 CAN 列（Timestamp_s/Epoch_us、ID_Hex、DLC、Data_Hex）。</translation>
+        <translation>CSV Trace 文件表头无效：缺少必需的 CAN 列（Timestamp_s/Epoch_us、ID_Hex、DLC、Data_Hex）。</translation>
     </message>
     <message>
         <location filename="../core/TraceFileReader.cpp" line="492"/>
@@ -3605,12 +3605,12 @@ Reason: %2</source>
     <message>
         <location filename="../core/TraceFileReader.cpp" line="594"/>
         <source>Unsupported trace file format.</source>
-        <translation>不支持的跟踪文件格式。</translation>
+        <translation>不支持的 Trace 文件格式。</translation>
     </message>
     <message>
         <location filename="../core/TraceFileReader.cpp" line="604"/>
         <source>Unknown trace file extension for &apos;%1&apos;.</source>
-        <translation>无法识别 &apos;%1&apos; 的跟踪文件扩展名。</translation>
+        <translation>无法识别 &apos;%1&apos; 的 Trace 文件扩展名。</translation>
     </message>
     <message>
         <location filename="../core/TraceFileReader.cpp" line="611"/>
@@ -3648,7 +3648,7 @@ Reason: %2</source>
     <message>
         <location filename="../window/TraceWindow/TraceFilterDialog.cpp" line="39"/>
         <source>Trace Filter</source>
-        <translation>跟踪过滤器</translation>
+        <translation>Trace 过滤器</translation>
     </message>
     <message>
         <location filename="../window/TraceWindow/TraceFilterDialog.cpp" line="45"/>
@@ -3706,7 +3706,7 @@ Reason: %2</source>
     <message>
         <location filename="../core/TraceRecorder.cpp" line="196"/>
         <source>Recording trace to %1</source>
-        <translation>正在录制跟踪到 %1</translation>
+        <translation>正在录制 Trace 到 %1</translation>
     </message>
     <message>
         <location filename="../core/TraceRecorder.cpp" line="215"/>
@@ -3721,7 +3721,7 @@ Reason: %2</source>
     <message>
         <location filename="../core/TraceRecorder.cpp" line="243"/>
         <source>Trace recording failed: %1</source>
-        <translation>跟踪录制失败：%1</translation>
+        <translation>Trace 录制失败：%1</translation>
     </message>
     <message>
         <location filename="../core/TraceRecorder.cpp" line="273"/>
@@ -3751,7 +3751,7 @@ Reason: %2</source>
     <message>
         <location filename="../window/TraceWindow/TraceWindow.ui" line="14"/>
         <source>Trace View</source>
-        <translation>跟踪视图</translation>
+        <translation>Trace 视图</translation>
     </message>
     <message>
         <location filename="../window/TraceWindow/TraceWindow.ui" line="35"/>
