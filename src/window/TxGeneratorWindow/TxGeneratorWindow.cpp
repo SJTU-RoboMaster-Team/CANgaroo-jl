@@ -124,15 +124,6 @@ TxGeneratorWindow::TxGeneratorWindow(QWidget *parent, Backend &backend) :
     ui->treeActive->header()->setSectionResizeMode(4, QHeaderView::ResizeToContents); // DLC
     ui->treeActive->header()->setSectionResizeMode(5, QHeaderView::ResizeToContents); // Interval
 
-    // Add Random Payload button programmatically
-    _btnRandomPayload = new QPushButton(tr("Randomize Data"), this);
-    _btnRandomPayload->setToolTip(tr("Randomize data bytes for selected messages"));
-    _btnRandomPayload->setStyleSheet("QPushButton { font-weight: bold; background: #6f42c1; color: white; border-radius: 4px; padding: 4px 8px; } QPushButton:hover { background: #5a32a3; } QPushButton:pressed { background: #4a2d87; } QPushButton:disabled { background: #b8a9d4; }");
-    ui->horizontalLayoutActiveControls->insertWidget(2, _btnRandomPayload); // Insert next to Run/Stop
-    connect(_btnRandomPayload, &QPushButton::released, this, &TxGeneratorWindow::onRandomPayloadReleased);
-
-    srand(time(nullptr));
-
     refreshInterfaces();
     updateMeasurementState();
     populateDbcMessages();
@@ -149,10 +140,6 @@ void TxGeneratorWindow::retranslateUi()
 {
     ui->retranslateUi(this);
 
-    if (_btnRandomPayload) {
-        _btnRandomPayload->setText(tr("Randomize Data"));
-        _btnRandomPayload->setToolTip(tr("Randomize data bytes for selected messages"));
-    }
     ui->spinInterval->setSuffix(tr(" ms"));
 
     // Status button tooltips and the interface column are set per row in code.
@@ -936,31 +923,3 @@ void TxGeneratorWindow::updateSendTimer()
     const auto delay = std::chrono::ceil<std::chrono::milliseconds>(*earliest - now);
     _sendTimer->start(std::max<qint64>(0, delay.count()));
 }
-
-void TxGeneratorWindow::onRandomPayloadReleased()
-{
-    QList<QTreeWidgetItem*> selected = ui->treeActive->selectedItems();
-    if (selected.isEmpty()) {
-        int row = ui->treeActive->currentIndex().row();
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            selected.append(ui->treeActive->currentItem());
-        }
-    }
-
-    for (auto *item : selected) {
-        int row = ui->treeActive->indexOfTopLevelItem(item);
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            CyclicMessage &cm = _cyclicMessages[row];
-            for (int i = 0; i < cm.msg.getLength(); ++i) {
-                cm.msg.setDataAt(i, static_cast<uint8_t>(rand() % 256));
-            }
-            updateRowUI(row);
-
-            // If this is the currently focused message in the bit matrix, update it
-            if (item == ui->treeActive->currentItem()) {
-
-            }
-        }
-    }
-}
-

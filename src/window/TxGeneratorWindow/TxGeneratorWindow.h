@@ -89,14 +89,12 @@ private slots:
     void onStatusButtonClicked();
     void updateMeasurementState();
     void refreshInterfaces();
-    void onRandomPayloadReleased();
 
 private:
     Ui::TxGeneratorWindow *ui;
     Backend &_backend;
     QTimer *_sendTimer;
     BitMatrixWidget *_bitMatrixWidget;
-    class QPushButton *_btnRandomPayload;
 
     /// Monotonic clock for the TX schedule; unaffected by wall-clock (NTP) steps.
     using TxClock = std::chrono::steady_clock;
