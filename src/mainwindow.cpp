@@ -1207,6 +1207,7 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     QDockWidget *dockGraphWidget    = addGraphWidget(mm);
     QDockWidget *dockReplayWidget   = addReplayWidget(mm);
     QDockWidget *dockMotorWidget    = addMotorWidget(mm);
+    QDockWidget *dockRawTxWidget    = addRawTxWidget(mm);
 
     auto *gen = qobject_cast<TxGeneratorWindow *>(dockGeneratorWidget->widget());
     if (gen)
@@ -1218,6 +1219,10 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     mm->splitDockWidget(dockGraphWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockReplayWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockMotorWidget, dockLogWidget, Qt::Horizontal);
+    mm->splitDockWidget(dockRawTxWidget, dockLogWidget, Qt::Horizontal);
+    // Message View is the first tab of the bottom-right dock group, so a new
+    // Trace window shows it by default instead of the Generator View.
+    mm->tabifyDockWidget(dockRawTxWidget, dockGeneratorWidget);
     mm->tabifyDockWidget(dockGeneratorWidget, dockGraphWidget);
     mm->tabifyDockWidget(dockGraphWidget, dockReplayWidget);
     mm->tabifyDockWidget(dockReplayWidget, dockMotorWidget);
@@ -1225,12 +1230,13 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     mm->tabifyDockWidget(dockStatusWidget, dockLogWidget);
 
     // Deferred resize so it runs after the event loop settles.
-    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget]()
+    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget, dockRawTxWidget]()
     {
         dockStatusWidget->show();
         dockStatusWidget->raise();
         dockGeneratorWidget->show();
-        dockGeneratorWidget->raise();
+        dockRawTxWidget->show();
+        dockRawTxWidget->raise();
 
         mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget},
                         {600, 600, 600, 600, 600}, Qt::Vertical);
