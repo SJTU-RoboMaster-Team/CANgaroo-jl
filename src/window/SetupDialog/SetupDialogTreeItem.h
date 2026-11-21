@@ -32,7 +32,6 @@
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementInterface.h"
 #include "db/model/CanDb.h"
-#include "db/model/LinDb.h"
 
 class SetupDialogTreeItem
 {
@@ -45,7 +44,6 @@ public:
         type_interface,
         type_candb_root,
         type_candb,
-        type_lindb,
     };
 
 public:
@@ -56,7 +54,6 @@ public:
     MeasurementNetwork *network;
     MeasurementInterface *intf;
     pCanDb candb;
-    pLinDb lindb;
 
     SetupDialogTreeItem *getParentItem() const;
     int getChildCount() const;
@@ -77,5 +74,4 @@ private:
 
     QVariant dataInterface(const QModelIndex &index) const;
     QVariant dataCanDb(const QModelIndex &index) const;
-    QVariant dataLinDb(const QModelIndex &index) const;
 };

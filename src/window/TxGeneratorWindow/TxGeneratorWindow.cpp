@@ -31,7 +31,9 @@
 #include <QVBoxLayout>
 #include <QDialogButtonBox>
 #include <QComboBox>
+#include <QSignalBlocker>
 #include "core/Backend.h"
+#include "core/ThemeManager.h"
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementSetup.h"
 #include "core/MeasurementInterface.h"
@@ -95,7 +97,7 @@ TxGeneratorWindow::TxGeneratorWindow(QWidget *parent, Backend &backend) :
     _bitMatrixWidget->setCellSize(50);
     _bitMatrixWidget->setFixedSize(_bitMatrixWidget->sizeHint());
 
-    ui->spinInterval->setSuffix(" ms");
+    ui->spinInterval->setSuffix(tr(" ms"));
     ui->spinInterval->setMinimumWidth(0);
 
     ui->lineManualId->setInputMask("");
@@ -122,15 +124,6 @@ TxGeneratorWindow::TxGeneratorWindow(QWidget *parent, Backend &backend) :
     ui->treeActive->header()->setSectionResizeMode(4, QHeaderView::ResizeToContents); // DLC
     ui->treeActive->header()->setSectionResizeMode(5, QHeaderView::ResizeToContents); // Interval
 
-    // Add Random Payload button programmatically
-    _btnRandomPayload = new QPushButton(tr("Randomize Data"), this);
-    _btnRandomPayload->setToolTip(tr("Randomize data bytes for selected messages"));
-    _btnRandomPayload->setStyleSheet("QPushButton { font-weight: bold; background: #6f42c1; color: white; border-radius: 4px; padding: 4px 8px; } QPushButton:hover { background: #5a32a3; } QPushButton:pressed { background: #4a2d87; } QPushButton:disabled { background: #b8a9d4; }");
-    ui->horizontalLayoutActiveControls->insertWidget(2, _btnRandomPayload); // Insert next to Run/Stop
-    connect(_btnRandomPayload, &QPushButton::released, this, &TxGeneratorWindow::onRandomPayloadReleased);
-
-    srand(time(nullptr));
-
     refreshInterfaces();
     updateMeasurementState();
     populateDbcMessages();
@@ -146,6 +139,11 @@ TxGeneratorWindow::~TxGeneratorWindow()
 void TxGeneratorWindow::retranslateUi()
 {
     ui->retranslateUi(this);
+
+    ui->spinInterval->setSuffix(tr(" ms"));
+
+    // Status button tooltips and the interface column are set per row in code.
+    updateActiveList();
 }
 
 bool TxGeneratorWindow::saveXML(Backend &backend, QDomDocument &xml, QDomElement &root)
@@ -564,45 +562,39 @@ void TxGeneratorWindow::on_treeAvailable_itemDoubleClicked(QTreeWidgetItem *item
 
 void TxGeneratorWindow::on_treeActive_itemSelectionChanged()
 {
+    const auto selected = ui->treeActive->selectedItems();
+    auto *item = selected.value(0, ui->treeActive->currentItem());
+    const int row = ui->treeActive->indexOfTopLevelItem(item);
+    if (row < 0 || row >= _cyclicMessages.size()) { return; }
+
+    const CyclicMessage &cm = _cyclicMessages.at(row);
     isLoading = true;
-    QList<QTreeWidgetItem*> selected = ui->treeActive->selectedItems();
-    if (!selected.isEmpty()) {
-        int row = ui->treeActive->indexOfTopLevelItem(selected.first());
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            const CyclicMessage &cm = _cyclicMessages[row];
-
-            ui->btnBulkRun->blockSignals(true);
-            ui->btnBulkStop->blockSignals(true);
-            ui->btnBulkRun->setChecked(cm.enabled);
-            ui->btnBulkStop->setChecked(!cm.enabled);
-            ui->btnBulkRun->blockSignals(false);
-            ui->btnBulkStop->blockSignals(false);
-
-            ui->spinInterval->blockSignals(true);
-            ui->spinInterval->setValue(cm.interval);
-            ui->spinInterval->blockSignals(false);
-
-
-        }
-    } else {
-        int row = ui->treeActive->currentIndex().row();
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            const CyclicMessage &cm = _cyclicMessages[row];
-            ui->btnBulkRun->blockSignals(true);
-            ui->btnBulkStop->blockSignals(true);
-            ui->btnBulkRun->setChecked(cm.enabled);
-            ui->btnBulkStop->setChecked(!cm.enabled);
-            ui->btnBulkRun->blockSignals(false);
-            ui->btnBulkStop->blockSignals(false);
-
-            ui->spinInterval->blockSignals(true);
-            ui->spinInterval->setValue(cm.interval);
-            ui->spinInterval->blockSignals(false);
-
-
-        }
-    }
+    const QSignalBlocker blockRun(ui->btnBulkRun);
+    const QSignalBlocker blockStop(ui->btnBulkStop);
+    const QSignalBlocker blockInterval(ui->spinInterval);
+    ui->btnBulkRun->setChecked(cm.enabled);
+    ui->btnBulkStop->setChecked(!cm.enabled);
+    ui->spinInterval->setValue(cm.interval);
     isLoading = false;
+    if (!selected.isEmpty()) {
+        emit messageSelected(cm.msg, cm.name, cm.interfaceId, cm.dbMsg);
+    }
+}
+
+bool TxGeneratorWindow::currentMessage(BusMessage *msg, QString *name,
+                                       BusInterfaceId *interfaceId, CanDbMessage **dbMsg) const
+{
+    const auto selected = ui->treeActive->selectedItems();
+    if (selected.isEmpty()) { return false; }
+    const int row = ui->treeActive->indexOfTopLevelItem(selected.first());
+    if (row < 0 || row >= _cyclicMessages.size()) { return false; }
+
+    const CyclicMessage &cm = _cyclicMessages.at(row);
+    if (msg) { *msg = cm.msg; }
+    if (name) { *name = cm.name; }
+    if (interfaceId) { *interfaceId = cm.interfaceId; }
+    if (dbMsg) { *dbMsg = cm.dbMsg; }
+    return true;
 }
 
 void TxGeneratorWindow::treeActiveItemDoubleClicked(QTreeWidgetItem *item, int column)
@@ -618,7 +610,7 @@ void TxGeneratorWindow::treeActiveItemDoubleClicked(QTreeWidgetItem *item, int c
     dlg.resize(750, 480);
 
     auto *layout = new QVBoxLayout(&dlg);
-    auto *rawTx = new RawTxWindow(&dlg, _backend);
+    auto *rawTx = new RawTxWindow(&dlg, _backend, false);
     rawTx->setMessage(cm.msg, cm.name, cm.interfaceId, cm.dbMsg);
     layout->addWidget(rawTx);
 
@@ -761,6 +753,9 @@ void TxGeneratorWindow::onSendTimerTimeout()
 
 void TxGeneratorWindow::onSetupChanged()
 {
+    for (CyclicMessage &cm : _cyclicMessages) {
+        cm.dbMsg = nullptr;
+    }
     refreshInterfaces();
 }
 
@@ -800,14 +795,14 @@ void TxGeneratorWindow::updateActiveList()
         item->setFlags(item->flags() & ~Qt::ItemIsUserCheckable); // Explicitly remove checkbox
 
         // Create Status Button
-        QPushButton *btnStatus = new QPushButton(cm.enabled ? "⏹" : "▶");
-        btnStatus->setToolTip(cm.enabled ? "Stop" : "Start");
+        const ThemeColors &colors = ThemeManager::instance().colors();
+        QPushButton *btnStatus = new QPushButton(cm.enabled ? QStringLiteral("■") : QStringLiteral("▶"));
+        btnStatus->setToolTip(cm.enabled ? tr("Stop") : tr("Start"));
         btnStatus->setFixedWidth(40);
-        if (cm.enabled) {
-            btnStatus->setStyleSheet("QPushButton { color: #dc3545; font-weight: bold; background: transparent; border: 1px solid #dc3545; border-radius: 3px; } QPushButton:hover { background: #dc3545; color: white; }");
-        } else {
-            btnStatus->setStyleSheet("QPushButton { color: #28a745; font-weight: bold; background: transparent; border: 1px solid #28a745; border-radius: 3px; } QPushButton:hover { background: #28a745; color: white; }");
-        }
+        const QString accent = cm.enabled ? colors.statusError.name() : colors.statusSuccess.name();
+        btnStatus->setStyleSheet(QStringLiteral(
+            "QPushButton { color: %1; font-weight: bold; background: transparent; border: 1px solid %1; border-radius: 3px; }"
+            "QPushButton:hover { background: %1; color: white; }").arg(accent));
 
         // Starting needs a running measurement; stopping is always allowed.
         btnStatus->setEnabled(cm.enabled || _backend.isMeasurementRunning());
@@ -817,7 +812,7 @@ void TxGeneratorWindow::updateActiveList()
         item->setText(1, "0x" + QString("%1").arg(cm.msg.getId(), 3, 16, QChar('0')).toUpper());
         item->setText(2, cm.name);
         BusInterface *intf = _backend.getInterfaceById(cm.interfaceId);
-        item->setText(3, intf ? intf->getName() : "Unknown");
+        item->setText(3, intf ? intf->getName() : tr("Unknown"));
         item->setText(4, QString::number(cm.msg.getLength()));
         item->setText(5, QString::number(cm.interval));
 
@@ -844,20 +839,20 @@ void TxGeneratorWindow::updateRowUI(int row)
     // Update button in column 0
     QPushButton *btnStatus = qobject_cast<QPushButton*>(ui->treeActive->itemWidget(item, 0));
     if (btnStatus) {
-        btnStatus->setText(cm.enabled ? "⏹" : "▶");
-        btnStatus->setToolTip(cm.enabled ? "Stop" : "Start");
-        if (cm.enabled) {
-            btnStatus->setStyleSheet("QPushButton { color: #dc3545; font-weight: bold; background: transparent; border: 1px solid #dc3545; border-radius: 3px; } QPushButton:hover { background: #dc3545; color: white; }");
-        } else {
-            btnStatus->setStyleSheet("QPushButton { color: #28a745; font-weight: bold; background: transparent; border: 1px solid #28a745; border-radius: 3px; } QPushButton:hover { background: #28a745; color: white; }");
-        }
+        const ThemeColors &colors = ThemeManager::instance().colors();
+        btnStatus->setText(cm.enabled ? QStringLiteral("■") : QStringLiteral("▶"));
+        btnStatus->setToolTip(cm.enabled ? tr("Stop") : tr("Start"));
+        const QString accent = cm.enabled ? colors.statusError.name() : colors.statusSuccess.name();
+        btnStatus->setStyleSheet(QStringLiteral(
+            "QPushButton { color: %1; font-weight: bold; background: transparent; border: 1px solid %1; border-radius: 3px; }"
+            "QPushButton:hover { background: %1; color: white; }").arg(accent));
         btnStatus->setEnabled(cm.enabled || _backend.isMeasurementRunning());
     }
 
     item->setText(1, "0x" + QString("%1").arg(cm.msg.getId(), 3, 16, QChar('0')).toUpper());
     item->setText(2, cm.name);
     BusInterface *intf = _backend.getInterfaceById(cm.interfaceId);
-    item->setText(3, intf ? intf->getName() : "Unknown");
+    item->setText(3, intf ? intf->getName() : tr("Unknown"));
     item->setText(4, QString::number(cm.msg.getLength()));
     item->setText(5, QString::number(cm.interval));
 
@@ -928,31 +923,3 @@ void TxGeneratorWindow::updateSendTimer()
     const auto delay = std::chrono::ceil<std::chrono::milliseconds>(*earliest - now);
     _sendTimer->start(std::max<qint64>(0, delay.count()));
 }
-
-void TxGeneratorWindow::onRandomPayloadReleased()
-{
-    QList<QTreeWidgetItem*> selected = ui->treeActive->selectedItems();
-    if (selected.isEmpty()) {
-        int row = ui->treeActive->currentIndex().row();
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            selected.append(ui->treeActive->currentItem());
-        }
-    }
-
-    for (auto *item : selected) {
-        int row = ui->treeActive->indexOfTopLevelItem(item);
-        if (row >= 0 && row < _cyclicMessages.size()) {
-            CyclicMessage &cm = _cyclicMessages[row];
-            for (int i = 0; i < cm.msg.getLength(); ++i) {
-                cm.msg.setDataAt(i, static_cast<uint8_t>(rand() % 256));
-            }
-            updateRowUI(row);
-
-            // If this is the currently focused message in the bit matrix, update it
-            if (item == ui->treeActive->currentItem()) {
-
-            }
-        }
-    }
-}
-

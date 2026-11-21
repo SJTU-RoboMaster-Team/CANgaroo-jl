@@ -1,11 +1,14 @@
-SOURCES += \
-    $$PWD/ProtocolManager.cpp \
-    $$PWD/UdsDecoder.cpp \
-    $$PWD/J1939Decoder.cpp
+# Generic protocol decoders. Each decoder implements IDecoder and is fed by
+# ProtocolManager; protocol specific sources live in their own subdirectory.
+
+INCLUDEPATH += $$PWD
+
+include($$PWD/motor/motor.pri)
 
 HEADERS += \
-    $$PWD/ProtocolTypes.h \
     $$PWD/IDecoder.h \
-    $$PWD/ProtocolManager.h \
-    $$PWD/UdsDecoder.h \
-    $$PWD/J1939Decoder.h
+    $$PWD/ProtocolTypes.h \
+    $$PWD/ProtocolManager.h
+
+SOURCES += \
+    $$PWD/ProtocolManager.cpp

@@ -43,6 +43,9 @@ public slots:
     void onSetupDialogCreated(SetupDialog &dlg);
     void onShowInterfacePage(SetupDialog &dlg, MeasurementInterface *mi);
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private slots:
     void updateUI();
 
@@ -56,6 +59,7 @@ private:
     void fillFdBitrate(BusInterface *intf, unsigned selectedBitrate);
     void fillSamplePointsForFdBitrate(BusInterface *intf, unsigned selectedBitrate, unsigned selectedSamplePoint);
     void disenableUI(bool enabled);
+    void updateInterfaceHeaderTexts();
 
     Backend &backend();
 };

@@ -76,8 +76,8 @@ private slots:
 
     void on_cbTraceClearpushButton(void);
     void on_cbViewMode_currentIndexChanged(int index);
-    void on_tabs_currentChanged(int index);
     void openFilterDialog();
+    void onTreeContextMenu(const QPoint &pos);
 
 private slots:
     void doScrollToBottom();
@@ -86,30 +86,20 @@ private:
     Ui::TraceWindow *ui;
     Backend *_backend;
     timestamp_mode_t _timestampMode;
+    mode_t _mode;
     QTimer _scrollTimer;
     QTimer _filterDebounceTimer;
-    bool _scrollPending[3] = {}; // One per Cat_Count
+    bool _scrollPending = false;
 
-    enum Category {
-        Cat_Aggregated = 0,
-        Cat_UDS = 1,
-        Cat_J1939 = 2,
-        Cat_Count = 3
-    };
-
-    TraceFilterModel * _filterModels[Cat_Count];
-    UnifiedTraceViewModel *_viewModels[Cat_Count];
-    UnifiedTraceViewModel *_altViewModels[Cat_Count];   // alternative mode per tab (null for monitor)
-    TraceFilterModel *_altFilterModels[Cat_Count];
-    mode_t _tabModes[Cat_Count];
+    TraceFilterModel *_rollingFilterModel;
+    UnifiedTraceViewModel *_rollingModel;
     AggregatedTraceViewModel *_aggregatedTraceViewModel;
     QSortFilterProxyModel *_aggregatedProxyModel;
-    TraceFilterModel * _aggMonitorFilterModel;
+    TraceFilterModel *_aggMonitorFilterModel;
 
     bool _filterShowTx = true;
     bool _filterShowRx = true;
     QSet<uint32_t> _filterHiddenMessageIds;
-    QSet<uint8_t>  _filterHiddenLinFrameIds;
     QSet<BusInterfaceId> _filterHiddenInterfaces;
 
     void applyDialogFilters();

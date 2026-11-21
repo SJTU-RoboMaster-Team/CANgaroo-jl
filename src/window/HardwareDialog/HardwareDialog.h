@@ -62,6 +62,7 @@ private:
     QTreeWidget *_tree;
     QTextBrowser *_details;
     QPushButton *_btnRescan;
+    QPushButton *_btnRebind = nullptr;
     QTimer *_timer;
 
     BusInterfaceId _detailsId = InvalidBusInterfaceId;

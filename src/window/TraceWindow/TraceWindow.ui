@@ -112,18 +112,18 @@
         </property>
         <property name="maximumSize">
          <size>
-          <width>150</width>
+          <width>220</width>
           <height>16777215</height>
          </size>
         </property>
         <property name="toolTip">
-         <string/>
+         <string>Filter rows by CAN ID, message name, data, or regular expression</string>
         </property>
         <property name="statusTip">
          <string/>
         </property>
         <property name="placeholderText">
-         <string/>
+         <string>ID / Name / Regex...</string>
         </property>
        </widget>
       </item>
@@ -166,52 +166,10 @@
     </widget>
    </item>
    <item>
-    <widget class="QTabWidget" name="tabs">
-     <property name="currentIndex">
-      <number>0</number>
+    <widget class="QTreeView" name="treeAgg">
+     <property name="verticalScrollMode">
+      <enum>QAbstractItemView::ScrollPerPixel</enum>
      </property>
-     <widget class="QWidget" name="tabAgg">
-      <attribute name="title">
-       <string>Monitor</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
-       <item>
-        <widget class="QTreeView" name="treeAgg">
-         <property name="verticalScrollMode">
-          <enum>QAbstractItemView::ScrollPerPixel</enum>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tabUds">
-      <attribute name="title">
-       <string>UDS Protocol</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_3">
-       <item>
-        <widget class="QTreeView" name="treeUds">
-         <property name="verticalScrollMode">
-          <enum>QAbstractItemView::ScrollPerPixel</enum>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tabJ1939">
-      <attribute name="title">
-       <string>J1939</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_4">
-       <item>
-        <widget class="QTreeView" name="treeJ1939">
-         <property name="verticalScrollMode">
-          <enum>QAbstractItemView::ScrollPerPixel</enum>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
     </widget>
    </item>
   </layout>

@@ -270,6 +270,15 @@ QString CandleApiInterface::getDetailsStr() const
            + " | " + QString::fromStdWString(getPath());
 }
 
+QString CandleApiInterface::hardwareKey() const
+{
+    if (!_sharedDev->hardwareBaseKey.isEmpty())
+    {
+        return _sharedDev->hardwareBaseKey + QStringLiteral(":ch%1").arg(_channel);
+    }
+    return getName();
+}
+
 uint8_t CandleApiInterface::getChannel() const
 {
     return _channel;

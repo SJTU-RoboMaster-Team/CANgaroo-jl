@@ -54,6 +54,7 @@ struct CandleSharedDevice
 
     candle_handle handle{nullptr};
     QString productName{"Candle"};
+    QString hardwareBaseKey;
     int deviceIndex{0};
 
     // Open/close reference count — protected by openMutex.

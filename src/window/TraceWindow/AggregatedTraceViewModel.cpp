@@ -29,7 +29,6 @@
 #include "core/Backend.h"
 #include "core/BusTrace.h"
 #include "db/model/CanDbMessage.h"
-#include "db/model/LinFrame.h"
 
 AggregatedTraceViewModel::AggregatedTraceViewModel(Backend &backend)
     : BaseTraceViewModel(backend)
@@ -90,19 +89,10 @@ void AggregatedTraceViewModel::createItem(const BusMessage &msg)
     AggregatedTraceViewItem *item = new AggregatedTraceViewItem(_rootItem);
     item->_lastmsg = msg;
 
-    if (msg.busType() == BusType::LIN) {
-        LinFrame *linFrame = backend()->findLinFrame(msg);
-        if (linFrame) {
-            for (int i = 0; i < linFrame->signalList().size(); ++i) {
-                item->appendChild(new AggregatedTraceViewItem(item));
-            }
-        }
-    } else {
-        CanDbMessage *dbmsg = backend()->findDbMessage(msg);
-        if (dbmsg) {
-            for (int i = 0; i < dbmsg->getSignals().length(); i++) {
-                item->appendChild(new AggregatedTraceViewItem(item));
-            }
+    CanDbMessage *dbmsg = backend()->findDbMessage(msg);
+    if (dbmsg) {
+        for (int i = 0; i < dbmsg->getSignals().length(); i++) {
+            item->appendChild(new AggregatedTraceViewItem(item));
         }
     }
 
@@ -164,19 +154,10 @@ void AggregatedTraceViewModel::onSetupChanged()
     for (AggregatedTraceViewItem *item : _map.values()) {
         item->removeChildren();
         const BusMessage &lastMsg = item->_lastmsg;
-        if (lastMsg.busType() == BusType::LIN) {
-            LinFrame *linFrame = backend()->findLinFrame(lastMsg);
-            if (linFrame) {
-                for (int i = 0; i < linFrame->signalList().size(); ++i) {
-                    item->appendChild(new AggregatedTraceViewItem(item));
-                }
-            }
-        } else {
-            CanDbMessage *dbmsg = backend()->findDbMessage(lastMsg);
-            if (dbmsg) {
-                for (int i = 0; i < dbmsg->getSignals().length(); i++) {
-                    item->appendChild(new AggregatedTraceViewItem(item));
-                }
+        CanDbMessage *dbmsg = backend()->findDbMessage(lastMsg);
+        if (dbmsg) {
+            for (int i = 0; i < dbmsg->getSignals().length(); i++) {
+                item->appendChild(new AggregatedTraceViewItem(item));
             }
         }
     }
@@ -232,12 +213,11 @@ void AggregatedTraceViewModel::afterClear()
 
 AggregatedTraceViewModel::unique_key_t AggregatedTraceViewModel::makeUniqueKey(const BusMessage &msg) const
 {
-    // Bit 63: RX flag; bit 62: error frame; bits 32-47: interface ID; bit 30: bus type (1=LIN);
+    // Bit 63: RX flag; bit 62: error frame; bits 32-47: interface ID;
     // bits 0-29: frame ID. Error frames have ID 0, the error bit keeps them apart from real 0x000.
     return  static_cast<uint64_t>(msg.isRX()) << 63
           | static_cast<uint64_t>(msg.isErrorFrame()) << 62
           | static_cast<uint64_t>(msg.getInterfaceId()) << 32
-          | static_cast<uint64_t>(static_cast<uint8_t>(msg.busType())) << 30
           | (static_cast<uint64_t>(msg.getRawId()) & 0x3FFFFFFFull);
 }
 

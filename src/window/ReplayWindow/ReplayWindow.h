@@ -1,5 +1,6 @@
 /*
   Copyright (c) 2026 Schildkroet
+  Copyright (c) 2026 SJTU RoboMaster Team
 
   This file is part of CANgaroo.
 
@@ -36,13 +37,15 @@ class QCheckBox;
 class QComboBox;
 class QProgressBar;
 
-
 class ReplayWindow : public ConfigurableWidget
 {
     Q_OBJECT
 
 public:
     explicit ReplayWindow(QWidget *parent, Backend &backend);
+    ~ReplayWindow() override;
+
+    void loadTraceFile(const QString &filename);
 
     bool saveXML(Backend &backend, QDomDocument &xml, QDomElement &root) override;
     bool loadXML(Backend &backend, QDomElement &el) override;
@@ -52,8 +55,11 @@ protected:
 
 private slots:
     void onLoadClicked();
-    void onPlayClicked();
+    void onPlayPauseClicked();
     void onStopClicked();
+    void onStepClicked();
+    void onLoadToTraceClicked();
+    void onSplitSaveClicked();
     void onSliderMoved(int value);
     void onTimerTick();
     void onSelectAllClicked();
@@ -67,10 +73,14 @@ private:
 
     QLineEdit *_fileLabel;
     QPushButton *_btnLoad;
-    QPushButton *_btnPlay;
+    QPushButton *_btnPlayPause;
     QPushButton *_btnStop;
+    QPushButton *_btnStep;
+    QPushButton *_btnLoadToTrace;
+    QPushButton *_btnSplitSave;
     QPushButton *_btnSelectAll;
     QPushButton *_btnDeselectAll;
+    QLabel *_speedLabel;
     QDoubleSpinBox *_speedSpin;
     QSlider *_slider;
     QLabel *_posLabel;
@@ -84,28 +94,24 @@ private:
     QString _traceFilePath;
     QVector<BusMessage> _messages;
     QVector<QString> _messageInterfaces;
-    int _playbackIndex;
-    bool _playing;
+    int _playbackIndex = 0;
+    bool _playing = false;
+    bool _paused = false;
     QElapsedTimer _elapsed;
-    double _traceStartTime;
+    double _traceStartTime = 0.0;
+    double _firstTraceTimestamp = 0.0;
+    double _wallAnchorTime = 0.0;
 
-    // Filter: interface -> (CAN ID -> direction flags)
-    // Bit 0 = RX enabled, Bit 1 = TX enabled
     static constexpr uint8_t DirRx = 0x01;
     static constexpr uint8_t DirTx = 0x02;
     static constexpr uint32_t ErrorFrameId = 0xFFFFFFFF;
     QMap<QString, QMap<uint32_t, uint8_t>> _enabledDirs;
-
-    // Channel mapping: trace channel name -> combo box
     QMap<QString, QComboBox*> _channelCombos;
 
-    void loadTraceFile(const QString &filename);
-    bool parseCanDump(QFile &file);
-    bool parseVectorAsc(QFile &file);
-    bool parsePcap(QFile &file);
-    bool parsePcapNg(QFile &file);
     void buildFilterTree();
     void updatePositionLabel();
+    void dispatchSingleMessage(int index, bool moreToFollow);
     bool isMessageEnabled(int index) const;
     BusInterfaceId getMappedInterface(const QString &channel) const;
+    QString formatTimeMmSs(double sec) const;
 };

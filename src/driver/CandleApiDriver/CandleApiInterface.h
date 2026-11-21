@@ -52,6 +52,7 @@ public:
 
     QString getName() const override;
     QString getDetailsStr() const override;
+    QString hardwareKey() const override;
 
     void applyConfig(const MeasurementInterface &mi) override;
 

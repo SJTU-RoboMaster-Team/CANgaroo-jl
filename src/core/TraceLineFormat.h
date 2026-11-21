@@ -70,6 +70,12 @@ inline constexpr std::array<int, 16> can_fd_dlc_lengths = {
 // One Linux candump line without trailing newline.
 [[nodiscard]] QString canDumpLine(const BusMessage &msg, const QString &interfaceName);
 
+// Raw CAN/FD frame CSV header line without trailing newline.
+[[nodiscard]] QString csvHeader();
+
+// One raw CAN/FD frame CSV line without trailing newline.
+[[nodiscard]] QString csvLine(const BusMessage &msg, double tStart, const QString &interfaceName);
+
 // Parses a whitespace-split ASC CAN FD event ("<time> CANFD <channel> ...") into
 // `msg`: id, flags, direction, channel as interface id, length and data. The
 // timestamp is left to the caller. Accepts the Vector layout, with or without a

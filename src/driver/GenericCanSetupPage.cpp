@@ -24,6 +24,7 @@
 #include "core/MeasurementInterface.h"
 #include "window/SetupDialog/SetupDialog.h"
 #include <QList>
+#include <QEvent>
 #include <QtAlgorithms>
 #include <algorithm>
 
@@ -34,6 +35,11 @@ GenericCanSetupPage::GenericCanSetupPage(QWidget *parent) :
     _enable_ui_updates(false)
 {
     ui->setupUi(this);
+    // The designer placeholder texts would otherwise be visible as "TextLabel"
+    // until an interface is selected.
+    ui->laDriver->clear();
+    ui->laInterface->clear();
+    ui->laInterfaceDetails->clear();
     connect(ui->cbBitrate, &QComboBox::currentIndexChanged, this, [this]() { updateUI(); });
     connect(ui->cbSamplePoint, &QComboBox::currentIndexChanged, this, [this]() { updateUI(); });
     connect(ui->cbBitrateFD, &QComboBox::currentIndexChanged, this, [this]() { updateUI(); });
@@ -57,6 +63,41 @@ GenericCanSetupPage::~GenericCanSetupPage()
     delete ui;
 }
 
+void GenericCanSetupPage::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::LanguageChange)
+    {
+        ui->retranslateUi(this);
+        updateInterfaceHeaderTexts(); // ui retranslation restores the .ui placeholders
+        updateUI();                   // re-applies the composed "(unavailable) %1" texts
+    }
+    QWidget::changeEvent(event);
+}
+
+void GenericCanSetupPage::updateInterfaceHeaderTexts()
+{
+    if (!_mi)
+    {
+        ui->laDriver->clear();
+        ui->laInterface->clear();
+        ui->laInterfaceDetails->clear();
+        return;
+    }
+
+    BusInterface *intf = _mi->isResolved() ? backend().getInterfaceById(_mi->busInterface()) : nullptr;
+    if (!intf)
+    {
+        ui->laDriver->setText(_mi->savedDriverName().isEmpty() ? tr("Unknown") : _mi->savedDriverName());
+        ui->laInterface->setText(tr("(unavailable) %1").arg(_mi->savedInterfaceName()));
+        ui->laInterfaceDetails->setText(tr("Device is offline. Reconnect USB and use 'Rebind & Resume' or Rescan."));
+        return;
+    }
+
+    ui->laDriver->setText(intf->getDriver()->getName());
+    ui->laInterface->setText(QString("%1 - [ID: %2]").arg(intf->getName()).arg(intf->getId()));
+    ui->laInterfaceDetails->setText(intf->getDetailsStr());
+}
+
 void GenericCanSetupPage::onSetupDialogCreated(SetupDialog &dlg)
 {
     dlg.addPage(this);
@@ -65,13 +106,34 @@ void GenericCanSetupPage::onSetupDialogCreated(SetupDialog &dlg)
 
 void GenericCanSetupPage::onShowInterfacePage(SetupDialog &dlg, MeasurementInterface *mi)
 {
-    if (mi->busType() != BusType::CAN)
-        return;
 
     _mi = mi;
-    BusInterface *intf = backend().getInterfaceById(_mi->busInterface());
+    BusInterface *intf = _mi->isResolved() ? backend().getInterfaceById(_mi->busInterface()) : nullptr;
 
     _enable_ui_updates = false;
+
+    if (!intf)
+    {
+        ui->laDriver->setText(_mi->savedDriverName().isEmpty() ? tr("Unknown") : _mi->savedDriverName());
+        ui->laInterface->setText(tr("(unavailable) %1").arg(_mi->savedInterfaceName()));
+        ui->laInterfaceDetails->setText(tr("Device is offline. Reconnect USB and use 'Rebind & Resume' or Rescan."));
+        ui->cbBitrate->clear();
+        ui->cbBitrate->addItem(QString::number(_mi->bitrate()), _mi->bitrate());
+        ui->cbSamplePoint->clear();
+        ui->cbSamplePoint->addItem(CanTiming::getSamplePointStr(_mi->samplePoint()), _mi->samplePoint());
+        ui->cbBitrateFD->clear();
+        ui->cbBitrateFD->addItem(QString::number(_mi->fdBitrate()), _mi->fdBitrate());
+        ui->cbSamplePointFD->clear();
+        ui->cbSamplePointFD->addItem(CanTiming::getSamplePointFDStr(_mi->fdSamplePoint()), _mi->fdSamplePoint());
+        ui->cbConfigOS->setChecked(!_mi->doConfigure());
+        ui->cbListenOnly->setChecked(_mi->isListenOnlyMode());
+        ui->cbOneShot->setChecked(_mi->isOneShotMode());
+        ui->cbTripleSampling->setChecked(_mi->isTripleSampling());
+        ui->cbAutoRestart->setChecked(_mi->doAutoRestart());
+        disenableUI(false);
+        dlg.displayPage(this);
+        return;
+    }
 
     ui->laDriver->setText(intf->getDriver()->getName());
     ui->laInterface->setText(QString("%1 - [ID: %2]").arg(intf->getName()).arg(intf->getId()));
@@ -345,12 +407,12 @@ void GenericCanSetupPage::fillSamplePointsForFdBitrate(BusInterface *intf, unsig
 void GenericCanSetupPage::disenableUI(bool enabled)
 {
 
-    BusInterface *intf = backend().getInterfaceById(_mi->busInterface());
-    uint32_t caps = intf->getCapabilities();
+    BusInterface *intf = _mi ? backend().getInterfaceById(_mi->busInterface()) : nullptr;
+    uint32_t caps = intf ? intf->getCapabilities() : 0;
 
-    ui->cbBitrate->setEnabled(!ui->cbCustomBitrate->isChecked());
-    ui->cbSamplePoint->setEnabled(!ui->cbCustomBitrate->isChecked());
-    ui->cbConfigOS->setEnabled(caps & BusInterface::capability_config_os);
+    ui->cbBitrate->setEnabled(enabled && intf && !ui->cbCustomBitrate->isChecked());
+    ui->cbSamplePoint->setEnabled(enabled && intf && !ui->cbCustomBitrate->isChecked());
+    ui->cbConfigOS->setEnabled(intf && (caps & BusInterface::capability_config_os));
 
     ui->cbBitrateFD->setEnabled(!ui->cbCustomFdBitrate->isChecked() && (caps & BusInterface::capability_canfd));
     ui->cbSamplePointFD->setEnabled(!ui->cbCustomFdBitrate->isChecked() && (caps & BusInterface::capability_canfd));

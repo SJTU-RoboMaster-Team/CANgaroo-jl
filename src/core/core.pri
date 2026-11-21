@@ -11,12 +11,13 @@ SOURCES += \
     $$PWD/ConfigurableWidget.cpp \
     $$PWD/Log.cpp \
     $$PWD/ThemeManager.cpp \
-    $$PWD/ConditionalLoggingManager.cpp \
     $$PWD/TraceLineFormat.cpp \
-    $$PWD/PcapNgFormat.cpp \
     $$PWD/TraceFileWriter.cpp \
+    $$PWD/TraceFileReader.cpp \
     $$PWD/TraceRecorder.cpp \
-    $$PWD/PythonEngine.cpp
+    $$PWD/TriggerCaptureManager.cpp \
+    $$PWD/MotorManager.cpp \
+    $$PWD/UpdateChecker.cpp
 
 HEADERS += \
     $$PWD/portable_endian.h \
@@ -30,11 +31,12 @@ HEADERS += \
     $$PWD/ConfigurableWidget.h \
     $$PWD/Log.h \
     $$PWD/ThemeManager.h \
-    $$PWD/ConditionalLoggingManager.h \
     $$PWD/TraceLineFormat.h \
-    $$PWD/PcapNgFormat.h \
     $$PWD/TraceFileWriter.h \
+    $$PWD/TraceFileReader.h \
     $$PWD/SocketCan.h \
     $$PWD/TraceRecorder.h \
-    $$PWD/PythonEngine.h \
-    $$PWD/TraceFileFormat.h
+    $$PWD/TriggerCaptureManager.h \
+    $$PWD/MotorManager.h \
+    $$PWD/TraceFileFormat.h \
+    $$PWD/UpdateChecker.h

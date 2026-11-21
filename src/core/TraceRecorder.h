@@ -42,6 +42,7 @@ struct RecordingConfig
     TraceFileFormat format = TraceFileFormat::VectorAsc;
     int splitSizeMb = 0;    // 0 = never start a new file
     bool stayArmed = true;  // keep recording armed for the next measurement
+    bool recordDuringReplay = true; // also record when offline replay runs
 };
 
 // Streams every trace message to disk while armed and a measurement runs, so
@@ -57,13 +58,11 @@ public:
     using InterfaceNameFn = std::function<QString(BusInterfaceId)>;
     using MeasurementRunningFn = std::function<bool()>;
 
-    // `interfaceName` labels candump lines and pcapng interfaces;
-    // `measurementRunning` decides whether arming starts recording immediately.
+    // `interfaceName` labels candump lines; `measurementRunning` decides whether
+    // arming starts recording immediately.
     // Taking these instead of Backend keeps the recorder unit-testable.
     TraceRecorder(InterfaceNameFn interfaceName, MeasurementRunningFn measurementRunning, QObject *parent = nullptr);
     ~TraceRecorder() override;
-
-    [[nodiscard]] static bool isFormatSupported(TraceFileFormat format) noexcept;
 
     // File name (without folder) of part `index` (1-based) of a recording that
     // started at `start`. Placeholders: {date}, {time}, {index}.
@@ -87,6 +86,10 @@ public:
     void onMeasurementStarting();
     void onMeasurementStopped();
 
+    // Called by Backend when ReplayWindow starts/stops playback.
+    void onReplayStarting();
+    void onReplayStopped();
+
     // Thread-safe.
     void enqueue(const BusMessage &msg);
 
@@ -109,6 +112,7 @@ private:
     RecordingConfig _active;  // snapshot of _config for the running recording
 
     bool _armed = false;
+    bool _replayActive = false;
     std::atomic<bool> _recording{false};
 
     QMutex _pendingMutex;
@@ -120,7 +124,6 @@ private:
     QString _lastError;
     QDateTime _sessionStart;
     QMap<BusInterfaceId, int> _channelMap;
-    QMap<BusInterfaceId, quint32> _pcapInterfaces;  // IDB index per interface in the current file
     double _fileStartTimestamp = 0.0;
     int _fileIndex = 0;
     qint64 _fileBytes = 0;

@@ -27,6 +27,7 @@
 #include <QClipboard>
 #include <QDialogButtonBox>
 #include <QHeaderView>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSplitter>
@@ -53,7 +54,7 @@ struct CapabilityName
     const char *name;
 };
 
-// Order: CAN first, then LIN, as in BusInterface's capability enum.
+// Order matches BusInterface's capability enum.
 constexpr std::array capabilityTable{
     CapabilityName{BusInterface::capability_canfd,                QT_TRANSLATE_NOOP("HardwareDialog", "CAN FD")},
     CapabilityName{BusInterface::capability_listen_only,          QT_TRANSLATE_NOOP("HardwareDialog", "Listen only")},
@@ -65,9 +66,6 @@ constexpr std::array capabilityTable{
     CapabilityName{BusInterface::capability_custom_canfd_bitrate, QT_TRANSLATE_NOOP("HardwareDialog", "Custom CAN FD bitrate")},
     CapabilityName{BusInterface::capability_bus_off_recovery,     QT_TRANSLATE_NOOP("HardwareDialog", "Bus-off recovery")},
     CapabilityName{BusInterface::capability_tdc,                  QT_TRANSLATE_NOOP("HardwareDialog", "TDC")},
-    CapabilityName{BusInterface::capability_lin_master,           QT_TRANSLATE_NOOP("HardwareDialog", "LIN master")},
-    CapabilityName{BusInterface::capability_lin_slave,            QT_TRANSLATE_NOOP("HardwareDialog", "LIN slave")},
-    CapabilityName{BusInterface::capability_lin_monitor,          QT_TRANSLATE_NOOP("HardwareDialog", "LIN monitor")},
 };
 
 void setTextIfChanged(QTreeWidgetItem *item, int column, const QString &text)
@@ -111,6 +109,8 @@ HardwareDialog::HardwareDialog(Backend &backend, QWidget *parent)
     _btnRescan->setIcon(QIcon::fromTheme(QStringLiteral("view-refresh")));
     _btnRescan->setToolTip(tr("Ask every driver to look for new or removed devices"));
     buttons->addButton(_btnRescan, QDialogButtonBox::ActionRole);
+    _btnRebind = buttons->addButton(tr("Rebind && &Resume"), QDialogButtonBox::ActionRole);
+    _btnRebind->setToolTip(tr("Rescan USB/CAN hardware, rebind configured interfaces by Hardware Key, and resume measurement"));
     auto *btnCopy = buttons->addButton(tr("&Copy Report"), QDialogButtonBox::ActionRole);
     btnCopy->setToolTip(tr("Copy the device list as plain text, e.g. for a bug report"));
 
@@ -120,6 +120,14 @@ HardwareDialog::HardwareDialog(Backend &backend, QWidget *parent)
 
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(_btnRescan, &QPushButton::clicked, this, &HardwareDialog::rescan);
+    connect(_btnRebind, &QPushButton::clicked, this, [this]() {
+        QString err;
+        if (!_backend.rebindAndResume(&err)) {
+            QMessageBox::warning(this, tr("Rebind & Resume"),
+                                 err.isEmpty() ? tr("Failed to rebind interfaces.") : err);
+        }
+        rebuild();
+    });
     connect(btnCopy, &QPushButton::clicked, this, &HardwareDialog::copyReport);
     connect(_tree, &QTreeWidget::itemSelectionChanged, this, &HardwareDialog::onSelectionChanged);
 
@@ -237,7 +245,7 @@ void HardwareDialog::onSelectionChanged()
     {
         _detailsId = id;
         _detailsBitrates.clear();
-        if (intf && intf->busType() == BusType::CAN)
+        if (intf)
         {
             for (const CanTiming &timing : intf->getAvailableBitrates())
                 _detailsBitrates.append(timing.getTitle());
@@ -277,6 +285,7 @@ void HardwareDialog::refreshDetails()
     if (open)
         html += row(tr("Bus state"), intf->getStateText());
     html += row(tr("Interface ID"), QString::number(intf->getId()));
+    html += row(tr("Hardware Key"), intf->hardwareKey());
 
     // How the current setup uses this interface.
     for (MeasurementNetwork *network : _backend.getSetup().getNetworks())
@@ -286,9 +295,7 @@ void HardwareDialog::refreshDetails()
             if (mi->busInterface() != intf->getId())
                 continue;
             QString usage = network->name();
-            if (mi->busType() == BusType::LIN)
-                usage += tr(", %1 Bd").arg(mi->linBaudRate());
-            else if (mi->isCanFD())
+            if (mi->isCanFD())
                 usage += tr(", %1 / %2 kBit/s (FD)").arg(mi->bitrate() / 1000).arg(mi->fdBitrate() / 1000);
             else
                 usage += tr(", %1 kBit/s").arg(mi->bitrate() / 1000);
@@ -398,7 +405,8 @@ QString HardwareDialog::networkNameOf(BusInterfaceId id)
 
 QString HardwareDialog::busTypeText(const BusInterface &intf)
 {
-    return intf.busType() == BusType::LIN ? QStringLiteral("LIN") : QStringLiteral("CAN");
+    Q_UNUSED(intf);
+    return QStringLiteral("CAN");
 }
 
 QStringList HardwareDialog::capabilityNames(uint32_t caps)

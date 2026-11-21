@@ -47,6 +47,7 @@ private:
     QCheckBox *m_splitCheck;
     QSpinBox *m_splitSizeSpin;
     QCheckBox *m_stayArmedCheck;
+    QCheckBox *m_recordReplayCheck;
     QPushButton *m_okButton;
 
     void browseFolder();

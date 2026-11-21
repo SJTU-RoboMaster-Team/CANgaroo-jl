@@ -28,6 +28,9 @@
 
 #include "core/BusTrace.h"
 #include "core/TraceRecorder.h"
+#include "core/TriggerCaptureManager.h"
+#include "core/MotorManager.h"
+#include "decoders/motor/MotorDbc.h"
 #include "core/MeasurementSetup.h"
 #include "core/MeasurementNetwork.h"
 #include "core/MeasurementInterface.h"
@@ -35,8 +38,8 @@
 #include "driver/BusInterface.h"
 #include "driver/BusListener.h"
 #include "db/dbc/DbcParser.h"
-#include "db/model/LinDb.h"
-#include "db/model/LinFrame.h"
+#include "db/model/CanDbMessage.h"
+#include "db/model/CanDbSignal.h"
 
 Backend *Backend::_instance = nullptr;
 
@@ -50,13 +53,34 @@ Backend::Backend()
 
     setDefaultSetup();
     _trace = new BusTrace(*this, this, 50);
-    _conditionalLoggingManager = new ConditionalLoggingManager(*this, this);
     _traceRecorder = new TraceRecorder(
         [this](BusInterfaceId id) { return getInterfaceName(id); },
         [this]() { return isMeasurementRunning(); },
         this);
 
-    connect(_trace, &BusTrace::messageEnqueued, this, &Backend::onMessageEnqueued);
+    _triggerCaptureManager = new TriggerCaptureManager(
+        [this](BusInterfaceId id) { return getInterfaceName(id); },
+        [this](const BusMessage &msg, const QString &msgName, const QString &sigName, double &outVal) -> bool {
+            CanDbMessage *dbMsg = findDbMessage(msg);
+            if (!dbMsg) {
+                return false;
+            }
+            if (!msgName.isEmpty() && dbMsg->getName() != msgName) {
+                return false;
+            }
+            for (CanDbSignal *sig : dbMsg->getSignals()) {
+                if (sig && sig->name() == sigName && sig->isPresentInMessage(msg)) {
+                    outVal = sig->extractPhysicalFromMessage(msg);
+                    return true;
+                }
+            }
+            return false;
+        },
+        this);
+
+    _motorManager = new MotorManager(this);
+    connect(_motorManager, &MotorManager::configChanged, this, &Backend::onMotorConfigChanged);
+
     connect(&_setup, &MeasurementSetup::onSetupChanged, this, &Backend::onSetupChanged);
 }
 
@@ -88,28 +112,25 @@ void Backend::refreshInterfaces()
     emit onSetupChanged();
 }
 
-void Backend::notifyDecoderConfigChanged()
-{
-    emit onSetupChanged();
-}
-
 void Backend::notifyDisplayConfigChanged()
 {
     emit onDisplayConfigChanged();
 }
 
-bool Backend::startMeasurement()
+bool Backend::startMeasurement(bool preserveTrace)
 {
     log_info(tr("Starting measurement"));
 
-    _measurementStartTime = QDateTime::currentMSecsSinceEpoch();
-    _timerSinceStart.start();
+    _preserveTrace = preserveTrace;
+    if (!preserveTrace || _measurementStartTime == 0) {
+        _measurementStartTime = QDateTime::currentMSecsSinceEpoch();
+        _timerSinceStart.start();
+    }
 
     // Before the listeners start, so the recording includes the first frames.
     _traceRecorder->onMeasurementStarting();
 
-    // Configure every interface first, then let each backend finish deferred
-    // work once (SocketCAN runs all ip commands under a single privilege prompt).
+    // Configure every enabled interface before any listener opens one.
     for (auto *network : _setup.getNetworks())
     {
         for (auto *mi : network->interfaces())
@@ -121,22 +142,8 @@ bool Backend::startMeasurement()
             BusInterface *intf = getInterfaceById(mi->busInterface());
             if (intf)
             {
+                mi->setSavedIdentity(getDriverName(mi->busInterface()), intf->getName(), intf->hardwareKey());
                 intf->applyConfig(*mi);
-            }
-        }
-    }
-    for (auto *network : _setup.getNetworks())
-    {
-        for (auto *mi : network->interfaces())
-        {
-            if (!mi->isEnabled())
-            {
-                continue;
-            }
-            BusInterface *intf = getInterfaceById(mi->busInterface());
-            if (intf)
-            {
-                intf->flushPendingConfig();
             }
         }
     }
@@ -150,6 +157,8 @@ bool Backend::startMeasurement()
             if (intf) {
                 log_info(QString(tr("Listening on interface: %1")).arg(intf->getName()));
                 BusListener *listener = new BusListener(0, *this, *intf);
+                connect(listener, &BusListener::interfaceDisconnected,
+                        this, &Backend::onListenerDisconnected, Qt::QueuedConnection);
                 listener->startThread();
                 _listeners.append(listener);
             }
@@ -158,6 +167,7 @@ bool Backend::startMeasurement()
 
     _measurementRunning = true;
     emit beginMeasurement();
+    _preserveTrace = false;
     return true;
 }
 
@@ -165,6 +175,7 @@ bool Backend::stopMeasurement()
 {
     if (_measurementRunning) {
         for (auto *listener : _listeners) {
+            listener->disconnect(this);
             listener->requestStop();
         }
 
@@ -193,6 +204,104 @@ bool Backend::isMeasurementRunning() const
     return _measurementRunning;
 }
 
+bool Backend::isPreservingTrace() const
+{
+    return _preserveTrace;
+}
+
+bool Backend::isReplayRunning() const
+{
+    return _replayRunning;
+}
+
+void Backend::setReplayRunning(bool running)
+{
+    bool expected = !running;
+    if (!_replayRunning.compare_exchange_strong(expected, running)) {
+        return;
+    }
+    if (running) {
+        _traceRecorder->onReplayStarting();
+    } else {
+        _traceRecorder->onReplayStopped();
+    }
+    emit replayStateChanged(running);
+}
+
+void Backend::onListenerDisconnected(BusInterfaceId id, const QString &interfaceName, const QString &reason)
+{
+    for (int i = 0; i < _listeners.size(); ++i) {
+        if (_listeners[i]->getInterfaceId() == id) {
+            BusListener *dead = _listeners.takeAt(i);
+            dead->disconnect(this);
+            dead->waitFinish();
+            delete dead;
+            break;
+        }
+    }
+
+    for (auto *network : _setup.getNetworks()) {
+        for (auto *mi : network->interfaces()) {
+            if (mi->busInterface() == id) {
+                mi->setResolved(false);
+            }
+        }
+    }
+
+    emit interfaceConnectionLost(interfaceName, reason);
+
+    if (_measurementRunning && _listeners.isEmpty()) {
+        _traceRecorder->onMeasurementStopped();
+        _measurementRunning = false;
+        log_warning(tr("All active interfaces disconnected. Measurement paused (trace preserved)."));
+        emit endMeasurement();
+    }
+}
+
+bool Backend::rebindAndResume(QString *errorMessage)
+{
+    if (_measurementRunning) {
+        stopMeasurement();
+    }
+
+    refreshInterfaces();
+
+    QVector<InterfaceDescriptor> available;
+    for (auto *driver : _drivers) {
+        for (BusInterfaceId id : driver->getInterfaceIds()) {
+            if (BusInterface *intf = driver->getInterfaceById(id)) {
+                available.append({id, driver->getName(), intf->getName(), intf->hardwareKey()});
+            }
+        }
+    }
+
+    const auto report = _setup.rebindInterfaces(available);
+    emit onSetupChanged();
+
+    if (report.rebound.isEmpty() || !report.missing.isEmpty() || !report.ambiguous.isEmpty()) {
+        QStringList problems;
+        if (!report.missing.isEmpty()) {
+            problems << tr("Missing: %1").arg(report.missing.join(QStringLiteral(", ")));
+        }
+        if (!report.ambiguous.isEmpty()) {
+            problems << tr("Ambiguous: %1").arg(report.ambiguous.join(QStringLiteral(", ")));
+        }
+        if (report.rebound.isEmpty() && problems.isEmpty()) {
+            problems << tr("No configured interfaces found to rebind.");
+        }
+        const QString msg = problems.join(QStringLiteral("; "));
+        log_error(tr("Manual rebind failed: %1").arg(msg));
+        if (errorMessage) {
+            *errorMessage = msg;
+        }
+        if (report.rebound.isEmpty()) {
+            return false;
+        }
+    }
+
+    return startMeasurement(/*preserveTrace=*/true);
+}
+
 void Backend::loadDefaultSetup(MeasurementSetup &setup)
 {
     setup.clear();
@@ -208,8 +317,9 @@ void Backend::loadDefaultSetup(MeasurementSetup &setup)
             mi->setBusInterface(intf);
             mi->setResolved(true);
             BusInterface *canIntf = getInterfaceById(intf);
-            if (canIntf)
-                mi->setBusType(canIntf->busType());
+            if (canIntf) {
+                    mi->setSavedIdentity(driver->getName(), canIntf->getName(), canIntf->hardwareKey());
+            }
             mi->setBitrate(500000);
             mi->setFdBitrate(2000000);
             network->addInterface(mi);
@@ -252,12 +362,52 @@ void Backend::clearTrace()
 
 CanDbMessage *Backend::findDbMessage(const BusMessage &msg) const
 {
-    return _setup.findDbMessage(msg);
+    if (CanDbMessage *dbMsg = _setup.findDbMessage(msg)) {
+        return dbMsg;
+    }
+
+    // Fall back to the built-in motor database so the decoded motor frames get
+    // Trace child rows and can be used by trigger rules without a user supplied
+    // DBC. Motor frames use classical 11-bit identifiers.
+    if (msg.isExtended() || msg.isErrorFrame()) {
+        return nullptr;
+    }
+    QMutexLocker locker(&_motorDbMutex);
+    if (!_motorDb) {
+        return nullptr;
+    }
+    return _motorDb->getMessageById(msg.getId());
 }
 
-LinFrame *Backend::findLinFrame(const BusMessage &msg) const
+pCanDb Backend::getMotorDb() const
 {
-    return _setup.findLinFrame(msg);
+    QMutexLocker locker(&_motorDbMutex);
+    return _motorDb;
+}
+
+void Backend::onMotorConfigChanged()
+{
+    QString error;
+    const pCanDb database = MotorDbc::buildDatabase(_motorManager->motors(), &error);
+    if (!error.isEmpty()) {
+        log_error(QStringLiteral("Motor database: %1").arg(error));
+    }
+
+    // The same handshake as MeasurementSetup::beginDatabaseReload()/endDatabaseReload():
+    // let every consumer drop raw CanDbSignal/CanDbMessage pointers before the new
+    // database replaces the old one, then rebuild their views from it.
+    emit onSetupChanged();
+    {
+        QMutexLocker locker(&_motorDbMutex);
+        if (_motorDb) {
+            _motorDbRetired.append(_motorDb);
+            while (_motorDbRetired.size() > 32) {
+                _motorDbRetired.removeFirst();
+            }
+        }
+        _motorDb = database;
+    }
+    emit onSetupChanged();
 }
 
 BusInterfaceIdList Backend::getInterfaceList()
@@ -323,21 +473,6 @@ BusInterface *Backend::getInterfaceByDriverAndName(QString driverName, QString d
 
 }
 
-pLinDb Backend::loadLdf(QString filename, QString *errorMsg)
-{
-    QFileInfo info(filename);
-    if (!info.exists() || !info.isReadable()) {
-        if (errorMsg) *errorMsg = tr("File not found or not readable.");
-        return pLinDb();
-    }
-    pLinDb lindb(new LinDb());
-    if (!lindb->loadFile(filename)) {
-        if (errorMsg) *errorMsg = lindb->lastError();
-        return pLinDb();
-    }
-    return lindb;
-}
-
 pCanDb Backend::loadDbc(QString filename, QString *errorMsg)
 {
     DbcParser parser;
@@ -398,11 +533,4 @@ uint64_t Backend::getUsecsSinceMeasurementStart() const
 void Backend::logMessage(const QDateTime dt, const log_level_t level, const QString msg)
 {
     emit onLogMessage(dt, level, msg);
-}
-
-void Backend::onMessageEnqueued(int idx)
-{
-    if (_conditionalLoggingManager->isEnabled()) {
-        _conditionalLoggingManager->processMessage(_trace->getMessage(idx));
-    }
 }

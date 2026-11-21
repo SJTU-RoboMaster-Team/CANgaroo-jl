@@ -1,20 +1,18 @@
 #pragma once
 
-#include <QVector>
 #include <QHash>
+#include <QVector>
 #include <memory>
-#include "core/BusMessage.h"
-#include "decoders/ProtocolTypes.h"
 
+#include "core/BusMessage.h"
+
+// One row of the rolling trace log: either a received frame or, as a child row,
+// one DBC signal of that frame.
 class UnifiedTraceItem {
 public:
     UnifiedTraceItem(const BusMessage& frame, UnifiedTraceItem* parent = nullptr);
-    UnifiedTraceItem(const ProtocolMessage& msg, UnifiedTraceItem* parent = nullptr);
-    UnifiedTraceItem(const QString& name, const QString& value, UnifiedTraceItem* parent = nullptr);
     UnifiedTraceItem(int signalIndex, UnifiedTraceItem* parent); // signal child
     ~UnifiedTraceItem();
-
-    void updateProtocolMessage(const ProtocolMessage& msg);
 
     void appendChild(std::shared_ptr<UnifiedTraceItem> child);
     void removeChildren(int row, int count);
@@ -24,13 +22,8 @@ public:
     void setRow(int row) { m_row = row; }
     UnifiedTraceItem* parentItem();
 
-    bool isProtocol() const { return m_isProtocol; }
-    bool isMetadata() const { return m_isMetadata; }
     bool isSignal() const { return m_isSignal; }
     const BusMessage& rawFrame() const { return m_rawFrame; }
-    const ProtocolMessage& protocolMessage() const { return m_protocolMessage; }
-    QString metadataName() const { return m_metadataName; }
-    QString metadataValue() const { return m_metadataValue; }
 
     uint32_t globalIndex() const { return m_globalIndex; }
     void setGlobalIndex(uint32_t index) { m_globalIndex = index; }
@@ -43,16 +36,10 @@ public:
 
 private:
     QVector<std::shared_ptr<UnifiedTraceItem>> m_childItems;
-    QHash<QString, int> m_metadataChildIndex; // name -> index in m_childItems
     UnifiedTraceItem* m_parentItem;
-    
-    bool m_isProtocol;
-    bool m_isMetadata = false;
+
     bool m_isSignal = false;
     BusMessage m_rawFrame;
-    ProtocolMessage m_protocolMessage;
-    QString m_metadataName;
-    QString m_metadataValue;
 
     uint32_t m_globalIndex = 0;
     uint64_t m_timestamp = 0;

@@ -38,6 +38,7 @@ public:
     explicit ScatterVisualization(QWidget *parent, Backend &backend);
     ~ScatterVisualization() override;
 
+void retranslateUi() override;
 void addMessage(const BusMessage &msg) override;
 void addDecodedData(const QMap<GraphSignal*, DecodedSignalData>& newPoints) override;
 void clear() override;

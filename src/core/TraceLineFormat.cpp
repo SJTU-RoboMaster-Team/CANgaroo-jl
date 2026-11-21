@@ -28,21 +28,6 @@
 namespace
 {
 
-// Enhanced LIN checksum (LIN 2.x): sum of PID + data bytes, carry-folded, inverted
-uint8_t linEnhancedChecksum(uint8_t frameId, const BusMessage &m)
-{
-    uint8_t id = frameId & 0x3Fu;
-    uint8_t p0 = ((id >> 0) ^ (id >> 1) ^ (id >> 2) ^ (id >> 4)) & 1u;
-    uint8_t p1 = (~((id >> 1) ^ (id >> 3) ^ (id >> 4) ^ (id >> 5))) & 1u;
-    uint16_t sum = id | (p0 << 6u) | (p1 << 7u);
-    for (int i = 0; i < m.getLength(); ++i)
-    {
-        sum += m.getByte(i);
-        if (sum > 255) sum -= 255;
-    }
-    return static_cast<uint8_t>(~sum & 0xFFu);
-}
-
 QString hexByte(uint8_t value)
 {
     return QString::number(value, 16).toUpper().rightJustified(2, QLatin1Char('0'));
@@ -68,28 +53,6 @@ QString ascLine(const BusMessage &msg, double tStart, int channel)
 {
     const double t = msg.getFloatTimestamp() - tStart;
     const QString dir = msg.isRX() ? QStringLiteral("Rx") : QStringLiteral("Tx");
-
-    if (msg.busType() == BusType::LIN)
-    {
-        const auto linId = static_cast<uint8_t>(msg.getId() & 0x3Fu);
-        const QString idHex = QString::number(linId, 16).rightJustified(2, QLatin1Char('0'));
-        if (msg.isErrorFrame())
-        {
-            return QStringLiteral("%1 %2  LIN %3 %4   LIN_ChecksumError")
-                .arg(t, 11, 'f', 6)
-                .arg(channel)
-                .arg(idHex)
-                .arg(dir);
-        }
-        return QStringLiteral("%1 %2  LIN %3 %4  d %5 %6checksum = %7 header_time = 0 full_time = 0")
-            .arg(t, 11, 'f', 6)
-            .arg(channel)
-            .arg(idHex)
-            .arg(dir)
-            .arg(msg.getLength())
-            .arg(msg.getDataHexString())
-            .arg(linEnhancedChecksum(linId, msg), 2, 16, QLatin1Char('0'));
-    }
 
     if (msg.isErrorFrame())
     {
@@ -181,6 +144,58 @@ QString canDumpLine(const BusMessage &msg, const QString &interfaceName)
         }
     }
     return line;
+}
+
+QString csvHeader()
+{
+    return QStringLiteral("Timestamp_s,Epoch_us,Channel,Direction,BusType,ID_Hex,Extended,FD,BRS,ESI,RTR,ErrorFlags,DLC,Data_Hex");
+}
+
+QString csvLine(const BusMessage &msg, double tStart, const QString &interfaceName)
+{
+    const double relTime = msg.getFloatTimestamp() - tStart;
+    const QString dir = msg.isRX() ? QStringLiteral("Rx") : QStringLiteral("Tx");
+    const int idWidth = msg.isExtended() ? 8 : 3;
+    const QString idHex = QString::number(msg.getId(), 16).toUpper().rightJustified(idWidth, QLatin1Char('0'));
+
+    QString safeChannel = interfaceName;
+    if (safeChannel.contains(QLatin1Char(',')) || safeChannel.contains(QLatin1Char('"')))
+    {
+        safeChannel.replace(QLatin1Char('"'), QStringLiteral("\"\""));
+        safeChannel = QLatin1Char('"') + safeChannel + QLatin1Char('"');
+    }
+
+    QString dataHex;
+    if (!msg.isRTR() && msg.getLength() > 0)
+    {
+        dataHex.reserve(msg.getLength() * 3);
+        for (int i = 0; i < msg.getLength(); ++i)
+        {
+            if (i > 0)
+            {
+                dataHex.append(QLatin1Char(' '));
+            }
+            dataHex.append(hexByte(msg.getByte(static_cast<uint8_t>(i))));
+        }
+    }
+
+    const uint32_t errFlags = msg.errorFlags().toInt();
+    const QString errStr = (errFlags != 0)
+        ? QStringLiteral("0x%1").arg(errFlags, 0, 16)
+        : QStringLiteral("0");
+
+    return QStringLiteral("%1,%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12,%13,%14")
+        .arg(relTime, 0, 'f', 6)
+        .arg(msg.getTimestamp_us())
+        .arg(safeChannel, dir, QStringLiteral("CAN"), idHex)
+        .arg(msg.isExtended() ? 1 : 0)
+        .arg(msg.isFD() ? 1 : 0)
+        .arg(msg.isBRS() ? 1 : 0)
+        .arg(msg.isESI() ? 1 : 0)
+        .arg(msg.isRTR() ? 1 : 0)
+        .arg(errStr)
+        .arg(msg.getLength())
+        .arg(dataHex);
 }
 
 bool parseAscCanFdLine(const QStringList &parts, BusMessage &msg)

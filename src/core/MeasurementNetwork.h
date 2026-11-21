@@ -29,7 +29,6 @@
 #include "driver/CanDriver.h"
 #include "driver/BusInterface.h"
 #include "db/model/CanDb.h"
-#include "db/model/LinDb.h"
 
 class Backend;
 class MeasurementInterface;
@@ -51,9 +50,6 @@ public:
     bool reloadCanDbs(Backend *backend, QStringList *errors = nullptr);
     QList<pCanDb> _canDbs;
 
-    void addLinDb(pLinDb lindb);
-    bool reloadLinDbs(Backend *backend, QStringList *errors = nullptr);
-    QList<pLinDb> _linDbs;
 
     QString name() const;
     void setName(const QString &name);

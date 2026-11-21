@@ -117,11 +117,6 @@ private slots:
     void onZoomInClicked();
     void onZoomOutClicked();
     void on_resetZoomButton_clicked();
-    void onConditionChanged(bool met);
-    void onLiveValuesUpdated(const QMap<CanDbSignal*, double>& values, bool isStale);
-    void onConditionToggled();
-    void onAddToConditionClicked();
-    void buildConditionsFromTable();
     void onDecodedDataReady(const QMap<GraphSignal*, DecodedSignalData>& newPoints, double globalStartTime);
     void onMouseMove(QMouseEvent *event);
     void onLegendMarkerClicked();
@@ -135,6 +130,9 @@ private slots:
 
     void onResumeMeasurement();
     void onPauseMeasurement();
+    void onCursorsToggled(bool enabled);
+    void onCursorsUpdated(const QString &summary);
+    void onTriggerFired(const QString &reason, double timestampSec);
 
 signals:
     void activeSignalsUpdated(const QList<GraphSignal*>& activeSignals, const QMap<GraphSignal*, BusInterfaceIdList>& signalInterfaces, double globalStartTime);
@@ -148,6 +146,7 @@ private:
     QComboBox *_columnSelector = nullptr;
     QLabel *_columnLabel = nullptr;
     QWidget *_columnContainer = nullptr;
+    QLabel *_cursorBarLabel = nullptr;
     Backend &_backend;
     double _sessionStartTime = -1.0;
     QList<VisualizationWidget*> _visualizations;
@@ -158,7 +157,6 @@ private:
 
     void setupVisualizations();
     void updateVisualizationActivation();
-    void updateConditionalSignals();
     void clearGraphData();
     void resetGraphView();
     void notifyWorkerActiveSignals();

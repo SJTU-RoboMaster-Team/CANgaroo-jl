@@ -28,7 +28,6 @@
 #include <QList>
 #include <QPointer>
 #include "core/Backend.h"
-#include <QTranslator>
 #include <QSettings>
 
 // VERSION_STRING is injected by qmake (DEFINES += VERSION_STRING=...).
@@ -48,6 +47,7 @@ class QMdiSubWindow;
 class QWidget;
 class QDomElement;
 class QActionGroup;
+class QProgressDialog;
 QT_END_NAMESPACE
 
 namespace Ui {
@@ -57,6 +57,8 @@ class MainWindow;
 class ConfigurableWidget;
 class SetupDialog;
 class HardwareDialog;
+class UpdateChecker;
+struct UpdateCheckResult;
 
 class MainWindow : public QMainWindow
 {
@@ -79,16 +81,13 @@ public slots:
     QMainWindow *createTraceWindow(const QString &title = QString());
     QMainWindow *createGraphWindow(const QString &title = QString());
     void createStandaloneGraphWindow();
-    void createGatewayWindow();
     QDockWidget *addGraphWidget(QMainWindow *parent = nullptr);
     QDockWidget *addRawTxWidget(QMainWindow *parent = nullptr);
     QDockWidget *addLogWidget(QMainWindow *parent = nullptr);
     QDockWidget *addStatusWidget(QMainWindow *parent = nullptr);
     QDockWidget *addTxGeneratorWidget(QMainWindow *parent = nullptr);
-    QDockWidget *addScriptWidget(QMainWindow *parent = nullptr);
     QDockWidget *addReplayWidget(QMainWindow *parent = nullptr);
-    QDockWidget *addLinControlWidget(QMainWindow *parent = nullptr);
-    QDockWidget *addGpioControlWidget(QMainWindow *parent = nullptr);
+    QDockWidget *addMotorWidget(QMainWindow *parent = nullptr);
 
     bool showSetupDialog();
     void showAboutDialog();
@@ -113,6 +112,8 @@ private slots:
     void importFullTrace();
     void reloadInterfaces();
     void showHardwareDialog();
+    void checkForUpdates();
+    void handleUpdateCheckFinished(const UpdateCheckResult &result);
 
 private:
     Ui::MainWindow *ui;
@@ -128,7 +129,7 @@ private:
 
     Backend &backend();
 
-    QMainWindow *createTab(const QString &title);
+    QMainWindow *createTab(const QString &title, const char *titleSource = nullptr);
     QMainWindow *currentTab();
 
     // Constructor init helpers
@@ -139,10 +140,26 @@ private:
     void initWorkspace();
     void initAppearance();
     void initRecording();
+    void initTriggerCapture();
+    void initDisconnectBanner();
 
     // Continuous trace recording
     void showRecordingDialog();
     void updateRecordingStatus();
+
+    // Trigger capture (blackbox)
+    void showTriggerCaptureDialog();
+    void updateTriggerStatus();
+
+    // USB disconnect alert & manual rebind
+    void onInterfaceConnectionLost(const QString &interfaceName, const QString &reason);
+    void onManualRebindClicked();
+    void applyDisconnectBannerTheme();
+    void updateDisconnectBannerText();
+
+    // Retranslation for widgets/menus/etc. that are built in code instead of a .ui file.
+    void retranslateCustomUi();
+    void retranslateTabAndDockTitles();
 
     // Theming helpers
     void applyCurrentTheme();
@@ -154,8 +171,8 @@ private:
 
     // Dock factory helper: creates dock, sets widget, adds to parent, wires float/reparent.
     // Returns nullptr if parent is null (no active tab).
-    QDockWidget *makeDock(const QString &title, const QString &objectName,
-                          QWidget *content, QMainWindow *parent);
+    QDockWidget *makeDock(const QString &title, const char *titleSource,
+                          const QString &objectName, QWidget *content, QMainWindow *parent);
 
     void stopAndClearMeasurement();
 
@@ -173,15 +190,32 @@ private:
     int askSaveBecauseWorkspaceModified();
 
     QList<class GraphWindow*> _standaloneGraphWindows;
-    class GatewayWindow *_gatewayWindow{nullptr};
 
     // Toolbar button whose icon has to be recolored on every theme change.
     class QPushButton *_btnOpenGraph = nullptr;
 
+    QAction *_actionStandaloneGraph = nullptr;
+    QAction *_actionMotorView = nullptr;
+    QAction *_actionExportFull = nullptr;
+    QAction *_actionImportFull = nullptr;
+
     QAction *_actionRecord = nullptr;
+    QAction *_actionRecordOptions = nullptr;
+    QAction *_actionOpenFolder = nullptr;
     class QToolButton *_btnRecord = nullptr;
     class QLabel *_recordStatusLabel = nullptr;
     class QTimer *_recordStatusTimer = nullptr;
+
+    QAction *_actionTriggerCapture = nullptr;
+    class QToolButton *_btnTriggerCapture = nullptr;
+    class QLabel *_triggerStatusLabel = nullptr;
+
+    QWidget *_disconnectBanner = nullptr;
+    class QLabel *_disconnectBannerLabel = nullptr;
+    class QPushButton *_btnBannerRebind = nullptr;
+    class QPushButton *_btnBannerDismiss = nullptr;
+    QString _disconnectBannerInterface;
+    QString _disconnectBannerReason;
 
     // Recent files
     static constexpr int MaxRecentFiles = 8;
@@ -192,9 +226,11 @@ private:
     void createLanguageMenu();
     void setupDockFloatReparent(QDockWidget *dock, QMainWindow *innerParent);
     void applyFontSize(int pointSize);
-    QTranslator m_translator;
     QActionGroup *m_languageActionGroup = nullptr;
 
-    void checkZsCanFdDlls();
-    void downloadZsCanFdDlls();
+    void showUpdateAvailableDialog(const UpdateCheckResult &result);
+    void closeUpdateProgressDialog();
+
+    UpdateChecker *_updateChecker = nullptr;
+    QPointer<QProgressDialog> _updateProgressDlg;
 };

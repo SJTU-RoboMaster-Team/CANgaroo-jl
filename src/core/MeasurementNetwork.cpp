@@ -24,7 +24,6 @@
 #include "MeasurementInterface.h"
 
 #include "core/Backend.h"
-#include "db/model/LinDb.h"
 
 
 MeasurementNetwork::MeasurementNetwork()
@@ -40,7 +39,6 @@ void MeasurementNetwork::cloneFrom(MeasurementNetwork &origin)
         _interfaces.append(mi);
     }
     _canDbs = origin._canDbs;
-    _linDbs = origin._linDbs;
 }
 
 void MeasurementNetwork::addInterface(MeasurementInterface *intf)
@@ -101,27 +99,6 @@ bool MeasurementNetwork::reloadCanDbs(Backend *backend, QStringList *errors)
     return allSuccess;
 }
 
-void MeasurementNetwork::addLinDb(pLinDb lindb)
-{
-    _linDbs.append(lindb);
-}
-
-bool MeasurementNetwork::reloadLinDbs(Backend *backend, QStringList *errors)
-{
-    bool allSuccess = true;
-    for (pLinDb &db : _linDbs) {
-        QString errorMsg;
-        pLinDb newDb = backend->loadLdf(db->path(), &errorMsg);
-        if (newDb) {
-            db = newDb;
-        } else {
-            allSuccess = false;
-            if (errors)
-                errors->append(QString("%1: %2").arg(db->path(), errorMsg));
-        }
-    }
-    return allSuccess;
-}
 
 
 QString MeasurementNetwork::name() const
@@ -155,12 +132,6 @@ bool MeasurementNetwork::saveXML(Backend &backend, QDomDocument &xml, QDomElemen
         if (!candb->saveXML(backend, xml, dbNode)) {
             return false;
         }
-        candbsNode.appendChild(dbNode);
-    }
-    for (const auto &lindb : _linDbs) {
-        QDomElement dbNode = xml.createElement("database");
-        dbNode.setAttribute("db-type", "ldf");
-        dbNode.setAttribute("filename", lindb->path());
         candbsNode.appendChild(dbNode);
     }
     root.appendChild(candbsNode);
@@ -205,16 +176,14 @@ bool MeasurementNetwork::loadXML(Backend &backend, QDomElement el)
             log_error(QString("Unable to load database: empty filename"));
             continue;
         }
-        if (dbType == "ldf") {
-            pLinDb lindb = backend.loadLdf(filename);
-            if (lindb) addLinDb(lindb);
-            else log_error(QString("Unable to load LDF: %1").arg(filename));
-        } else {
-            QString errorMsg;
-            pCanDb candb = backend.loadDbc(filename, &errorMsg);
-            if (candb) addCanDb(candb);
-            else log_error(QString("Unable to load DBC: %1 (%2)").arg(filename, errorMsg));
+        if (dbType != "dbc") {
+            log_error(QString("Unsupported database type '%1' for %2").arg(dbType, filename));
+            continue;
         }
+        QString errorMsg;
+        pCanDb candb = backend.loadDbc(filename, &errorMsg);
+        if (candb) addCanDb(candb);
+        else log_error(QString("Unable to load DBC: %1 (%2)").arg(filename, errorMsg));
     }
 
     return true;

@@ -32,19 +32,18 @@
 #include "driver/CanDriver.h"
 #include "core/BusMessage.h"
 #include "db/model/CanDb.h"
-#include "db/model/LinDb.h"
 #include "core/MeasurementSetup.h"
 #include "core/Log.h"
-#include "core/ConditionalLoggingManager.h"
 
 class MeasurementNetwork;
 class BusTrace;
 class BusListener;
 class CanDbMessage;
-class LinFrame;
 class SetupDialog;
 class LogModel;
 class TraceRecorder;
+class TriggerCaptureManager;
+class MotorManager;
 
 class Backend : public QObject
 {
@@ -58,9 +57,13 @@ public:
     void addCanDriver(CanDriver &driver);
     void refreshInterfaces();
 
-    bool startMeasurement();
+    bool startMeasurement(bool preserveTrace = false);
     bool stopMeasurement();
     bool isMeasurementRunning() const;
+    bool isPreservingTrace() const;
+    bool isReplayRunning() const;
+    void setReplayRunning(bool running);
+    bool rebindAndResume(QString *errorMessage = nullptr);
     double getTimestampAtMeasurementStart() const;
     uint64_t getUsecsAtMeasurementStart() const;
     uint64_t getNsecsSinceMeasurementStart() const;
@@ -79,11 +82,16 @@ public:
     BusTrace *getTrace();
     void clearTrace();
 
-    ConditionalLoggingManager *getConditionalLoggingManager() const { return _conditionalLoggingManager; }
     TraceRecorder *getTraceRecorder() const { return _traceRecorder; }
+    TriggerCaptureManager *getTriggerCaptureManager() const { return _triggerCaptureManager; }
+    MotorManager *getMotorManager() const { return _motorManager; }
+
+    /// Built-in database generated from the Motor View configuration. It is
+    /// regenerated whenever the motor list changes and is not part of the
+    /// measurement setup (so it is never written to a workspace file).
+    [[nodiscard]] pCanDb getMotorDb() const;
 
     CanDbMessage *findDbMessage(const BusMessage &msg) const;
-    LinFrame     *findLinFrame(const BusMessage &msg) const;
 
     [[nodiscard]] const QList<CanDriver*> &getDrivers() const noexcept { return _drivers; }
     BusInterfaceIdList getInterfaceList();
@@ -96,9 +104,7 @@ public:
     BusInterface *getInterfaceByDriverAndName(QString driverName, QString deviceName);
 
     pCanDb loadDbc(QString filename, QString *errorMsg = nullptr);
-    pLinDb loadLdf(QString filename, QString *errorMsg = nullptr);
 
-    void notifyDecoderConfigChanged();
     void notifyDisplayConfigChanged();
 
     void clearLog();
@@ -107,6 +113,8 @@ public:
 signals:
     void beginMeasurement();
     void endMeasurement();
+    void replayStateChanged(bool running);
+    void interfaceConnectionLost(const QString &interfaceName, const QString &reason);
 
     void onSetupChanged();
     void onDisplayConfigChanged();
@@ -117,13 +125,16 @@ signals:
 
     void onSetupDialogCreated(SetupDialog &dlg);
 
-public slots:
-    void onMessageEnqueued(int idx);
+private slots:
+    void onListenerDisconnected(BusInterfaceId id, const QString &interfaceName, const QString &reason);
+    void onMotorConfigChanged();
 
 private:
     static Backend *_instance;
 
     std::atomic<bool> _measurementRunning;
+    std::atomic<bool> _replayRunning{false};
+    bool _preserveTrace{false};
     uint64_t _measurementStartTime;
     QElapsedTimer _timerSinceStart;
     QList<CanDriver*> _drivers;
@@ -132,6 +143,15 @@ private:
     QList<BusListener*> _listeners;
 
     LogModel *_logModel;
-    ConditionalLoggingManager *_conditionalLoggingManager;
     TraceRecorder *_traceRecorder = nullptr;
+    TriggerCaptureManager *_triggerCaptureManager = nullptr;
+    MotorManager *_motorManager = nullptr;
+
+    mutable QMutex _motorDbMutex;
+    pCanDb _motorDb;
+    // Old databases are kept alive for a while: the trigger evaluator runs on
+    // the bus listener thread and may still use a CanDbMessage pointer handed
+    // out just before a configuration change. Config changes are UI driven and
+    // rare, so a bounded history is enough and prevents a use-after-free.
+    QList<pCanDb> _motorDbRetired;
 };

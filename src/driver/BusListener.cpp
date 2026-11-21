@@ -71,17 +71,24 @@ void BusListener::run()
         if (_intf.readMessage(rxMessages, 100)) {
             for(const BusMessage &msg: std::as_const(rxMessages))
             {
-                // CAN drivers call addFrameBits themselves; handle LIN here centrally.
-                if (msg.busType() == BusType::LIN)
-                    _intf.addFrameBits(msg);
+                // Bit accounting for the bus-load display happens here: drivers
+                // only deliver frames, they no longer count bits themselves.
+                _intf.addFrameBits(msg);
                 trace->enqueueMessage(msg, false);
             }
             rxMessages.clear();
         }
         else if(_intf.isOpen() == false)
         {
-            log_error(QString(tr("Error on interface: %1, Closed!!!")).arg(_intf.getName()));
+            const QString ifName = _intf.getName();
+            const BusInterfaceId ifId = _intf.getId();
+            const QString reason = tr("Device connection lost or closed unexpectedly");
+            log_error(QString(tr("Error on interface: %1, Closed!!!")).arg(ifName));
             rxMessages.clear();
+            if (_shouldBeRunning)
+            {
+                emit interfaceDisconnected(ifId, ifName, reason);
+            }
             break;
 
         }

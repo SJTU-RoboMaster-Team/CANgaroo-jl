@@ -94,7 +94,6 @@ private slots:
     void exactStandardIdMatches();
     void unknownIdIsNotFound();
     void errorFrameIsNeverMatched();
-    void linFrameIsNeverMatchedAsCan();
 
     void j1939MatchesOtherSourceAddress();
     void j1939MatchesOtherPriority();
@@ -111,6 +110,10 @@ private slots:
     void j1939MatchStaysInsideItsNetwork();
     void pgnCacheFollowsDatabaseReload();
     void clearDropsPgnMatches();
+
+    void rebindByHardwareKey();
+    void rebindByUniqueNameFallback();
+    void rebindReportsMissingAndAmbiguous();
 };
 
 pCanDb MeasurementSetupTest::load(const QString &dbc)
@@ -167,14 +170,6 @@ void MeasurementSetupTest::errorFrameIsNeverMatched()
     use(load(k_j1939Dbc));
     BusMessage msg = extendedFrame(k_wbsdDbcId & 0x1FFFFFFF);
     msg.setErrorFrame(true);
-    QVERIFY(_setup.findDbMessage(msg) == nullptr);
-}
-
-void MeasurementSetupTest::linFrameIsNeverMatchedAsCan()
-{
-    use(load(k_j1939Dbc));
-    BusMessage msg = extendedFrame(k_wbsdDbcId & 0x1FFFFFFF);
-    msg.setBusType(BusType::LIN);
     QVERIFY(_setup.findDbMessage(msg) == nullptr);
 }
 
@@ -414,6 +409,69 @@ void MeasurementSetupTest::clearDropsPgnMatches()
 
     _setup.clear();
     QVERIFY(_setup.findDbMessage(extendedFrame(0x0CFE4811u)) == nullptr);
+}
+
+void MeasurementSetupTest::rebindByHardwareKey()
+{
+    MeasurementNetwork *net = _setup.createNetwork();
+    auto *mi = new MeasurementInterface();
+    mi->setBusInterface(10);
+    mi->setSavedIdentity(QStringLiteral("CandleAPI"), QStringLiteral("gs_usb_0"), QStringLiteral("usb:SN1234:ch0"));
+    net->addInterface(mi);
+
+    // Device re-enumerated with a new interface ID and even a different friendly name
+    QVector<InterfaceDescriptor> available;
+    available.append({25, QStringLiteral("CandleAPI"), QStringLiteral("gs_usb_1"), QStringLiteral("usb:SN1234:ch0")});
+    available.append({26, QStringLiteral("CandleAPI"), QStringLiteral("gs_usb_0"), QStringLiteral("usb:SN9999:ch0")});
+
+    const auto report = _setup.rebindInterfaces(available);
+    QCOMPARE(report.rebound.size(), 1);
+    QVERIFY(report.missing.isEmpty());
+    QVERIFY(report.ambiguous.isEmpty());
+    QCOMPARE(mi->busInterface(), static_cast<BusInterfaceId>(25));
+    QVERIFY(mi->isResolved());
+}
+
+void MeasurementSetupTest::rebindByUniqueNameFallback()
+{
+    MeasurementNetwork *net = _setup.createNetwork();
+    auto *mi = new MeasurementInterface();
+    mi->setBusInterface(10);
+    // Legacy XML without hardwareKey
+    mi->setSavedIdentity(QStringLiteral("SocketCAN"), QStringLiteral("can0"), QString());
+    net->addInterface(mi);
+
+    QVector<InterfaceDescriptor> available;
+    available.append({42, QStringLiteral("SocketCAN"), QStringLiteral("can0"), QStringLiteral("can0")});
+
+    const auto report = _setup.rebindInterfaces(available);
+    QCOMPARE(report.rebound.size(), 1);
+    QVERIFY(report.missing.isEmpty());
+    QVERIFY(report.ambiguous.isEmpty());
+    QCOMPARE(mi->busInterface(), static_cast<BusInterfaceId>(42));
+}
+
+void MeasurementSetupTest::rebindReportsMissingAndAmbiguous()
+{
+    MeasurementNetwork *net = _setup.createNetwork();
+    auto *miMissing = new MeasurementInterface();
+    miMissing->setSavedIdentity(QStringLiteral("CandleAPI"), QStringLiteral("gs_usb_0"), QStringLiteral("usb:SN_GONE:ch0"));
+    net->addInterface(miMissing);
+
+    auto *miAmbiguous = new MeasurementInterface();
+    miAmbiguous->setSavedIdentity(QStringLiteral("SLCAN"), QStringLiteral("COM3"), QString());
+    net->addInterface(miAmbiguous);
+
+    QVector<InterfaceDescriptor> available;
+    available.append({51, QStringLiteral("SLCAN"), QStringLiteral("COM3"), QStringLiteral("COM3")});
+    available.append({52, QStringLiteral("SLCAN"), QStringLiteral("COM3"), QStringLiteral("COM3")});
+
+    const auto report = _setup.rebindInterfaces(available);
+    QCOMPARE(report.rebound.size(), 0);
+    QCOMPARE(report.missing.size(), 1);
+    QCOMPARE(report.ambiguous.size(), 1);
+    QVERIFY(!miMissing->isResolved());
+    QVERIFY(!miAmbiguous->isResolved());
 }
 
 QTEST_APPLESS_MAIN(MeasurementSetupTest)

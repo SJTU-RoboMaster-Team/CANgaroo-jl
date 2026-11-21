@@ -36,7 +36,6 @@
 class BusInterface;
 class CanDbMessage;
 class CanDbSignal;
-class LinSignal;
 class MeasurementSetup;
 class Backend;
 
@@ -52,18 +51,17 @@ public:
     BusMessage getMessage(int idx);
     QVector<BusMessage> getSnapshot(int maxCount = 0);
     void enqueueMessage(const BusMessage &msg, bool more_to_follow=false);
+    void loadMessages(const QVector<BusMessage> &msgs, bool clearFirst = true);
     void setMaxSize(int maxSize);
+    int maxSize() const;
+    bool hasPruned() const;
 
     // Writes the whole trace in `format`; see core/TraceFileWriter.
     void save(QFile &file, TraceFileFormat format);
 
     bool getMuxedSignalFromCache(const CanDbSignal *signal, uint64_t *raw_value);
 
-    // LIN mux cache not needed (LIN has no multiplexing), but keep symmetry:
-    bool getLinSignalFromCache(const LinSignal *signal, uint64_t *raw_value) { (void)signal; (void)raw_value; return false; }
-
 signals:
-    void messageEnqueued(int idx);
     void afterAppend();
     void beforeRemove(int count);
     void afterRemove(int count);

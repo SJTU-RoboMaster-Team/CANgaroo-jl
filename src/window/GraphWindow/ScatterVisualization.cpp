@@ -50,7 +50,7 @@ ScatterVisualization::ScatterVisualization(QWidget *parent, Backend &backend)
     _chart = new QChart();
     _chart->legend()->setVisible(true);
     _chart->legend()->setAlignment(Qt::AlignBottom);
-    _chart->setTitle("Scatter (Distribution View)");
+    _chart->setTitle(tr("Scatter (Distribution View)"));
 
     _chartView = new QChartView(_chart);
     _chartView->setRenderHint(QPainter::Antialiasing);
@@ -65,13 +65,13 @@ ScatterVisualization::ScatterVisualization(QWidget *parent, Backend &backend)
     layout->setContentsMargins(0, 0, 0, 0);
 
     QValueAxis *axisX = new QValueAxis();
-    axisX->setTitleText("Time [s]");
+    axisX->setTitleText(tr("Time [s]"));
     _chart->addAxis(axisX, Qt::AlignBottom);
     connect(axisX, &QValueAxis::rangeChanged, this, &ScatterVisualization::updateAxes);
     connect(axisX, &QValueAxis::rangeChanged, this, &ScatterVisualization::onAxisRangeChanged);
 
     QValueAxis *axisY = new QValueAxis();
-    axisY->setTitleText("Value");
+    axisY->setTitleText(tr("Value"));
     _chart->addAxis(axisY, Qt::AlignLeft);
 
     // Create cursor line
@@ -106,6 +106,18 @@ ScatterVisualization::ScatterVisualization(QWidget *parent, Backend &backend)
 
 ScatterVisualization::~ScatterVisualization()
 {
+}
+
+void ScatterVisualization::retranslateUi()
+{
+    _chart->setTitle(tr("Scatter (Distribution View)"));
+    for (QAbstractAxis *axis : _chart->axes())
+    {
+        if (axis->orientation() == Qt::Horizontal)
+            axis->setTitleText(tr("Time [s]"));
+        else
+            axis->setTitleText(tr("Value"));
+    }
 }
 
 void ScatterVisualization::addDecodedData(const QMap<GraphSignal*, DecodedSignalData>& newPoints)
@@ -459,8 +471,8 @@ void ScatterVisualization::handleHover(QPointF pos)
 void ScatterVisualization::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu menu(this);
-    QAction *actCsv = menu.addAction("Export to CSV");
-    QAction *actImg = menu.addAction("Export to Image");
+    QAction *actCsv = menu.addAction(tr("Export to CSV"));
+    QAction *actImg = menu.addAction(tr("Export to Image"));
     
     QAction *selected = menu.exec(event->globalPos());
     
@@ -470,7 +482,7 @@ void ScatterVisualization::contextMenuEvent(QContextMenuEvent *event)
 
 void ScatterVisualization::exportToCsv()
 {
-    QString path = QFileDialog::getSaveFileName(this, "Export Scatter CSV", "", "CSV Files (*.csv)");
+    QString path = QFileDialog::getSaveFileName(this, tr("Export Scatter CSV"), QString(), tr("CSV Files (*.csv)"));
     if (path.isEmpty()) return;
     
     QFile file(path);
@@ -490,7 +502,7 @@ void ScatterVisualization::exportToCsv()
 
 void ScatterVisualization::exportToImage()
 {
-    QString path = QFileDialog::getSaveFileName(this, "Export Scatter Image", "", "PNG Images (*.png);;JPEG Images (*.jpeg)");
+    QString path = QFileDialog::getSaveFileName(this, tr("Export Scatter Image"), QString(), tr("PNG Images (*.png);;JPEG Images (*.jpeg)"));
     if (path.isEmpty()) return;
     
     QPixmap pixmap = _chartView->grab();

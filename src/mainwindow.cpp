@@ -47,7 +47,10 @@
 #include "core/Backend.h"
 #include "core/BusTrace.h"
 #include "core/ThemeManager.h"
+#include "core/TraceFileReader.h"
 #include "core/TraceRecorder.h"
+#include "core/TriggerCaptureManager.h"
+#include "core/UpdateChecker.h"
 #include "window/TraceWindow/TraceWindow.h"
 #include "window/SetupDialog/SetupDialog.h"
 #include "window/LogWindow/LogWindow.h"
@@ -55,57 +58,16 @@
 #include "window/CanStatusWindow/CanStatusWindow.h"
 #include "window/RawTxWindow/RawTxWindow.h"
 #include "window/TxGeneratorWindow/TxGeneratorWindow.h"
-#include "window/ScriptWindow/ScriptWindow.h"
 #include "window/ReplayWindow/ReplayWindow.h"
-#include "window/LinControlWindow/LinControlWindow.h"
-#include "window/GpioControlWindow/GpioControlWindow.h"
-#include "window/GatewayWindow/GatewayWindow.h"
 #include "window/SettingsDialog/SettingsDialog.h"
 #include "window/RecordingDialog/RecordingDialog.h"
+#include "window/TriggerCaptureDialog/TriggerCaptureDialog.h"
 #include "window/HardwareDialog/HardwareDialog.h"
+#include "window/MotorView/MotorView.h"
 #include "helpers/apphelpers.h"
+#include "helpers/translation.h"
 
-#include "driver/SLCANDriver/SLCANDriver.h"
-#include "driver/UlcDriver/UlcDriver.h"
-#include "driver/GrIPDriver/GrIPDriver.h"
-#include "driver/LindeApiDriver/LindeApiDriver.h"
-#include "driver/CANBlastDriver/CANBlasterDriver.h"
-
-#if defined(__linux__)
-#include <unistd.h>
-#include "driver/SocketCanDriver/SocketCanDriver.h"
-#else
 #include "driver/CandleApiDriver/CandleApiDriver.h"
-#endif
-
-#ifdef VECTOR_DRIVER
-#include "driver/VectorDriver/VectorDriver.h"
-#endif
-
-#ifdef TINYCAN_DRIVER
-#include "driver/TinyCanDriver/TinyCanDriver.h"
-#endif
-
-#ifdef PEAKCAN_DRIVER
-#include "driver/PeakCanDriver/PeakCanDriver.h"
-#endif
-
-#ifdef KVASER_DRIVER
-#include "driver/KvaserDriver/KvaserDriver.h"
-#endif
-
-#if defined(_WIN32)
-#ifdef ZSCANFD_DRIVER
-#include "driver/ZsCanFdDriver/ZsCanFdDriver.h"
-#include <QFile>
-#include <QDir>
-#include <QEventLoop>
-#include <QProcess>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
-#endif
-#endif
 
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent),
@@ -148,16 +110,20 @@ void MainWindow::initActions()
     connect(ui->actionSetup, &QAction::triggered, this, &MainWindow::showSetupDialog);
     connect(ui->actionTransmit_View, &QAction::triggered, this, [this]() { addRawTxWidget(); });
     connect(ui->actionGenerator_View, &QAction::triggered, this, [this]() { addTxGeneratorWidget(); });
-    connect(ui->actionScript_View, &QAction::triggered, this, [this]() { addScriptWidget(); });
     connect(ui->actionReplay_View, &QAction::triggered, this, [this]() { addReplayWidget(); });
-    connect(ui->actionLin_Control_View, &QAction::triggered, this, [this]() { addLinControlWidget(); });
-    connect(ui->actionGpio_Control_View, &QAction::triggered, this, [this]() { addGpioControlWidget(); });
     connect(ui->actionSettings, &QAction::triggered, this, &MainWindow::showSettingsDialog);
 
     auto *actionStandaloneGraph = new QAction(tr("Standalone Graph"), this);
     actionStandaloneGraph->setShortcut(QKeySequence("Ctrl+Shift+B"));
     ui->menuWindow->addAction(actionStandaloneGraph);
     connect(actionStandaloneGraph, &QAction::triggered, this, &MainWindow::createStandaloneGraphWindow);
+    _actionStandaloneGraph = actionStandaloneGraph;
+
+    auto *actionMotorView = new QAction(tr("Motor View"), this);
+    actionMotorView->setShortcut(QKeySequence("Ctrl+Shift+M"));
+    ui->menu_New->addAction(actionMotorView);
+    connect(actionMotorView, &QAction::triggered, this, [this]() { addMotorWidget(); });
+    _actionMotorView = actionMotorView;
 
     connect(ui->actionStart_Measurement, &QAction::triggered, this, &MainWindow::startMeasurement);
     connect(ui->btnStartMeasurement, &QPushButton::released, this, &MainWindow::startMeasurement);
@@ -168,26 +134,23 @@ void MainWindow::initActions()
     connect(ui->actionReload_Interfaces, &QAction::triggered, this, &MainWindow::reloadInterfaces);
     connect(ui->actionHardware, &QAction::triggered, this, &MainWindow::showHardwareDialog);
 
-#if defined(_WIN32) && defined(ZSCANFD_DRIVER)
-    connect(ui->actionDownloadZsCanFdDlls, &QAction::triggered, this, &MainWindow::downloadZsCanFdDlls);
-#else
-    ui->actionDownloadZsCanFdDlls->setEnabled(false);
-#endif
-
     connect(&backend(), &Backend::beginMeasurement, this, &MainWindow::updateMeasurementActions);
     connect(&backend(), &Backend::endMeasurement, this, &MainWindow::updateMeasurementActions);
     updateMeasurementActions();
 
     connect(ui->actionSave_Trace_to_file, &QAction::triggered, this, &MainWindow::saveTraceToFile);
+    connect(ui->actionCheck_for_Updates, &QAction::triggered, this, &MainWindow::checkForUpdates);
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::showAboutDialog);
 
     auto *actionExportFull = new QAction(tr("Export full trace"), this);
     connect(actionExportFull, &QAction::triggered, this, &MainWindow::exportFullTrace);
     ui->menu_Trace->addAction(actionExportFull);
+    _actionExportFull = actionExportFull;
 
     auto *actionImportFull = new QAction(tr("Import full trace"), this);
     connect(actionImportFull, &QAction::triggered, this, &MainWindow::importFullTrace);
     ui->menu_Trace->addAction(actionImportFull);
+    _actionImportFull = actionImportFull;
 
     // Build "Open Recent" submenu and insert it before "Save Workspace..." in menuFile.
     m_recentFilesMenu = new QMenu(tr("Open Recent"), this);
@@ -203,74 +166,15 @@ void MainWindow::initActions()
     ui->horizontalLayoutControls->insertWidget(4, _btnOpenGraph);
     connect(_btnOpenGraph, &QPushButton::clicked, this, &MainWindow::createStandaloneGraphWindow);
 
-    // Gateway Button
-    auto *btnGateway = new QPushButton(tr("Gateway"), this);
-    btnGateway->setCursor(Qt::PointingHandCursor);
-    ui->horizontalLayoutControls->insertWidget(5, btnGateway);
-    connect(btnGateway, &QPushButton::clicked, this, &MainWindow::createGatewayWindow);
-
-    auto updateGatewayButton = [btnGateway, this]() {
-        int canIfCount = 0;
-        for (auto *net : backend().getSetup().getNetworks())
-            for (auto *mi : net->interfaces()) {
-                BusInterface *intf = backend().getInterfaceById(mi->busInterface());
-                if (intf && intf->busType() == BusType::CAN)
-                    ++canIfCount;
-            }
-        btnGateway->setEnabled(canIfCount >= 2);
-    };
-    connect(&backend(), &Backend::onSetupChanged, this, updateGatewayButton);
-    updateGatewayButton();
-
     initRecording();
+    initTriggerCapture();
+    initDisconnectBanner();
 }
 
 void MainWindow::initDrivers()
 {
-    const bool CANblasterEnabled = settings.value("mainWindow/CANblaster", false).toBool();
-    const bool tinyCanEnabled = settings.value("mainWindow/TinyCAN", false).toBool();
-
-    ui->actionCANblaster->setChecked(CANblasterEnabled);
-    ui->actionTinyCAN->setChecked(tinyCanEnabled);
-
     // addCanDriver takes ownership via the reference; the raw pointer is intentionally discarded.
-#if defined(__linux__)
-    Backend::instance().addCanDriver(*(new SocketCanDriver(Backend::instance())));
-#else
     Backend::instance().addCanDriver(*(new CandleApiDriver(Backend::instance())));
-#endif
-
-    Backend::instance().addCanDriver(*(new SLCANDriver(Backend::instance())));
-    Backend::instance().addCanDriver(*(new GrIPDriver(Backend::instance())));
-    Backend::instance().addCanDriver(*(new LindeApiDriver(Backend::instance())));
-    Backend::instance().addCanDriver(*(new UlcDriver(Backend::instance())));
-
-#ifdef PEAKCAN_DRIVER
-    Backend::instance().addCanDriver(*(new PeakCanDriver(Backend::instance())));
-#endif
-
-#ifdef KVASER_DRIVER
-    Backend::instance().addCanDriver(*(new KvaserDriver(Backend::instance())));
-#endif
-
-#ifdef VECTOR_DRIVER
-    Backend::instance().addCanDriver(*(new VectorDriver(Backend::instance())));
-#endif
-
-#if defined(_WIN32)
-#ifdef ZSCANFD_DRIVER
-    Backend::instance().addCanDriver(*(new ZsCanFdDriver(Backend::instance())));
-    QTimer::singleShot(0, this, &MainWindow::checkZsCanFdDlls);
-#endif
-#endif
-
-    if (CANblasterEnabled)
-        Backend::instance().addCanDriver(*(new CANBlasterDriver(Backend::instance())));
-
-#ifdef TINYCAN_DRIVER
-    if (tinyCanEnabled)
-        Backend::instance().addCanDriver(*(new TinyCanDriver(Backend::instance())));
-#endif
 }
 
 void MainWindow::initGeometry()
@@ -319,7 +223,8 @@ void MainWindow::initWorkspace()
 
 void MainWindow::initAppearance()
 {
-    qApp->installTranslator(&m_translator);
+    // The translator is installed in main() before this window is constructed,
+    // so all constructor-time texts already use the saved language.
     createLanguageMenu();
 
     // Load saved application style/theme.
@@ -363,13 +268,13 @@ void MainWindow::applyCurrentTheme()
     const bool nativeStyling = settings.value("ui/nativeStyling", true).toBool();
 
     // In native mode the dark/light decision must follow the active style's
-    // palette (e.g. choosing the "adwaita-dark" style), so the app's content
-    // colors match what the style actually paints. In the bundled (non-native)
-    // theme we follow the desktop's color scheme instead.
+    // resolved palette (e.g. Windows 11 system palette or "adwaita-dark"), so
+    // content colors match what the style actually paints. In the bundled
+    // (non-native) theme we follow the desktop's color scheme instead.
     bool dark;
     if (nativeStyling)
     {
-        const QPalette pal = QApplication::style()->standardPalette();
+        const QPalette pal = ThemeManager::resolveNativePalette();
         dark = pal.color(QPalette::Window).lightness() < 128;
     }
     else
@@ -382,20 +287,22 @@ void MainWindow::applyCurrentTheme()
 
     applyTabBackgrounds();
     applyActionIcons();
+    applyDisconnectBannerTheme();
 }
 
 void MainWindow::applyTabBackgrounds()
 {
     // The tab pages get a subtle background derived from the active palette so
     // they read as a distinct canvas without ever becoming a hard-coded light
-    // patch in a dark theme.
+    // patch in a dark theme. Start from QApplication::palette() so theme
+    // switches never preserve stale text/base colors on tab children.
     const QColor bg = tabBackgroundColor();
     for (int i = 0; i < ui->mainTabs->count(); ++i)
     {
         QWidget *page = ui->mainTabs->widget(i);
         if (!page)
             continue;
-        QPalette pal(page->palette());
+        QPalette pal(QApplication::palette());
         pal.setColor(QPalette::Window, bg);
         page->setAutoFillBackground(true);
         page->setPalette(pal);
@@ -438,11 +345,14 @@ void MainWindow::applyActionIcons()
     setIcon(ui->actionStart_Measurement,  "media-playback-start");
     setIcon(ui->actionStop_Measurement,   "media-playback-stop");
     setIcon(ui->actionReload_Interfaces,  "view-refresh");
-    setIcon(ui->actionSetup,              "preferences-other");
     setIcon(ui->actionHardware,           "drive-harddisk-usb");
+    setIcon(ui->actionSetup,              "preferences-other");
     setIcon(ui->actionAbout,              "help-about");
     setIcon(ui->action_TraceClear,        "edit-clear");
     setIcon(ui->actionSave_Trace_to_file, "document-save");
+
+    if (ui->actionCheck_for_Updates)
+        ui->actionCheck_for_Updates->setIcon(QIcon::fromTheme("system-software-update", symbolicIcon("view-refresh")));
 
     if (_btnOpenGraph)
         _btnOpenGraph->setIcon(AppHelpers::themedIcon("office-chart-line", ":/assets/graph.svg"));
@@ -528,8 +438,6 @@ void MainWindow::closeEvent(QCloseEvent *event)
     settings.setValue("mainWindow/state", saveState());
     settings.setValue("mainWindow/maximized", isMaximized());
     settings.setValue("ui/restoreWindowGeometry", ui->actionRestore_Window->isChecked());
-    settings.setValue("mainWindow/CANblaster", ui->actionCANblaster->isChecked());
-    settings.setValue("mainWindow/TinyCAN", ui->actionTinyCAN->isChecked());
 
     for (int i = 0; i < ui->mainTabs->count(); i++)
     {
@@ -577,10 +485,14 @@ static RecordingConfig loadRecordingConfig(QSettings &settings)
     const QString defaultFolder = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
                                       .filePath(QStringLiteral("CANgaroo"));
 
-    auto format = traceFormatFromName(settings.value("recording/format", traceFormatName(defaults.format)).toString())
-                      .value_or(defaults.format);
-    if (!TraceRecorder::isFormatSupported(format))
-        format = defaults.format;
+    const QString storedFormat = settings.value("recording/format", traceFormatName(defaults.format)).toString();
+    const auto parsedFormat = traceFormatFromName(storedFormat);
+    if (!parsedFormat.has_value())
+    {
+        log_warning(QStringLiteral("Recording format '%1' is no longer supported, using '%2'")
+                        .arg(storedFormat, traceFormatName(defaults.format)));
+    }
+    const TraceFileFormat format = parsedFormat.value_or(defaults.format);
 
     return RecordingConfig{
         .folder = settings.value("recording/folder", defaultFolder).toString(),
@@ -588,6 +500,7 @@ static RecordingConfig loadRecordingConfig(QSettings &settings)
         .format = format,
         .splitSizeMb = settings.value("recording/splitSizeMb", defaults.splitSizeMb).toInt(),
         .stayArmed = settings.value("recording/stayArmed", defaults.stayArmed).toBool(),
+        .recordDuringReplay = settings.value("recording/recordDuringReplay", defaults.recordDuringReplay).toBool(),
     };
 }
 
@@ -598,6 +511,7 @@ static void saveRecordingConfig(QSettings &settings, const RecordingConfig &conf
     settings.setValue("recording/format", traceFormatName(config.format));
     settings.setValue("recording/splitSizeMb", config.splitSizeMb);
     settings.setValue("recording/stayArmed", config.stayArmed);
+    settings.setValue("recording/recordDuringReplay", config.recordDuringReplay);
 }
 
 void MainWindow::initRecording()
@@ -614,6 +528,8 @@ void MainWindow::initRecording()
 
     auto *actionRecordOptions = new QAction(tr("Recording &Options..."), this);
     auto *actionOpenFolder = new QAction(tr("Open Recording &Folder"), this);
+    _actionRecordOptions = actionRecordOptions;
+    _actionOpenFolder = actionOpenFolder;
 
     ui->menuMeasurement->insertAction(ui->actionSetup, _actionRecord);
     ui->menuMeasurement->insertAction(ui->actionSetup, actionRecordOptions);
@@ -636,7 +552,7 @@ void MainWindow::initRecording()
     _recordStatusLabel = new QLabel(this);
     _recordStatusLabel->setVisible(false);
 
-    // Controls layout: Start, Stop, spacer, Setup, Graph, Gateway, [here], stretch
+    // Controls layout: Start, Stop, spacer, Setup, Graph, [here], stretch
     ui->horizontalLayoutControls->insertSpacing(6, 30);
     ui->horizontalLayoutControls->insertWidget(7, _btnRecord);
     ui->horizontalLayoutControls->insertWidget(8, _recordStatusLabel);
@@ -721,19 +637,199 @@ void MainWindow::updateRecordingStatus()
     }
 }
 
+void MainWindow::initTriggerCapture()
+{
+    TriggerCaptureManager *mgr = backend().getTriggerCaptureManager();
+    if (!mgr) return;
+
+    TriggerCaptureConfig defaultCfg = mgr->config();
+    if (defaultCfg.outputFolder.isEmpty()) {
+        defaultCfg.outputFolder = QDir(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+                                      .filePath(QStringLiteral("CANgaroo/Triggers"));
+        mgr->setConfig(defaultCfg);
+    }
+
+    _actionTriggerCapture = new QAction(tr("&Trigger Capture (Blackbox)..."), this);
+    _actionTriggerCapture->setToolTip(tr("Configure pre/post-trigger blackbox slice capture"));
+    ui->menuMeasurement->insertAction(ui->actionSetup, _actionTriggerCapture);
+
+    _btnTriggerCapture = new QToolButton(this);
+    _btnTriggerCapture->setText(tr("Trigger"));
+    _btnTriggerCapture->setToolTip(tr("Configure pre/post-trigger blackbox capture"));
+    _btnTriggerCapture->setCursor(Qt::PointingHandCursor);
+    _btnTriggerCapture->setCheckable(true);
+    connect(_btnTriggerCapture, &QToolButton::clicked, this, &MainWindow::showTriggerCaptureDialog);
+    connect(_actionTriggerCapture, &QAction::triggered, this, &MainWindow::showTriggerCaptureDialog);
+
+    _triggerStatusLabel = new QLabel(this);
+    _triggerStatusLabel->setVisible(false);
+
+    ui->horizontalLayoutControls->insertWidget(9, _btnTriggerCapture);
+    ui->horizontalLayoutControls->insertWidget(10, _triggerStatusLabel);
+
+    connect(mgr, &TriggerCaptureManager::armedChanged, this, &MainWindow::updateTriggerStatus);
+    connect(mgr, &TriggerCaptureManager::triggered, this, [this](const QString &reason, double) {
+        updateTriggerStatus();
+        statusBar()->showMessage(tr("Trigger fired: %1 (capturing post-trigger window...)").arg(reason), 5000);
+    });
+    connect(mgr, &TriggerCaptureManager::captureSaved, this, [this](const QString &path, int frames, const QString &reason) {
+        updateTriggerStatus();
+        statusBar()->showMessage(tr("Trigger capture saved (%1 frames): %2 [%3]")
+                                     .arg(frames)
+                                     .arg(QFileInfo(path).fileName(), reason),
+                                 8000);
+    });
+    connect(mgr, &TriggerCaptureManager::captureFailed, this, [this](const QString &err) {
+        updateTriggerStatus();
+        statusBar()->showMessage(tr("Trigger capture failed: %1").arg(err), 8000);
+    });
+
+    updateTriggerStatus();
+}
+
+void MainWindow::showTriggerCaptureDialog()
+{
+    TriggerCaptureManager *mgr = backend().getTriggerCaptureManager();
+    if (!mgr) return;
+
+    TriggerCaptureDialog dlg(mgr->config(), mgr->isArmed(), this);
+    if (dlg.exec() == QDialog::Accepted) {
+        mgr->setConfig(dlg.config());
+        mgr->setArmed(dlg.shouldArm());
+    }
+    updateTriggerStatus();
+}
+
+void MainWindow::updateTriggerStatus()
+{
+    TriggerCaptureManager *mgr = backend().getTriggerCaptureManager();
+    if (!mgr || !_btnTriggerCapture || !_triggerStatusLabel) return;
+
+    const ThemeColors &tc = ThemeManager::instance().colors();
+    const bool armed = mgr->isArmed();
+    _btnTriggerCapture->setChecked(armed);
+
+    if (mgr->isCapturingPostTrigger()) {
+        _triggerStatusLabel->setText(tr("TRIG CAPTURING..."));
+        _triggerStatusLabel->setStyleSheet(QStringLiteral("QLabel { color: %1; font-weight: bold; }").arg(tc.statusError.name()));
+        _triggerStatusLabel->setVisible(true);
+    } else if (armed) {
+        _triggerStatusLabel->setText(tr("TRIG ARMED (%1)").arg(mgr->captureCount()));
+        _triggerStatusLabel->setStyleSheet(QStringLiteral("QLabel { color: %1; font-weight: bold; }").arg(tc.statusWarning.name()));
+        _triggerStatusLabel->setVisible(true);
+    } else {
+        _triggerStatusLabel->setVisible(false);
+    }
+}
+
+void MainWindow::initDisconnectBanner()
+{
+    _disconnectBanner = new QWidget(this);
+    _disconnectBanner->setObjectName(QStringLiteral("disconnectBanner"));
+    _disconnectBanner->setVisible(false);
+
+    auto *row = new QHBoxLayout(_disconnectBanner);
+    row->setContentsMargins(10, 6, 10, 6);
+    row->setSpacing(8);
+
+    _disconnectBannerLabel = new QLabel(this);
+    _disconnectBannerLabel->setWordWrap(true);
+    _btnBannerRebind = new QPushButton(tr("Rebind && Resume"), _disconnectBanner);
+    _btnBannerRebind->setCursor(Qt::PointingHandCursor);
+    _btnBannerDismiss = new QPushButton(tr("Dismiss"), _disconnectBanner);
+    _btnBannerDismiss->setCursor(Qt::PointingHandCursor);
+
+    row->addWidget(_disconnectBannerLabel, 1);
+    row->addWidget(_btnBannerRebind);
+    row->addWidget(_btnBannerDismiss);
+
+    ui->verticalLayout->insertWidget(1, _disconnectBanner);
+
+    connect(_btnBannerRebind, &QPushButton::clicked, this, &MainWindow::onManualRebindClicked);
+    connect(_btnBannerDismiss, &QPushButton::clicked, _disconnectBanner, &QWidget::hide);
+    connect(&backend(), &Backend::interfaceConnectionLost,
+            this, &MainWindow::onInterfaceConnectionLost, Qt::QueuedConnection);
+    connect(&backend(), &Backend::beginMeasurement, _disconnectBanner, &QWidget::hide);
+
+    applyDisconnectBannerTheme();
+}
+
+void MainWindow::applyDisconnectBannerTheme()
+{
+    if (!_disconnectBanner || !_disconnectBannerLabel) return;
+    const ThemeColors &tc = ThemeManager::instance().colors();
+    _disconnectBanner->setStyleSheet(
+        QStringLiteral("QWidget#disconnectBanner { background-color: %1; border-bottom: 1px solid %2; }")
+            .arg(tc.bannerWarningBg.name(), tc.bannerWarningBorder.name()));
+    _disconnectBannerLabel->setStyleSheet(
+        QStringLiteral("QLabel { color: %1; font-weight: bold; }").arg(tc.bannerWarningText.name()));
+}
+
+void MainWindow::onInterfaceConnectionLost(const QString &interfaceName, const QString &reason)
+{
+    _disconnectBannerInterface = interfaceName;
+    _disconnectBannerReason = reason;
+    updateDisconnectBannerText();
+    _disconnectBanner->setVisible(true);
+    statusBar()->showMessage(tr("Interface '%1' disconnected — please manually rebind.").arg(interfaceName), 10000);
+
+    const QString detail = reason.isEmpty() ? tr("USB/CAN device disconnected") : reason;
+    auto *msgBox = new QMessageBox(QMessageBox::Warning,
+                                   tr("USB / CAN Interface Disconnected"),
+                                   tr("Interface '%1' lost connection (%2).\n\n"
+                                      "Existing Trace and Graph data have been preserved.\n"
+                                      "Please reconnect the USB cable and click \"Rebind & Resume\" in the top banner or Hardware dialog.")
+                                       .arg(interfaceName, detail),
+                                   QMessageBox::Ok,
+                                   this);
+    msgBox->setAttribute(Qt::WA_DeleteOnClose);
+    msgBox->setModal(false);
+    msgBox->show();
+}
+
+void MainWindow::updateDisconnectBannerText()
+{
+    if (!_disconnectBannerLabel || _disconnectBannerInterface.isEmpty())
+        return;
+    const QString detail = _disconnectBannerReason.isEmpty()
+                               ? tr("USB/CAN device disconnected")
+                               : _disconnectBannerReason;
+    _disconnectBannerLabel->setText(
+        tr("Interface '%1' disconnected (%2). Reconnect the USB adapter, then click \"Rebind & Resume\" to restore measurement without losing trace/graph data.")
+            .arg(_disconnectBannerInterface, detail));
+}
+
+void MainWindow::onManualRebindClicked()
+{
+    QString err;
+    if (backend().rebindAndResume(&err)) {
+        _disconnectBanner->setVisible(false);
+        statusBar()->showMessage(tr("Interfaces rebound and measurement resumed (trace preserved)."), 5000);
+        return;
+    }
+
+    QMessageBox::warning(this,
+                         tr("Rebind & Resume Failed"),
+                         tr("Could not rebind configured interface(s):\n%1\n\n"
+                            "Please verify the USB adapter is plugged in and try again, or open Measurement Setup.")
+                             .arg(err.isEmpty() ? tr("No matching hardware found.") : err));
+}
+
 Backend &MainWindow::backend()
 {
     return Backend::instance();
 }
 
-QMainWindow *MainWindow::createTab(const QString &title)
+QMainWindow *MainWindow::createTab(const QString &title, const char *titleSource)
 {
     auto *mm = new QMainWindow(this);
-    QPalette pal(mm->palette());
+    QPalette pal(QApplication::palette());
     pal.setColor(QPalette::Window, tabBackgroundColor());
     mm->setAutoFillBackground(true);
     mm->setPalette(pal);
-    ui->mainTabs->addTab(mm, title);
+    if (titleSource)
+        mm->setProperty("i18nTitleSource", QString::fromLatin1(titleSource));
+    ui->mainTabs->addTab(mm, titleSource ? tr(titleSource) : title);
     return mm;
 }
 
@@ -768,8 +864,6 @@ void MainWindow::clearWorkspace()
             gw->close();
     }
 
-    delete _gatewayWindow;
-    _gatewayWindow = nullptr;
 
     _workspaceFileName.clear();
     _setupFromWorkspace = false;
@@ -780,10 +874,18 @@ bool MainWindow::loadWorkspaceTab(QDomElement el)
 {
     QMainWindow *mw = nullptr;
     const QString type = el.attribute("type");
+    QString title = el.attribute("title");
+    // Workspaces saved in another language carry the localized tab title; map the
+    // known defaults back onto the untranslated source so the language switch
+    // keeps working after loading.
+    if (title == QLatin1String("Trace") || title == tr("Trace"))
+        title = QString();
+    else if (title == QLatin1String("Graph") || title == tr("Graph"))
+        title = QString();
     if (type == "TraceWindow")
-        mw = createTraceWindow(el.attribute("title"));
+        mw = createTraceWindow(title);
     else if (type == "GraphWindow")
-        mw = createGraphWindow(el.attribute("title"));
+        mw = createGraphWindow(title);
     else
         return false;
 
@@ -799,11 +901,12 @@ bool MainWindow::loadWorkspaceTab(QDomElement el)
         if (gen && !genEl.isNull())
             gen->loadXML(backend(), genEl);
 
-        // Load ScriptWindow dock content (script code + autorun) if present.
-        ScriptWindow *script = mw->findChild<ScriptWindow *>();
-        QDomElement scriptEl = el.firstChildElement("scriptwindow");
-        if (script && !scriptEl.isNull())
-            script->loadXML(backend(), scriptEl);
+        // Workspaces from before the Python window was dropped still carry a
+        // <scriptwindow> element; it is ignored rather than failing the load.
+        if (!el.firstChildElement("scriptwindow").isNull())
+        {
+            log_info(QString(tr("Ignoring scriptwindow section from workspace; Python scripting is no longer available")));
+        }
 
         // Load GraphWindow dock content (active signals, view type, duration) if present.
         GraphWindow *graph = mw->findChild<GraphWindow *>();
@@ -811,20 +914,11 @@ bool MainWindow::loadWorkspaceTab(QDomElement el)
         if (graph && !graphEl.isNull())
             graph->loadXML(backend(), graphEl);
 
-        // Recreate LinControlWindow dock if it was open, and restore diag requests.
-        QDomElement linEl = el.firstChildElement("lincontrolwindow");
-        if (!linEl.isNull())
-        {
-            QDockWidget *linDock = addLinControlWidget(mw);
-            LinControlWindow *lin = linDock ? qobject_cast<LinControlWindow *>(linDock->widget()) : nullptr;
-            if (lin)
-                lin->loadXML(backend(), linEl);
-        }
-
-        // Recreate GpioControlWindow dock if it was open.
-        QDomElement gpioEl = el.firstChildElement("gpiocontrolwindow");
-        if (!gpioEl.isNull())
-            addGpioControlWidget(mw);
+        // Load MotorView dock content (configured motors) if present.
+        MotorView *motors = mw->findChild<MotorView *>();
+        QDomElement motorEl = el.firstChildElement("motorview");
+        if (motors && !motorEl.isNull())
+            motors->loadXML(backend(), motorEl);
 
         // Restore dock layout state (splits, tabification, sizes).
         // Deferred so it runs after the default layout timer from createTraceWindow().
@@ -900,15 +994,11 @@ void MainWindow::loadWorkspaceFromFile(const QString &filename)
         log_error(QString(tr("Unable to read measurement setup from workspace config file: %1")).arg(filename));
     }
 
-    QDomElement gwEl = root.firstChildElement("gatewaywindow");
-    if (!gwEl.isNull())
+    // Workspaces from before the CAN gateway window was dropped still carry a
+    // <gatewaywindow> element; it is ignored rather than failing the load.
+    if (!root.firstChildElement("gatewaywindow").isNull())
     {
-        if (!_gatewayWindow)
-        {
-            _gatewayWindow = new GatewayWindow(nullptr, backend());
-            _gatewayWindow->setWindowTitle(tr("CAN Gateway"));
-        }
-        _gatewayWindow->loadXML(backend(), gwEl);
+        log_info(QString(tr("Ignoring gatewaywindow section from workspace; the CAN gateway is no longer available")));
     }
 
     if (ui->mainTabs->count() > 0)
@@ -935,7 +1025,10 @@ bool MainWindow::saveWorkspaceToFile(const QString &filename)
             continue;
 
         QDomElement tabEl = doc.createElement("tab");
-        tabEl.setAttribute("title", ui->mainTabs->tabText(i));
+        // Store the untranslated source title for default tabs so a workspace
+        // saved in one language still uses localized titles after loading.
+        const QString titleSource = w->property("i18nTitleSource").toString();
+        tabEl.setAttribute("title", titleSource.isEmpty() ? ui->mainTabs->tabText(i) : titleSource);
 
         ConfigurableWidget *mdi = dynamic_cast<ConfigurableWidget *>(w->centralWidget());
         if (!mdi || !mdi->saveXML(backend(), doc, tabEl))
@@ -956,15 +1049,6 @@ bool MainWindow::saveWorkspaceToFile(const QString &filename)
             tabEl.appendChild(genEl);
         }
 
-        // Save ScriptWindow dock content (script code + autorun).
-        ScriptWindow *script = w->findChild<ScriptWindow *>();
-        if (script)
-        {
-            QDomElement scriptEl = doc.createElement("scriptwindow");
-            script->saveXML(backend(), doc, scriptEl);
-            tabEl.appendChild(scriptEl);
-        }
-
         // Save GraphWindow dock content (active signals, view type, duration).
         GraphWindow *graph = w->findChild<GraphWindow *>();
         if (graph)
@@ -974,22 +1058,13 @@ bool MainWindow::saveWorkspaceToFile(const QString &filename)
             tabEl.appendChild(graphEl);
         }
 
-        // Save LinControlWindow dock content (diag requests) if present.
-        LinControlWindow *lin = w->findChild<LinControlWindow *>();
-        if (lin)
+        // Save MotorView dock content (configured motors).
+        MotorView *motors = w->findChild<MotorView *>();
+        if (motors)
         {
-            QDomElement linEl = doc.createElement("lincontrolwindow");
-            lin->saveXML(backend(), doc, linEl);
-            tabEl.appendChild(linEl);
-        }
-
-        // Save GpioControlWindow dock if present (marks it should be reopened).
-        GpioControlWindow *gpio = w->findChild<GpioControlWindow *>();
-        if (gpio)
-        {
-            QDomElement gpioEl = doc.createElement("gpiocontrolwindow");
-            gpio->saveXML(backend(), doc, gpioEl);
-            tabEl.appendChild(gpioEl);
+            QDomElement motorEl = doc.createElement("motorview");
+            motors->saveXML(backend(), doc, motorEl);
+            tabEl.appendChild(motorEl);
         }
 
         tabsRoot.appendChild(tabEl);
@@ -1002,13 +1077,6 @@ bool MainWindow::saveWorkspaceToFile(const QString &filename)
         return false;
     }
     root.appendChild(setupRoot);
-
-    if (_gatewayWindow)
-    {
-        QDomElement gwEl = doc.createElement("gatewaywindow");
-        _gatewayWindow->saveXML(backend(), doc, gwEl);
-        root.appendChild(gwEl);
-    }
 
     QFile outFile(filename);
     if (!outFile.open(QIODevice::WriteOnly | QIODevice::Text))
@@ -1128,7 +1196,8 @@ int MainWindow::askSaveBecauseWorkspaceModified()
 
 QMainWindow *MainWindow::createTraceWindow(const QString &title)
 {
-    QMainWindow *mm = createTab(title.isNull() ? tr("Trace") : title);
+    QMainWindow *mm = createTab(title.isNull() ? tr("Trace") : title,
+                                title.isNull() ? "Trace" : nullptr);
     auto *trace = new TraceWindow(mm, backend());
     mm->setCentralWidget(trace);
 
@@ -1136,8 +1205,9 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     QDockWidget *dockStatusWidget   = addStatusWidget(mm);
     QDockWidget *dockGeneratorWidget = addTxGeneratorWidget(mm);
     QDockWidget *dockGraphWidget    = addGraphWidget(mm);
-    QDockWidget *dockScriptWidget   = addScriptWidget(mm);
     QDockWidget *dockReplayWidget   = addReplayWidget(mm);
+    QDockWidget *dockMotorWidget    = addMotorWidget(mm);
+    QDockWidget *dockRawTxWidget    = addRawTxWidget(mm);
 
     auto *gen = qobject_cast<TxGeneratorWindow *>(dockGeneratorWidget->widget());
     if (gen)
@@ -1147,25 +1217,30 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
     // that are already placed in the same area of the same QMainWindow.
     mm->splitDockWidget(dockGeneratorWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockGraphWidget, dockLogWidget, Qt::Horizontal);
-    mm->splitDockWidget(dockScriptWidget, dockLogWidget, Qt::Horizontal);
     mm->splitDockWidget(dockReplayWidget, dockLogWidget, Qt::Horizontal);
+    mm->splitDockWidget(dockMotorWidget, dockLogWidget, Qt::Horizontal);
+    mm->splitDockWidget(dockRawTxWidget, dockLogWidget, Qt::Horizontal);
+    // Message View is the first tab of the bottom-right dock group, so a new
+    // Trace window shows it by default instead of the Generator View.
+    mm->tabifyDockWidget(dockRawTxWidget, dockGeneratorWidget);
     mm->tabifyDockWidget(dockGeneratorWidget, dockGraphWidget);
-    mm->tabifyDockWidget(dockGraphWidget, dockScriptWidget);
-    mm->tabifyDockWidget(dockScriptWidget, dockReplayWidget);
+    mm->tabifyDockWidget(dockGraphWidget, dockReplayWidget);
+    mm->tabifyDockWidget(dockReplayWidget, dockMotorWidget);
     mm->splitDockWidget(dockStatusWidget, dockLogWidget, Qt::Horizontal);
     mm->tabifyDockWidget(dockStatusWidget, dockLogWidget);
 
     // Deferred resize so it runs after the event loop settles.
-    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockScriptWidget, dockReplayWidget]()
+    QTimer::singleShot(0, mm, [mm, dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget, dockRawTxWidget]()
     {
         dockStatusWidget->show();
         dockStatusWidget->raise();
         dockGeneratorWidget->show();
-        dockGeneratorWidget->raise();
+        dockRawTxWidget->show();
+        dockRawTxWidget->raise();
 
-        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockScriptWidget, dockReplayWidget},
+        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget},
                         {600, 600, 600, 600, 600}, Qt::Vertical);
-        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockScriptWidget, dockReplayWidget},
+        mm->resizeDocks({dockLogWidget, dockGeneratorWidget, dockStatusWidget, dockReplayWidget, dockMotorWidget},
                         {1200, 1200, 1200, 1200, 1200}, Qt::Horizontal);
     });
 
@@ -1175,21 +1250,11 @@ QMainWindow *MainWindow::createTraceWindow(const QString &title)
 
 QMainWindow *MainWindow::createGraphWindow(const QString &title)
 {
-    QMainWindow *mm = createTab(title.isNull() ? tr("Graph") : title);
+    QMainWindow *mm = createTab(title.isNull() ? tr("Graph") : title,
+                                title.isNull() ? "Graph" : nullptr);
     mm->setCentralWidget(new GraphWindow(mm, backend()));
     addLogWidget(mm);
     return mm;
-}
-
-void MainWindow::createGatewayWindow()
-{
-    if (!_gatewayWindow) {
-        _gatewayWindow = new GatewayWindow(nullptr, backend());
-        _gatewayWindow->setWindowTitle(tr("CAN Gateway"));
-    }
-    _gatewayWindow->show();
-    _gatewayWindow->raise();
-    _gatewayWindow->activateWindow();
 }
 
 void MainWindow::createStandaloneGraphWindow()
@@ -1205,7 +1270,8 @@ void MainWindow::createStandaloneGraphWindow()
     gw->show();
 }
 
-QDockWidget *MainWindow::makeDock(const QString &title, const QString &objectName,
+QDockWidget *MainWindow::makeDock(const QString &title, const char *titleSource,
+                                   const QString &objectName,
                                    QWidget *content, QMainWindow *parent)
 {
     const bool tabify = (parent == nullptr);
@@ -1228,6 +1294,9 @@ QDockWidget *MainWindow::makeDock(const QString &title, const QString &objectNam
 
     auto *dock = new QDockWidget(title, parent);
     dock->setObjectName(objectName);
+    // Remember the untranslated source so a runtime language switch can retranslate it.
+    if (titleSource)
+        dock->setProperty("i18nTitleSource", QString::fromLatin1(titleSource));
     dock->setWidget(content);
     parent->addDockWidget(Qt::BottomDockWidgetArea, dock);
 
@@ -1244,77 +1313,60 @@ QDockWidget *MainWindow::makeDock(const QString &title, const QString &objectNam
 
 QDockWidget *MainWindow::addGraphWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Graph"), QStringLiteral("dock_graph"),
+    return makeDock(tr("Graph"), "Graph", QStringLiteral("dock_graph"),
                     new GraphWindow(nullptr, backend()), parent);
 }
 
 QDockWidget *MainWindow::addRawTxWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Message View"), QStringLiteral("dock_rawtx"),
-                    new RawTxWindow(nullptr, backend()), parent);
+    QMainWindow *tab = parent ? parent : currentTab();
+    if (!tab) { return nullptr; }
+
+    auto *rawTx = new RawTxWindow(nullptr, backend());
+    auto *dock = makeDock(tr("Message View"), "Message View", QStringLiteral("dock_rawtx"), rawTx, parent);
+    dock->installEventFilter(rawTx);
+    if (auto *generator = tab->findChild<TxGeneratorWindow *>()) {
+        connect(generator, &TxGeneratorWindow::messageSelected, rawTx, &RawTxWindow::setMessage);
+
+        BusMessage message;
+        QString name;
+        BusInterfaceId interfaceId;
+        CanDbMessage *dbMessage;
+        if (generator->currentMessage(&message, &name, &interfaceId, &dbMessage)) {
+            rawTx->setMessage(message, name, interfaceId, dbMessage);
+        }
+    }
+    return dock;
 }
 
 QDockWidget *MainWindow::addLogWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Log"), QStringLiteral("dock_log"),
+    return makeDock(tr("Log"), "Log", QStringLiteral("dock_log"),
                     new LogWindow(nullptr, backend()), parent);
 }
 
 QDockWidget *MainWindow::addStatusWidget(QMainWindow *parent)
 {
-    return makeDock(tr("BUS Status"), QStringLiteral("dock_status"),
+    return makeDock(tr("BUS Status"), "BUS Status", QStringLiteral("dock_status"),
                     new CanStatusWindow(nullptr, backend()), parent);
 }
 
 QDockWidget *MainWindow::addTxGeneratorWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Generator View"), QStringLiteral("dock_generator"),
+    return makeDock(tr("Generator View"), "Generator View", QStringLiteral("dock_generator"),
                     new TxGeneratorWindow(nullptr, backend()), parent);
-}
-
-QDockWidget *MainWindow::addScriptWidget(QMainWindow *parent)
-{
-    // One Script dock per tab: reuse an existing one instead of stacking a second
-    // ScriptWindow on top (#30). Engines in different tabs share the process's one
-    // Python interpreter (see PythonEngine.cpp, #50).
-    QMainWindow *targetTab = parent ? parent : currentTab();
-    if (targetTab)
-    {
-        if (auto *existing = targetTab->findChild<ScriptWindow *>())
-        {
-            if (auto *dock = qobject_cast<QDockWidget *>(existing->parentWidget()))
-            {
-                dock->show();
-                dock->raise();
-                return dock;
-            }
-        }
-    }
-
-    auto *scriptWindow = new ScriptWindow(nullptr, backend());
-    auto *dock = makeDock(tr("Python"), QStringLiteral("dock_script"), scriptWindow, parent);
-    if (dock)
-        connect(scriptWindow, &ConfigurableWidget::settingsChanged,
-                this, [this]() { setWorkspaceModified(true); });
-    return dock;
 }
 
 QDockWidget *MainWindow::addReplayWidget(QMainWindow *parent)
 {
-    return makeDock(tr("Replay"), QStringLiteral("dock_replay"),
+    return makeDock(tr("Replay"), "Replay", QStringLiteral("dock_replay"),
                     new ReplayWindow(nullptr, backend()), parent);
 }
 
-QDockWidget *MainWindow::addLinControlWidget(QMainWindow *parent)
+QDockWidget *MainWindow::addMotorWidget(QMainWindow *parent)
 {
-    return makeDock(tr("LIN Control"), QStringLiteral("dock_lin_control"),
-                    new LinControlWindow(nullptr, backend()), parent);
-}
-
-QDockWidget *MainWindow::addGpioControlWidget(QMainWindow *parent)
-{
-    return makeDock(tr("GPIO Control"), QStringLiteral("dock_gpio_control"),
-                    new GpioControlWindow(nullptr, backend()), parent);
+    return makeDock(tr("Motor View"), "Motor View", QStringLiteral("dock_motor"),
+                    new MotorView(nullptr, backend()), parent);
 }
 
 void MainWindow::setupDockFloatReparent(QDockWidget *dock, QMainWindow *innerParent)
@@ -1350,24 +1402,6 @@ bool MainWindow::showSetupDialog()
     else
         new_setup.cloneFrom(backend().getSetup());
 
-#if defined(__linux__)
-    // Default SocketCAN interfaces to "configured by OS" when not running as root.
-    // Only as the initial default: once the setup was confirmed or came from a
-    // workspace file, the stored choice for "configured by OS" must stick.
-    if (geteuid() != 0 && !_hasConfirmedSetup && !_setupFromWorkspace)
-    {
-        for (auto *network : new_setup.getNetworks())
-        {
-            for (auto *mi : network->interfaces())
-            {
-                BusInterface *intf = backend().getInterfaceById(mi->busInterface());
-                if (intf && intf->getDriver()->getName() == "SocketCAN")
-                    mi->setDoConfigure(false);
-            }
-        }
-    }
-#endif
-
     if (_setupDlg->showSetupDialog(new_setup))
     {
         if (!_setupDlg->isReflashNetworks())
@@ -1397,25 +1431,248 @@ void MainWindow::showHardwareDialog()
     _hardwareDlg->activateWindow();
 }
 
+namespace {
+
+void openSafeWebUrl(const QString &urlStr)
+{
+    const QUrl url(urlStr);
+    if (url.isValid() && (url.scheme() == QLatin1String("https") || url.scheme() == QLatin1String("http")))
+        QDesktopServices::openUrl(url);
+}
+
+QString formatDisplayVersion(const QString &version)
+{
+    const QString trimmed = version.trimmed();
+    if (trimmed.isEmpty() || trimmed.compare(QLatin1String("dev"), Qt::CaseInsensitive) == 0)
+        return trimmed.isEmpty() ? QStringLiteral("dev") : trimmed;
+    if (trimmed.startsWith(QLatin1Char('v'), Qt::CaseInsensitive))
+        return trimmed;
+    return QLatin1Char('v') + trimmed;
+}
+
+} // namespace
+
 void MainWindow::showAboutDialog()
 {
-    QMessageBox::about(this,
-                       tr("About CANgaroo"),
-                       "CANgaroo\n"
-                       "Open Source CAN bus analyzer\n"
-                       "https://github.com/Schildkroet/CANgaroo"
-                       "\n"
-                       "Version " VERSION_STRING "\n"
-                       "\n"
-                       "(c)2024-2026 Schildkroet\n"
-                       "(c)2015-2017 Hubert Denkmair\n"
-                       "(c)2018-2022 Ethan Zonca\n"
-                       "(c)2024 WeAct Studio\n"
-                       "(c)2025 Wikilift\n"
-                       "(c)2026 Jayachandran Dharuman"
-                       "\n\n"
-                       "CANgaroo is free software licensed"
-                       "\nunder the GPL v2 license.");
+    const QString aboutText =
+        tr("CANgaroo\n"
+           "Open Source CAN bus analyzer\n"
+           "https://github.com/SJTU-RoboMaster-Team/CANgaroo-jl\n"
+           "(Upstream: https://github.com/Schildkroet/CANgaroo)\n"
+           "\n"
+           "Version %1\n"
+           "\n"
+           "(c)2024-2026 Schildkroet\n"
+           "(c)2015-2017 Hubert Denkmair\n"
+           "(c)2018-2022 Ethan Zonca\n"
+           "(c)2024 WeAct Studio\n"
+           "(c)2025 Wikilift\n"
+           "(c)2026 Jayachandran Dharuman\n"
+           "\n"
+           "CANgaroo is free software licensed\n"
+           "under the GPL v2 license.")
+            .arg(QStringLiteral(VERSION_STRING));
+    QMessageBox::about(this, tr("About CANgaroo"), aboutText);
+}
+
+void MainWindow::checkForUpdates()
+{
+    if (!_updateChecker)
+    {
+        _updateChecker = new UpdateChecker(this);
+        connect(_updateChecker, &UpdateChecker::checkFinished,
+                this, &MainWindow::handleUpdateCheckFinished);
+        connect(_updateChecker, &UpdateChecker::checkCancelled,
+                this, &MainWindow::closeUpdateProgressDialog);
+    }
+
+    if (_updateChecker->isChecking())
+    {
+        if (_updateProgressDlg)
+        {
+            _updateProgressDlg->show();
+            _updateProgressDlg->raise();
+            _updateProgressDlg->activateWindow();
+        }
+        return;
+    }
+
+    closeUpdateProgressDialog();
+    auto *progress = new QProgressDialog(
+        tr("Checking for updates from %1...").arg(_updateChecker->repository()),
+        tr("Cancel"),
+        0, 0, this);
+    progress->setWindowTitle(tr("Check for Updates"));
+    progress->setWindowModality(Qt::WindowModal);
+    progress->setMinimumDuration(0);
+    progress->setAutoClose(false);
+    progress->setAutoReset(false);
+    connect(progress, &QProgressDialog::canceled, _updateChecker, &UpdateChecker::cancel);
+    _updateProgressDlg = progress;
+    progress->show();
+
+    _updateChecker->checkForUpdates(QStringLiteral(VERSION_STRING));
+}
+
+void MainWindow::closeUpdateProgressDialog()
+{
+    if (!_updateProgressDlg)
+        return;
+    QProgressDialog *dlg = _updateProgressDlg.data();
+    _updateProgressDlg.clear();
+    disconnect(dlg, nullptr, this, nullptr);
+    if (_updateChecker)
+        disconnect(dlg, nullptr, _updateChecker, nullptr);
+    dlg->hide();
+    dlg->deleteLater();
+}
+
+void MainWindow::handleUpdateCheckFinished(const UpdateCheckResult &result)
+{
+    closeUpdateProgressDialog();
+
+    const QString repoText = result.repository.isEmpty()
+        ? QString::fromLatin1(UpdateChecker::defaultRepository())
+        : result.repository;
+
+    switch (result.status)
+    {
+    case UpdateCheckResult::Status::UpToDate:
+    {
+        QMessageBox::information(
+            this,
+            tr("Check for Updates"),
+            tr("You are already using the latest version (%1).\n\nUpdate source: %2")
+                .arg(formatDisplayVersion(result.currentVersion), repoText));
+        break;
+    }
+    case UpdateCheckResult::Status::DevBuild:
+    {
+        QMessageBox msgBox(this);
+        msgBox.setIcon(QMessageBox::Information);
+        msgBox.setWindowTitle(tr("Check for Updates"));
+        msgBox.setText(tr("You are running a development build (%1).\n\n"
+                          "Latest version in %2: %3")
+                           .arg(formatDisplayVersion(result.currentVersion),
+                                repoText,
+                                result.latestTag));
+        QPushButton *openBtn = msgBox.addButton(tr("Open Release Page"), QMessageBox::ActionRole);
+        msgBox.addButton(QMessageBox::Close);
+        msgBox.exec();
+        if (msgBox.clickedButton() == openBtn)
+            openSafeWebUrl(result.releasePageUrl);
+        break;
+    }
+    case UpdateCheckResult::Status::UpdateAvailable:
+        showUpdateAvailableDialog(result);
+        break;
+    case UpdateCheckResult::Status::Error:
+    {
+        QMessageBox msgBox(this);
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setWindowTitle(tr("Check for Updates"));
+        msgBox.setText(tr("Failed to check for updates from %1.").arg(repoText));
+        msgBox.setInformativeText(result.errorMessage);
+        QPushButton *openBtn = msgBox.addButton(tr("Open Releases Page"), QMessageBox::ActionRole);
+        msgBox.addButton(QMessageBox::Close);
+        msgBox.exec();
+        if (msgBox.clickedButton() == openBtn)
+            openSafeWebUrl(result.releasePageUrl);
+        break;
+    }
+    }
+}
+
+void MainWindow::showUpdateAvailableDialog(const UpdateCheckResult &result)
+{
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Update Available"));
+    dlg.setMinimumWidth(460);
+
+    auto *layout = new QVBoxLayout(&dlg);
+
+    auto *headerLabel = new QLabel(tr("A new version of CANgaroo is available!"), &dlg);
+    QFont headerFont = headerLabel->font();
+    headerFont.setBold(true);
+    headerLabel->setFont(headerFont);
+    layout->addWidget(headerLabel);
+
+    auto *form = new QFormLayout();
+    form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    form->addRow(tr("Current version:"), new QLabel(formatDisplayVersion(result.currentVersion), &dlg));
+
+    QString latestDisplay = formatDisplayVersion(result.latestVersion);
+    if (result.sourceKind == UpdateSourceKind::TagFallback)
+        latestDisplay += tr(" (tag %1)").arg(result.latestTag);
+    form->addRow(tr("Latest version:"), new QLabel(latestDisplay, &dlg));
+
+    auto *sourceLabel = new QLabel(
+        QStringLiteral("<a href=\"%1\">%2</a>")
+            .arg(UpdateChecker::repositoryWebUrl(result.repository).toHtmlEscaped(),
+                 result.repository.toHtmlEscaped()),
+        &dlg);
+    sourceLabel->setOpenExternalLinks(true);
+    sourceLabel->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    form->addRow(tr("Update source:"), sourceLabel);
+
+    if (!result.assetName.isEmpty())
+        form->addRow(tr("Package:"), new QLabel(result.assetName, &dlg));
+
+    layout->addLayout(form);
+
+    if (!result.releaseNotes.isEmpty())
+    {
+        auto *notesLabel = new QLabel(tr("Release notes:"), &dlg);
+        layout->addWidget(notesLabel);
+
+        auto *notesEdit = new QPlainTextEdit(&dlg);
+        notesEdit->setReadOnly(true);
+        notesEdit->setPlainText(result.releaseNotes);
+        notesEdit->setMaximumHeight(200);
+        layout->addWidget(notesEdit);
+    }
+    else if (result.sourceKind == UpdateSourceKind::TagFallback)
+    {
+        auto *tagNote = new QLabel(
+            tr("Detected from repository tag %1 (no published release notes yet).").arg(result.latestTag),
+            &dlg);
+        tagNote->setWordWrap(true);
+        layout->addWidget(tagNote);
+    }
+
+    auto *buttonBox = new QDialogButtonBox(&dlg);
+    QPushButton *downloadBtn = nullptr;
+    QPushButton *releasePageBtn = nullptr;
+
+    if (!result.downloadUrl.isEmpty())
+    {
+        downloadBtn = buttonBox->addButton(tr("Download"), QDialogButtonBox::AcceptRole);
+        releasePageBtn = buttonBox->addButton(tr("Release Page"), QDialogButtonBox::ActionRole);
+    }
+    else
+    {
+        releasePageBtn = buttonBox->addButton(tr("Open Release Page"), QDialogButtonBox::AcceptRole);
+    }
+    buttonBox->addButton(QDialogButtonBox::Close);
+
+    connect(buttonBox, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (downloadBtn)
+    {
+        connect(downloadBtn, &QPushButton::clicked, &dlg, [&dlg, &result]() {
+            openSafeWebUrl(result.downloadUrl);
+            dlg.accept();
+        });
+    }
+    if (releasePageBtn)
+    {
+        connect(releasePageBtn, &QPushButton::clicked, &dlg, [&dlg, &result]() {
+            openSafeWebUrl(result.releasePageUrl);
+            dlg.accept();
+        });
+    }
+
+    layout->addWidget(buttonBox);
+    dlg.exec();
 }
 
 void MainWindow::startMeasurement()
@@ -1445,8 +1702,18 @@ void MainWindow::stopMeasurement()
 
 void MainWindow::saveTraceToFile()
 {
-    const QString filters("Vector ASC (*.asc);;Vector MDF4 (*.mf4);;Linux candump (*.candump);;PCAP (*.pcap);;PCAPng (*.pcapng)");
-    const QString defaultFilter = settings.value("ui/preferredSaveFormat", "Vector ASC (*.asc)").toString();
+    const QString ascFilter = tr("Vector ASC (*.asc)");
+    const QString csvFilter = tr("CAN/FD Raw CSV (*.csv)");
+    const QString candumpFilter = tr("Linux candump (*.candump)");
+    const QString filters(ascFilter + ";;" + csvFilter + ";;" + candumpFilter);
+    // The setting keeps the stable (untranslated) filter identifier.
+    const QString savedFormat = settings.value("ui/preferredSaveFormat",
+                                               "Vector ASC (*.asc)").toString();
+    QString defaultFilter = ascFilter;
+    if (savedFormat == QLatin1String("CAN/FD Raw CSV (*.csv)"))
+        defaultFilter = csvFilter;
+    else if (savedFormat == QLatin1String("Linux candump (*.candump)"))
+        defaultFilter = candumpFilter;
 
     QFileDialog fileDialog(nullptr, tr("Save Trace to file"), QDir::currentPath(), filters);
     fileDialog.setAcceptMode(QFileDialog::AcceptSave);
@@ -1512,18 +1779,18 @@ void MainWindow::switchLanguage(QAction *action)
 {
     const QString locale = action->data().toString();
 
-    qApp->removeTranslator(&m_translator);
-
-    if (locale == "en_US")
-        std::ignore = m_translator.load("");
-    else
+    if (!Translation::apply(locale))
     {
-        const QString qmPath = ":/translations/i18n_" + locale + ".qm";
-        if (!m_translator.load(qmPath))
-            qDebug() << "Could not load translation: " << qmPath;
+        QMessageBox::warning(
+            this, tr("Language"),
+            tr("Could not load the translation for %1. The UI language was not changed.")
+                .arg(action->text()));
+        // Keep the menu consistent with the language that is really active.
+        for (QAction *other : m_languageActionGroup->actions())
+            other->setChecked(other->data().toString() == Translation::currentLocale());
+        return;
     }
 
-    qApp->installTranslator(&m_translator);
     settings.setValue("ui/language", locale);
 }
 
@@ -1532,6 +1799,10 @@ void MainWindow::changeEvent(QEvent *event)
     if (event->type() == QEvent::LanguageChange)
     {
         ui->retranslateUi(this);
+        retranslateCustomUi();
+        retranslateTabAndDockTitles();
+        updateRecordingStatus();
+        updateTriggerStatus();
         _baseWindowTitle = tr("CANgaroo");
         setWorkspaceModified(_workspaceModified);
     }
@@ -1539,20 +1810,112 @@ void MainWindow::changeEvent(QEvent *event)
     QMainWindow::changeEvent(event);
 }
 
+void MainWindow::retranslateCustomUi()
+{
+    if (_actionStandaloneGraph)
+        _actionStandaloneGraph->setText(tr("Standalone Graph"));
+    if (_actionMotorView)
+        _actionMotorView->setText(tr("Motor View"));
+    if (_actionExportFull)
+        _actionExportFull->setText(tr("Export full trace"));
+    if (_actionImportFull)
+        _actionImportFull->setText(tr("Import full trace"));
+
+    if (m_recentFilesMenu)
+    {
+        m_recentFilesMenu->setTitle(tr("Open Recent"));
+        updateRecentFilesMenu(); // rebuilds the "Clear Recent Files" action in the new language
+    }
+
+    if (_btnOpenGraph)
+    {
+        _btnOpenGraph->setText(tr("Graph"));
+        _btnOpenGraph->setToolTip(tr("Open Standalone Graph Window (Ctrl+Shift+B)"));
+    }
+
+    if (_actionRecord)
+    {
+        _actionRecord->setText(tr("&Record Trace to File"));
+        _actionRecord->setIconText(tr("Record"));
+        _actionRecord->setToolTip(tr("Continuously record all traffic to a file (Ctrl+R)"));
+    }
+    if (_actionRecordOptions)
+        _actionRecordOptions->setText(tr("Recording &Options..."));
+    if (_actionOpenFolder)
+        _actionOpenFolder->setText(tr("Open Recording &Folder"));
+
+    if (_actionTriggerCapture)
+    {
+        _actionTriggerCapture->setText(tr("&Trigger Capture (Blackbox)..."));
+        _actionTriggerCapture->setToolTip(tr("Configure pre/post-trigger blackbox slice capture"));
+    }
+    if (_btnTriggerCapture)
+    {
+        _btnTriggerCapture->setText(tr("Trigger"));
+        _btnTriggerCapture->setToolTip(tr("Configure pre/post-trigger blackbox capture"));
+    }
+
+    if (_btnBannerRebind)
+        _btnBannerRebind->setText(tr("Rebind && Resume"));
+    if (_btnBannerDismiss)
+        _btnBannerDismiss->setText(tr("Dismiss"));
+    updateDisconnectBannerText();
+
+    if (m_languageActionGroup)
+    {
+        for (QAction *languageAction : m_languageActionGroup->actions())
+        {
+            languageAction->setText(languageAction->data().toString() == QLatin1String("zh_cn")
+                                        ? tr("Chinese")
+                                        : tr("English"));
+        }
+    }
+
+    for (GraphWindow *graph : std::as_const(_standaloneGraphWindows))
+    {
+        if (graph)
+            graph->setWindowTitle(tr("Standalone Graph"));
+    }
+}
+
+void MainWindow::retranslateTabAndDockTitles()
+{
+    for (int i = 0; i < ui->mainTabs->count(); ++i)
+    {
+        QWidget *page = ui->mainTabs->widget(i);
+        if (!page)
+            continue;
+        const QString source = page->property("i18nTitleSource").toString();
+        if (!source.isEmpty())
+            ui->mainTabs->setTabText(i, tr(qPrintable(source)));
+    }
+
+    // Docks may be floating (reparented to a top-level window), so walk all
+    // widgets instead of only the docks that still resolve as children.
+    const QList<QWidget *> allWidgets = QApplication::allWidgets();
+    for (QWidget *widget : allWidgets)
+    {
+        auto *dock = qobject_cast<QDockWidget *>(widget);
+        if (!dock)
+            continue;
+        const QString source = dock->property("i18nTitleSource").toString();
+        if (!source.isEmpty())
+            dock->setWindowTitle(tr(qPrintable(source)));
+    }
+}
+
 void MainWindow::createLanguageMenu()
 {
     struct LangEntry { const char *label; const char *locale; };
     static constexpr LangEntry langs[] = {
         { QT_TR_NOOP("English"), "en_US" },
-        { QT_TR_NOOP("Español"), "es_ES" },
-        { QT_TR_NOOP("Deutsch"), "de_DE" },
         { QT_TR_NOOP("Chinese"), "zh_cn" },
     };
 
     m_languageActionGroup = new QActionGroup(this);
     connect(m_languageActionGroup, &QActionGroup::triggered, this, &MainWindow::switchLanguage);
 
-    const QString savedLocale = settings.value("ui/language", "en_US").toString();
+    const QString savedLocale = Translation::savedLocale();
 
     for (const auto &lang : langs)
     {
@@ -1562,24 +1925,142 @@ void MainWindow::createLanguageMenu()
         m_languageActionGroup->addAction(action);
 
         if (QLatin1String(lang.locale) == savedLocale)
-        {
             action->setChecked(true);
-            if (savedLocale != QLatin1String("en_US"))
-                switchLanguage(action);
-        }
     }
 }
 
 void MainWindow::exportFullTrace()
 {
-    QMessageBox::information(this, tr("Not Implemented"),
-                             tr("Export full trace is not yet implemented."));
+    BusTrace *trace = backend().getTrace();
+    if (!trace || trace->size() == 0) {
+        QMessageBox::information(this, tr("Export Full Trace"), tr("Current trace is empty."));
+        return;
+    }
+    if (trace->hasPruned()) {
+        QMessageBox::warning(
+            this,
+            tr("Trace Was Pruned"),
+            tr("The in-memory trace exceeded %1 frames and older frames were pruned.\n"
+               "For lossless long recordings, enable Continuous Recording (Ctrl+R) before measurement.")
+                .arg(trace->maxSize()));
+    }
+    saveTraceToFile();
 }
 
 void MainWindow::importFullTrace()
 {
-    QMessageBox::information(this, tr("Not Implemented"),
-                             tr("Import full trace is not yet implemented."));
+    const QString filename = QFileDialog::getOpenFileName(
+        this,
+        tr("Import Trace File"),
+        QDir::currentPath(),
+        tr("All Supported (*.asc *.candump *.csv);;"
+           "Vector ASC (*.asc);;"
+           "CAN/FD Raw CSV (*.csv);;"
+           "Linux candump (*.candump);;"
+           "All Files (*)"));
+    if (filename.isEmpty()) {
+        return;
+    }
+
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    TraceReadResult result = TraceFileReader::readFile(filename);
+    QApplication::restoreOverrideCursor();
+
+    if (!result.ok || result.messages.isEmpty()) {
+        QMessageBox::critical(this,
+                              tr("Import Failed"),
+                              result.errorMessage.isEmpty()
+                                  ? tr("Failed to parse trace file or file is empty.")
+                                  : result.errorMessage);
+        return;
+    }
+
+    BusTrace *trace = backend().getTrace();
+    const int limit = trace->maxSize();
+    if (result.messages.size() > limit) {
+        QMessageBox box(this);
+        box.setIcon(QMessageBox::Warning);
+        box.setWindowTitle(tr("Large Trace File"));
+        box.setText(tr("This file contains %1 frames, exceeding the in-memory Trace limit (%2).")
+                        .arg(result.messages.size())
+                        .arg(limit));
+        box.setInformativeText(tr("Choose how to handle this large trace:"));
+        QPushButton *splitBtn = box.addButton(tr("Split & Save Files..."), QMessageBox::AcceptRole);
+        QPushButton *replayBtn = box.addButton(tr("Open in Replay Window"), QMessageBox::ActionRole);
+        QPushButton *truncBtn = box.addButton(tr("Load First %1 Frames").arg(limit), QMessageBox::ActionRole);
+        box.addButton(QMessageBox::Cancel);
+        box.exec();
+
+        if (box.clickedButton() == splitBtn) {
+            bool ok = false;
+            const int chunkSize = QInputDialog::getInt(
+                this,
+                tr("Split Trace by Frame Count"),
+                tr("Maximum frames per output file:"),
+                limit,
+                100,
+                5000000,
+                10000,
+                &ok);
+            if (!ok) return;
+
+            const QString basePath = QFileDialog::getSaveFileName(
+                this,
+                tr("Save Split Trace Files"),
+                filename,
+                tr("CAN/FD Raw CSV (*.csv);;Vector ASC (*.asc);;Linux candump (*.candump)"));
+            if (basePath.isEmpty()) return;
+
+            const auto fmt = traceFormatFromPath(basePath).value_or(TraceFileFormat::Csv);
+            const QFileInfo fi(basePath);
+            QStringList written;
+            QString err;
+            const bool splitOk = TraceFileReader::writeSplitFiles(
+                result,
+                fi.absolutePath(),
+                fi.completeBaseName(),
+                fmt,
+                chunkSize,
+                &written,
+                &err);
+            if (!splitOk || written.isEmpty()) {
+                QMessageBox::critical(this, tr("Split Save Failed"), err.isEmpty() ? tr("No files written.") : err);
+            } else {
+                QMessageBox::information(this,
+                                         tr("Split Save Complete"),
+                                         tr("Saved %1 split file(s) starting at:\n%2").arg(written.size()).arg(written.first()));
+            }
+            return;
+        }
+        if (box.clickedButton() == replayBtn) {
+            if (QMainWindow *tab = currentTab()) {
+                if (auto *rw = tab->findChild<ReplayWindow *>()) {
+                    rw->loadTraceFile(filename);
+                    if (auto *dock = qobject_cast<QDockWidget *>(rw->parentWidget())) {
+                        dock->show();
+                        dock->raise();
+                    }
+                    return;
+                }
+            }
+            if (QDockWidget *dock = addReplayWidget()) {
+                if (auto *rw = qobject_cast<ReplayWindow *>(dock->widget())) {
+                    rw->loadTraceFile(filename);
+                }
+            }
+            return;
+        }
+        if (box.clickedButton() != truncBtn) {
+            return;
+        }
+    }
+
+    trace->loadMessages(result.messages, true);
+    statusBar()->showMessage(
+        tr("Imported %1 frames from %2")
+            .arg(qMin(static_cast<int>(result.messages.size()), limit))
+            .arg(QFileInfo(filename).fileName()),
+        6000);
 }
 
 void MainWindow::showSettingsDialog()
@@ -1638,10 +2119,6 @@ void MainWindow::showSettingsDialog()
     // Apply clear trace on start setting.
     settings.setValue("ui/clearTraceOnStart", dlg.clearTraceOnStart());
 
-    // Apply UDS 29-bit decoding setting.
-    settings.setValue("decoder/uds29Bit", dlg.uds29BitEnabled());
-    backend().notifyDecoderConfigChanged();
-
     // Apply skip-save-prompt setting.
     settings.setValue("ui/skipSaveWorkspacePrompt", dlg.skipSaveWorkspacePrompt());
 
@@ -1661,144 +2138,6 @@ void MainWindow::showSettingsDialog()
     settings.setValue("trace/maxSize", dlg.maxTraceSize());
     backend().getTrace()->setMaxSize(dlg.maxTraceSize());
 }
-
-#if defined(_WIN32)
-#ifdef ZSCANFD_DRIVER
-void MainWindow::checkZsCanFdDlls()
-{
-    if (settings.value("mainWindow/zscanfdDllPromptDisabled", false).toBool())
-        return;
-
-    const QString appDir = QCoreApplication::applicationDirPath();
-    if (QFile::exists(appDir + "/zscanfd.dll") &&
-        QFile::exists(appDir + "/canbus/qtzscanfdbus.dll"))
-        return;
-
-    QMessageBox msgBox(this);
-    msgBox.setWindowTitle(tr("ZsCanFd DLLs not found"));
-    msgBox.setText(tr("The required ZsCanFd DLLs (zilogic.com) "
-                      "were not found (Optional driver).\n\n"
-                      "Would you like to download them now?"));
-    msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    msgBox.setDefaultButton(QMessageBox::No);
-
-    auto *dontAsk = new QCheckBox(tr("Don't ask again"), &msgBox);
-    msgBox.setCheckBox(dontAsk);
-
-    const int result = msgBox.exec();
-
-    if (dontAsk->isChecked())
-        settings.setValue("mainWindow/zscanfdDllPromptDisabled", true);
-
-    if (result == QMessageBox::Yes)
-        downloadZsCanFdDlls();
-}
-
-void MainWindow::downloadZsCanFdDlls()
-{
-    const QString appDir = QCoreApplication::applicationDirPath();
-    const QString tmpDir = QDir::tempPath() + "/cangaroo_zscanfd";
-    QDir().mkpath(tmpDir);
-
-    constexpr auto zscanfdUrl =
-        "https://files-accl.zohoexternal.in/public/workdrive-external/download/"
-        "vg4j6fe5343da544d4d78876807400716c283?x-cli-msg=%7B%22linkId%22%3A%22BHvzgCTCwc-13uP6TI%22"
-        "%2C%22isFileOwner%22%3Afalse%2C%22version%22%3A%221.0%22%2C%22isWDSupport%22%3Afalse%7D";
-    constexpr auto qtPluginUrl =
-        "https://files-accl.zohoexternal.in/public/workdrive-external/download/"
-        "5twqz7da53b7da5804c958ca079ba061bd493?x-cli-msg=%7B%22linkId%22%3A%22BHvzgCTCw7-13uP6TI%22"
-        "%2C%22isFileOwner%22%3Afalse%2C%22version%22%3A%221.0%22%2C%22isWDSupport%22%3Afalse%7D";
-
-    QNetworkAccessManager nam;
-
-    auto downloadFile = [&](const char *url, const QString &destPath) -> bool
-    {
-        QProgressDialog progress(tr("Downloading ZsCanFd DLLs…"), tr("Cancel"), 0, 0, this);
-        progress.setWindowModality(Qt::WindowModal);
-        progress.setMinimumDuration(0);
-        progress.show();
-
-        QNetworkReply *reply = nam.get(QNetworkRequest(QUrl(QString::fromLatin1(url))));
-        QEventLoop loop;
-        connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-        connect(reply, &QNetworkReply::downloadProgress,
-                [&](qint64 received, qint64 total)
-                {
-                    if (total > 0)
-                    {
-                        progress.setMaximum(100);
-                        progress.setValue(static_cast<int>(received * 100 / total));
-                    }
-                    QCoreApplication::processEvents();
-                });
-        connect(&progress, &QProgressDialog::canceled, reply, &QNetworkReply::abort);
-        loop.exec();
-
-        if (reply->error() != QNetworkReply::NoError)
-        {
-            QMessageBox::warning(this, tr("Download failed"), reply->errorString());
-            reply->deleteLater();
-            return false;
-        }
-
-        QFile file(destPath);
-        if (!file.open(QIODevice::WriteOnly))
-        {
-            QMessageBox::warning(this, tr("Download failed"),
-                                 tr("Cannot write to: %1").arg(destPath));
-            reply->deleteLater();
-            return false;
-        }
-        file.write(reply->readAll());
-        reply->deleteLater();
-        return true;
-    };
-
-    auto extractZip = [&](const QString &zipPath, const QString &outDir) -> bool
-    {
-        QProcess ps;
-        ps.start("powershell",
-                 {"-Command",
-                  QString("Expand-Archive -Path '%1' -DestinationPath '%2' -Force")
-                      .arg(zipPath, outDir)});
-        if (!ps.waitForFinished(60000) || ps.exitCode() != 0)
-        {
-            QMessageBox::warning(this, tr("Extraction failed"),
-                                 tr("Failed to extract %1").arg(zipPath));
-            return false;
-        }
-        return true;
-    };
-
-    const QString zip1 = tmpDir + "/zscanfd-package.zip";
-    if (!downloadFile(zscanfdUrl, zip1)) return;
-    if (!extractZip(zip1, tmpDir)) return;
-    QFile::remove(appDir + "/zscanfd.dll");
-    if (!QFile::copy(tmpDir + "/zscanfd-package/release/zscanfd.dll", appDir + "/zscanfd.dll"))
-    {
-        QMessageBox::warning(this, tr("Install failed"),
-                             tr("Could not copy zscanfd.dll to application directory."));
-        return;
-    }
-
-    const QString zip2 = tmpDir + "/qt-zscanfd.zip";
-    if (!downloadFile(qtPluginUrl, zip2)) return;
-    if (!extractZip(zip2, tmpDir)) return;
-    QDir().mkpath(appDir + "/canbus");
-    QFile::remove(appDir + "/canbus/qtzscanfdbus.dll");
-    if (!QFile::copy(tmpDir + "/qtzscanfdbus.dll", appDir + "/canbus/qtzscanfdbus.dll"))
-    {
-        QMessageBox::warning(this, tr("Install failed"),
-                             tr("Could not copy qtzscanfdbus.dll to canbus directory."));
-        return;
-    }
-
-    QMessageBox::information(this, tr("Download complete"),
-                             tr("ZsCanFd DLLs installed successfully.\n"
-                                "Please restart CANgaroo to use ZsCanFd devices."));
-}
-#endif
-#endif
 
 void MainWindow::applyFontSize(int pointSize)
 {

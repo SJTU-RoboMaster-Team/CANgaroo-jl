@@ -31,12 +31,6 @@
 
 #include "driver/CanDriver.h"
 
-enum class BusType : uint8_t
-{
-    CAN = 0,
-    LIN = 1,
-};
-
 enum class BusError : uint32_t
 {
     Ack       = 0x0001,
@@ -47,8 +41,6 @@ enum class BusError : uint32_t
     BusOff    = 0x0020,
     Overrun   = 0x0040,
     TxTimeout        = 0x0080,
-    LinNotResponded  = 0x0100,
-    LinChecksumError = 0x0200,
     Restarted        = 0x0400,   // controller recovered from bus-off
     ErrorWarning     = 0x0800,   // controller reached the error-warning level
     ErrorPassive     = 0x1000,   // controller reached the error-passive level
@@ -67,9 +59,6 @@ public:
     BusMessage(uint32_t can_id);
     BusMessage(const BusMessage &) = default;
     BusMessage& operator=(const BusMessage&) = default;
-
-    [[nodiscard]] BusType busType() const;
-    void setBusType(BusType type);
 
     [[nodiscard]] uint32_t getRawId() const;
 
@@ -104,13 +93,6 @@ public:
 
     [[nodiscard]] bool isErrorFrame() const;
     void setErrorFrame(bool isErrorFrame);
-
-    // LIN event bits carried in getFlags() / setFlags()
-    static constexpr uint8_t lin_flag_sleep  = 0x04u;
-    static constexpr uint8_t lin_flag_wakeup = 0x08u;
-
-    [[nodiscard]] bool isLinSleepFrame()  const;
-    [[nodiscard]] bool isLinWakeupFrame() const;
 
     [[nodiscard]] BusErrors errorFlags() const;
     void setErrorFlag(BusError flag);
@@ -180,7 +162,6 @@ private:
     bool _isESI;
     bool _isRX;
     bool _isShow;
-    BusType _busType;
     BusInterfaceId _interface;
     union {
         uint8_t  _u8[k_maxDataBytes];

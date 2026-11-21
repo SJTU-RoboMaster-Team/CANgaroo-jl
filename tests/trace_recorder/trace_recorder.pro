@@ -8,6 +8,5 @@ SOURCES += \
     TraceRecorderTest.cpp \
     $$SRC_DIR/core/TraceRecorder.cpp \
     $$SRC_DIR/core/TraceLineFormat.cpp \
-    $$SRC_DIR/core/PcapNgFormat.cpp \
     $$SRC_DIR/core/BusMessage.cpp \
     $$PWD/../support/LogStub.cpp

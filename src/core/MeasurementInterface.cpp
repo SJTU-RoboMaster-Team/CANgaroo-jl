@@ -26,10 +26,8 @@
 #include "driver/CanDriver.h"
 #include "driver/BusInterface.h"
 
-
 MeasurementInterface::MeasurementInterface()
-  : _busType(BusType::CAN),
-    _busif(0),
+  : _busif(0),
     _doConfigure(true),
     _enabled(true),
     _bitrate(500000),
@@ -48,14 +46,7 @@ MeasurementInterface::MeasurementInterface()
     _isCustomFdBitrate(false),
 
     _CustomBitrate(0x023407),
-    _CustomFdBitrate(0x011508),
-
-    _linBaudRate(19200),
-    _linProtocolVersion(LinProtocolVersion::V2_2A),
-    _linNodeMode(LinNodeMode::Master),
-    _linListenOnly(false),
-    _linChecksumClassic(false),
-    _linWakeupOnBus(false)
+    _CustomFdBitrate(0x011508)
 {
 
 }
@@ -66,8 +57,7 @@ bool MeasurementInterface::loadXML(Backend &backend, QDomElement &el)
 
     _savedDriverName = el.attribute("driver");
     _savedInterfaceName = el.attribute("name");
-
-    _busType = (el.attribute("bus-type", "can") == "lin") ? BusType::LIN : BusType::CAN;
+    _savedHardwareKey = el.attribute("hardware-key");
 
     _doConfigure = el.attribute("configure", "0").toInt() != 0;
 
@@ -90,32 +80,6 @@ bool MeasurementInterface::loadXML(Backend &backend, QDomElement &el)
     _CustomFdBitrate = el.attribute("custom-fdbitrate", "0").toInt();
     _enabled = el.attribute("enabled", "1").toInt() != 0;
 
-    _linBaudRate = el.attribute("lin-baudrate", "19200").toUInt();
-    _linProtocolVersion = static_cast<LinProtocolVersion>(el.attribute("lin-protocol", "4").toInt());
-    _linNodeMode = static_cast<LinNodeMode>(el.attribute("lin-node-mode", "0").toInt());
-    _linListenOnly = el.attribute("lin-listen-only", "0").toInt() != 0;
-    _linChecksumClassic = el.attribute("lin-checksum-classic", "0").toInt() != 0;
-    _linWakeupOnBus = el.attribute("lin-wakeup-on-bus", "0").toInt() != 0;
-    _linLdfPath = el.attribute("lin-ldf-path", "");
-    _linScheduleTable = el.attribute("lin-schedule-table", "");
-    _linSlaveNode = el.attribute("lin-slave-node", "");
-    _linTimebaseMs = static_cast<uint8_t>(el.attribute("lin-timebase-ms", "5").toUInt());
-    _linJitterUs   = static_cast<uint16_t>(el.attribute("lin-jitter-us", "0").toUInt());
-
-    _linFrameDefaults.clear();
-    const QDomElement fdsEl = el.firstChildElement(QStringLiteral("lin-frame-defaults"));
-    if (!fdsEl.isNull())
-    {
-        QDomElement fdEl = fdsEl.firstChildElement(QStringLiteral("frame"));
-        while (!fdEl.isNull())
-        {
-            const uint8_t id   = static_cast<uint8_t>(fdEl.attribute(QStringLiteral("id"), QStringLiteral("0")).toUInt());
-            const QByteArray d = QByteArray::fromHex(fdEl.attribute(QStringLiteral("data")).toLatin1());
-            _linFrameDefaults.insert(id, d);
-            fdEl = fdEl.nextSiblingElement(QStringLiteral("frame"));
-        }
-    }
-
     return true;
 }
 
@@ -127,12 +91,18 @@ bool MeasurementInterface::saveXML(Backend &backend, QDomDocument &xml, QDomElem
     {
         _savedDriverName = backend.getDriverName(_busif);
         _savedInterfaceName = backend.getInterfaceName(_busif);
+        if (BusInterface *intf = backend.getInterfaceById(_busif))
+        {
+            _savedHardwareKey = intf->hardwareKey();
+        }
     }
 
-    root.setAttribute("bus-type", _busType == BusType::LIN ? "lin" : "can");
-    root.setAttribute("type", _busType == BusType::LIN ? "lin" : "can");
     root.setAttribute("driver", _savedDriverName);
     root.setAttribute("name", _savedInterfaceName);
+    if (!_savedHardwareKey.isEmpty())
+    {
+        root.setAttribute("hardware-key", _savedHardwareKey);
+    }
 
     root.setAttribute("configure", _doConfigure ? 1 : 0);
 
@@ -154,31 +124,6 @@ bool MeasurementInterface::saveXML(Backend &backend, QDomDocument &xml, QDomElem
     root.setAttribute("custom-bitrate", _CustomBitrate);
     root.setAttribute("custom-fdbitrate", _CustomFdBitrate);
     root.setAttribute("enabled", _enabled ? 1 : 0);
-
-    root.setAttribute("lin-baudrate", _linBaudRate);
-    root.setAttribute("lin-protocol", static_cast<int>(_linProtocolVersion));
-    root.setAttribute("lin-node-mode", static_cast<int>(_linNodeMode));
-    root.setAttribute("lin-listen-only", _linListenOnly ? 1 : 0);
-    root.setAttribute("lin-checksum-classic", _linChecksumClassic ? 1 : 0);
-    root.setAttribute("lin-wakeup-on-bus", _linWakeupOnBus ? 1 : 0);
-    root.setAttribute("lin-ldf-path", _linLdfPath);
-    root.setAttribute("lin-schedule-table", _linScheduleTable);
-    root.setAttribute("lin-slave-node", _linSlaveNode);
-    root.setAttribute("lin-timebase-ms", _linTimebaseMs);
-    root.setAttribute("lin-jitter-us",   _linJitterUs);
-
-    if (!_linFrameDefaults.isEmpty())
-    {
-        QDomElement fdsEl = xml.createElement(QStringLiteral("lin-frame-defaults"));
-        for (auto it = _linFrameDefaults.constBegin(); it != _linFrameDefaults.constEnd(); ++it)
-        {
-            QDomElement fdEl = xml.createElement(QStringLiteral("frame"));
-            fdEl.setAttribute(QStringLiteral("id"),   it.key());
-            fdEl.setAttribute(QStringLiteral("data"), QString::fromLatin1(it.value().toHex()));
-            fdsEl.appendChild(fdEl);
-        }
-        root.appendChild(fdsEl);
-    }
 
     return true;
 }
@@ -358,50 +303,19 @@ void MeasurementInterface::setEnabled(bool enabled) noexcept
     _enabled = enabled;
 }
 
-BusType MeasurementInterface::busType() const { return _busType; }
-void    MeasurementInterface::setBusType(BusType type) { _busType = type; }
-
 bool    MeasurementInterface::isResolved() const noexcept { return _isResolved; }
 void    MeasurementInterface::setResolved(bool resolved) noexcept { _isResolved = resolved; }
 QString MeasurementInterface::savedDriverName() const { return _savedDriverName; }
 QString MeasurementInterface::savedInterfaceName() const { return _savedInterfaceName; }
 
-unsigned MeasurementInterface::linBaudRate() const { return _linBaudRate; }
-void     MeasurementInterface::setLinBaudRate(unsigned baud) { _linBaudRate = baud; }
+QString MeasurementInterface::savedHardwareKey() const
+{
+    return _savedHardwareKey;
+}
 
-LinProtocolVersion MeasurementInterface::linProtocolVersion() const { return _linProtocolVersion; }
-void               MeasurementInterface::setLinProtocolVersion(LinProtocolVersion ver) { _linProtocolVersion = ver; }
-
-LinNodeMode MeasurementInterface::linNodeMode() const { return _linNodeMode; }
-void        MeasurementInterface::setLinNodeMode(LinNodeMode mode) { _linNodeMode = mode; }
-
-bool MeasurementInterface::linListenOnly() const { return _linListenOnly; }
-void MeasurementInterface::setLinListenOnly(bool val) { _linListenOnly = val; }
-
-bool MeasurementInterface::linChecksumClassic() const { return _linChecksumClassic; }
-void MeasurementInterface::setLinChecksumClassic(bool val) { _linChecksumClassic = val; }
-
-bool MeasurementInterface::linWakeupOnBus() const { return _linWakeupOnBus; }
-void MeasurementInterface::setLinWakeupOnBus(bool val) { _linWakeupOnBus = val; }
-
-QString MeasurementInterface::linLdfPath() const { return _linLdfPath; }
-void    MeasurementInterface::setLinLdfPath(const QString &path) { _linLdfPath = path; }
-
-QString MeasurementInterface::linScheduleTable() const { return _linScheduleTable; }
-void    MeasurementInterface::setLinScheduleTable(const QString &table) { _linScheduleTable = table; }
-
-uint8_t MeasurementInterface::linScheduleTableIndex() const { return _linScheduleTableIndex; }
-void    MeasurementInterface::setLinScheduleTableIndex(uint8_t idx) { _linScheduleTableIndex = idx; }
-
-QString MeasurementInterface::linSlaveNode() const { return _linSlaveNode; }
-void    MeasurementInterface::setLinSlaveNode(const QString &node) { _linSlaveNode = node; }
-
-uint8_t MeasurementInterface::linTimebaseMs() const { return _linTimebaseMs; }
-void    MeasurementInterface::setLinTimebaseMs(uint8_t ms) { _linTimebaseMs = ms; }
-
-uint16_t MeasurementInterface::linJitterUs() const { return _linJitterUs; }
-void     MeasurementInterface::setLinJitterUs(uint16_t us) { _linJitterUs = us; }
-
-const QMap<uint8_t, QByteArray> &MeasurementInterface::linFrameDefaults() const { return _linFrameDefaults; }
-QMap<uint8_t, QByteArray>       &MeasurementInterface::linFrameDefaultsRef()    { return _linFrameDefaults; }
-void MeasurementInterface::setLinFrameDefaults(const QMap<uint8_t, QByteArray> &defaults) { _linFrameDefaults = defaults; }
+void MeasurementInterface::setSavedIdentity(const QString &driverName, const QString &interfaceName, const QString &hardwareKey)
+{
+    _savedDriverName = driverName;
+    _savedInterfaceName = interfaceName;
+    _savedHardwareKey = hardwareKey;
+}

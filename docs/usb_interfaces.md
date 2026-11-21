@@ -1,8 +1,12 @@
 # USB adapter interfaces: gs_usb (CAN), lin_usb (LIN), aio_usb (I/O)
 
 The STM32G473 adapter firmware enumerates as **one composite USB device** with up to three
-vendor-specific interfaces. Each interface has its own bulk endpoint pair and its
-own host driver in CANgaroo.
+vendor-specific interfaces. Each interface has its own bulk endpoint pair.
+
+This document describes the USB protocol of the reference firmware. The CANgaroo-jl host
+implements only the **gs_usb (CAN)** interface: the LIN and I/O host drivers were removed
+with the rest of the non-CAN support, so the `lin_usb` / `aio_usb` sections below are
+firmware reference material, not supported host features.
 
 The device side is available as a reference implementation:
 [`firmware/STM32G4_TinyUSB_CanLinAio/`](../firmware/STM32G4_TinyUSB_CanLinAio/README.md),
@@ -13,11 +17,11 @@ directory. Channel counts, clocks and I/O sizes quoted below are that project's
 defaults; a real adapter sizes them for its hardware and reports them in
 `DEVICE_CONFIG` / `BT_CONST`, so hosts must always read them from the device.
 
-| Interface | Purpose | `bInterfaceProtocol` | Endpoints (IN / OUT) | Host driver (CANgaroo) |
-|-----------|---------|----------------------|----------------------|------------------------|
-| gs_usb  | CAN channels            | `0xFF` | `0x81` / `0x02` | SocketCAN (Linux, kernel `gs_usb`), `CandleApiDriver` (Windows) |
-| lin_usb | LIN channels            | `0x01` | `0x83` / `0x04` | `LindeApiDriver` (all platforms) |
-| aio_usb | Digital I/O + analog in | `0x02` | `0x85` / `0x06` | `AiodeDriver` (`AiodeApi`, GPIO Control window) |
+| Interface | Purpose | `bInterfaceProtocol` | Endpoints (IN / OUT) | Host support in CANgaroo-jl |
+|-----------|---------|----------------------|----------------------|-----------------------------|
+| gs_usb  | CAN channels            | `0xFF` | `0x81` / `0x02` | Windows: `CandleApiDriver` (WinUSB) |
+| lin_usb | LIN channels            | `0x01` | `0x83` / `0x04` | not implemented (LIN support removed) |
+| aio_usb | Digital I/O + analog in | `0x02` | `0x85` / `0x06` | not implemented (I/O support removed) |
 
 ## Common ground
 
@@ -78,7 +82,7 @@ leaves the queue only once its transfer has started.
 **Multiplexing.** gs_usb and lin_usb carry several channels over **one** bulk
 endpoint pair; every frame has a `channel` field. A host driver must own a single
 handle and reader per physical device and dispatch frames to per-channel queues
-(see `CandleSharedDevice` and `LindeSharedDevice`). Opening one libusb handle per
+(see `CandleSharedDevice`). Opening one libusb handle per
 channel does not work: only one handle can claim the interface.
 
 ---
@@ -155,30 +159,24 @@ frame per transfer.
 
 ### Host side
 
-- **Linux:** the kernel `gs_usb` driver binds interface 0 and creates `canX`
-  netdevs; CANgaroo uses them through `SocketCanDriver`. Opening the LIN/AIO
-  interfaces with libusb does not detach it.
-- **Windows:** the BOS / MS OS 2.0 descriptor marks every interface as WinUSB,
-  each with its own `DeviceInterfaceGUID`, so no driver install is needed:
+CANgaroo-jl ships only the Windows host. The BOS / MS OS 2.0 descriptor marks every
+interface as WinUSB, each with its own `DeviceInterfaceGUID`, so no driver install is
+needed:
 
   | Interface | `DeviceInterfaceGUID` | Opened by |
   | :-- | :-- | :-- |
   | gs_usb  | `{c15b4308-04d3-11e6-b3ea-6057189e6443}` (candleLight) | `CandleApiDriver` |
-  | lin_usb | `{dfaa1f65-e194-414c-ac5d-66ea6a8ba9c9}` | `LindeApiDriver` |
-  | aio_usb | `{4c86c041-3321-446b-ba72-6a4be9f1c2b0}` | `AiodeDriver` |
 
-  Each host driver opens only its own interface's device node. WinUSB allows one
-  handle per interface, and `libusb_open()` opens *all* WinUSB interfaces of a
-  composite device, so libusb would fail with "access denied" as soon as another
-  driver holds a sibling interface. That is why lin_usb and aio_usb go through
-  `UsbVendorInterface` (`src/driver/UsbVendorInterface/`): libusb on
-  Linux/macOS, WinUSB by GUID on Windows. The GUIDs are duplicated in
-  `LindeSharedDevice.h` and `AiodeApi.hpp`; keep them in sync with the firmware.
+`CandleSharedDevice` opens the gs_usb device node and owns the single reader that
+dispatches frames to the per-channel queues; `CandleApiInterface` reference-counts the
+shared device. The `lin_usb` / `aio_usb` GUIDs remain in the firmware descriptors and
+`SampleApp/` as reference, but the host drivers that used them were removed.
 
-  `CandleApiDriver` speaks gs_usb in portable C (`api/candle.c`) over the USB
-  seam `api/candle_usb.h`. Only `api/candle_usb_winusb.c` (WinUSB/SetupAPI,
-  incl. the gs_usb GUID above) is Windows-specific; the unit tests link a
-  simulated gs_usb device in its place.
+The Linux kernel `gs_usb` / SocketCAN path is no longer built. Devices are bound to
+WinUSB (see README); because WinUSB allows one handle per interface and
+`libusb_open()` claims every WinUSB interface of a composite device, a future
+multi-interface host driver must use per-interface handles (the removed LIN/I/O drivers
+went through a dedicated `UsbVendorInterface` for that reason).
 
 ---
 
@@ -188,9 +186,9 @@ Firmware: [`Src/lin_usb.c`](../firmware/STM32G4_TinyUSB_CanLinAio/Core/Src/lin_u
 [`Inc/lin_usb.h`](../firmware/STM32G4_TinyUSB_CanLinAio/Core/Inc/lin_usb.h) (USB transport, weak `lin_engine_*` hooks
 for the LIN scheduler), config in [`Inc/lin_usb_config.h`](../firmware/STM32G4_TinyUSB_CanLinAio/Core/Inc/lin_usb_config.h)
 (`LIN_USB_CHANNEL_COUNT` 2, `LIN_USB_MAX_SCHEDULE_TABLES` 4,
-`LIN_USB_MAX_SCHEDULE_ENTRIES` 16). Host mirror:
-`src/driver/LindeApiDriver/lin_usb_protocol.h`, kept byte-for-byte identical with
-`firmware/STM32G4_TinyUSB_CanLinAio/SampleApp/lin_usb_protocol.h` by hand.
+`LIN_USB_MAX_SCHEDULE_ENTRIES` 16). The remaining host-side copy of
+`lin_usb_protocol.h` is the standalone libusb sample under
+`firmware/STM32G4_TinyUSB_CanLinAio/SampleApp/`; the CANgaroo LIN driver was removed.
 
 The device **schedules frames itself**: the host uploads schedule tables, starts one,
 and afterwards only updates publisher payloads and receives results.
@@ -215,8 +213,8 @@ and afterwards only updates publisher payloads and receives results.
 or a `dlc` outside 1–8, and `MODE` start rejects an out-of-range `table_id`,
 all with a STALL (see *Errors are STALLs* above). An out-of-range `SCHEDULE`
 slot is already rejected in the SETUP stage, before any data is sent. Both limits come from `DEVICE_CONFIG` (`schedule_tables`,
-`schedule_entries`); the host constant `LIN_USB_MAX_SCHEDULE_ENTRIES` is only a
-fallback for firmware that reports `schedule_entries = 0`.
+`schedule_entries`); the `LIN_USB_MAX_SCHEDULE_ENTRIES` constant in the protocol
+header is only a fallback for firmware that reports `schedule_entries = 0`.
 
 Feature bits (`lin_usb_device_config_t.features`): `SCHEDULING 0x0001`,
 `TIMESTAMP 0x0002`, `CUSTOM_BAUDRATE 0x0004`, `BUS_STATE 0x0008`,
@@ -269,10 +267,9 @@ and a missing `VALID` means a checksum error.
 
 ### Host side
 
-`LindeApiDriver` enumerates every device with a LIN interface and creates
-interfaces named `Linde<device>_CH<channel>`. `LindeSharedDevice` owns the USB
-handle (`UsbVendorInterface`), one reader thread and the per-channel queues; each `LindeApiInterface`
-reference-counts the shared device.
+Not implemented in CANgaroo-jl: the `LindeApiDriver` / `LindeSharedDevice` host
+implementation was removed with the rest of the non-CAN support. This section is kept
+as firmware protocol reference.
 
 ---
 
@@ -282,9 +279,9 @@ Firmware: [`Src/aio_usb.c`](../firmware/STM32G4_TinyUSB_CanLinAio/Core/Src/aio_u
 [`Inc/aio_usb.h`](../firmware/STM32G4_TinyUSB_CanLinAio/Core/Inc/aio_usb.h), config in
 [`Inc/aio_usb_config.h`](../firmware/STM32G4_TinyUSB_CanLinAio/Core/Inc/aio_usb_config.h) (32 I/O lines, 16 analog
 channels, 16 bit; a board with two lines and a 12-bit ADC sets 2 / 2 / 12). The
-host must use the counts from `DEVICE_CONFIG`. Host mirror:
-`src/driver/AiodeDriver/aio_usb_protocol.h`. There are no channels; `wValue`
-selects an I/O line where needed.
+host must use the counts from `DEVICE_CONFIG`. A host-side copy of
+`aio_usb_protocol.h` lives in the firmware `SampleApp/`. There are no channels;
+`wValue` selects an I/O line where needed.
 
 ### Control requests
 
@@ -320,11 +317,9 @@ Configuring an output applies `default_state` immediately.
 
 ### Host side
 
-`AiodeApi` implements `GpioProvider` for the GPIO Control window
-(`AiodeApi::scan()` opens every AIO device). It polls `READ_STATUS` from a
-background thread and does not use the bulk IN auto-report. The `GpioProvider`
-interface uses 16-bit direction/output masks, so only lines 0–15 can be driven
-from CANgaroo, although the protocol addresses 32.
+Not implemented in CANgaroo-jl: the `AiodeDriver` / `AiodeApi` GPIO integration was
+removed with the rest of the non-CAN support. This section is kept as firmware
+protocol reference.
 
 ---
 
@@ -335,7 +330,8 @@ from CANgaroo, although the protocol addresses 32.
    stage and return `false` to STALL on an invalid index; check payload fields
    in the DATA stage and return `false` there too, which STALLs the status
    stage. Update its SampleApp as well.
-2. Mirror the change in the host protocol header (`lin_usb_protocol.h` /
-   `aio_usb_protocol.h`); gs_usb must stay compatible with the kernel driver.
+2. Mirror the change in the host-side protocol copy under `SampleApp/`
+   (`lin_usb_protocol.h` / `aio_usb_protocol.h`); gs_usb must stay compatible with
+   the Linux kernel driver and the candleLight API.
 3. Keep structures packed and the sizes identical on both sides. A size mismatch
    shows up as a STALL (control transfers) or silently dropped frames (bulk).

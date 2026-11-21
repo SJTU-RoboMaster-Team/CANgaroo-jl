@@ -173,10 +173,7 @@
      <addaction name="actionGraph_View_2"/>
      <addaction name="actionTransmit_View"/>
      <addaction name="actionGenerator_View"/>
-     <addaction name="actionScript_View"/>
      <addaction name="actionReplay_View"/>
-     <addaction name="actionLin_Control_View"/>
-     <addaction name="actionGpio_Control_View"/>
     </widget>
     <addaction name="menu_New"/>
    </widget>
@@ -184,27 +181,19 @@
     <property name="title">
      <string>&amp;Measurement</string>
     </property>
-    <widget class="QMenu" name="menuDriver">
-     <property name="title">
-      <string>Driver</string>
-     </property>
-     <addaction name="actionCANblaster"/>
-     <addaction name="actionTinyCAN"/>
-     <addaction name="separator"/>
-     <addaction name="actionDownloadZsCanFdDlls"/>
-    </widget>
     <addaction name="actionStart_Measurement"/>
     <addaction name="actionStop_Measurement"/>
     <addaction name="separator"/>
     <addaction name="actionSetup"/>
     <addaction name="actionReload_Interfaces"/>
     <addaction name="actionHardware"/>
-    <addaction name="menuDriver"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>&amp;Help</string>
     </property>
+    <addaction name="actionCheck_for_Updates"/>
+    <addaction name="separator"/>
     <addaction name="actionAbout"/>
    </widget>
    <widget class="QMenu" name="menu_Trace">
@@ -280,6 +269,11 @@
    </property>
    <property name="toolTip">
     <string>Show all available devices with status, version and capabilities</string>
+   </property>
+  </action>
+  <action name="actionCheck_for_Updates">
+   <property name="text">
+    <string>Check for &amp;Updates...</string>
    </property>
   </action>
   <action name="actionAbout">
@@ -366,24 +360,9 @@
     <string>Generator View</string>
    </property>
   </action>
-  <action name="actionScript_View">
-   <property name="text">
-    <string>Script View</string>
-   </property>
-  </action>
   <action name="actionReplay_View">
    <property name="text">
     <string>Replay View</string>
-   </property>
-  </action>
-  <action name="actionLin_Control_View">
-   <property name="text">
-    <string>LIN Control</string>
-   </property>
-  </action>
-  <action name="actionGpio_Control_View">
-   <property name="text">
-    <string>GPIO Control</string>
    </property>
   </action>
   <action name="actionRestore_Window">
@@ -395,27 +374,6 @@
    </property>
    <property name="toolTip">
     <string>Restore Window Position on startup</string>
-   </property>
-  </action>
-  <action name="actionCANblaster">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>CANblaster</string>
-   </property>
-  </action>
-  <action name="actionTinyCAN">
-   <property name="checkable">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>TinyCAN</string>
-   </property>
-  </action>
-  <action name="actionDownloadZsCanFdDlls">
-   <property name="text">
-    <string>Download ZsCanFd DLLs</string>
    </property>
   </action>
   <action name="actionSettings">

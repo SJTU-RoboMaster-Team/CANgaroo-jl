@@ -10,18 +10,14 @@ SUBDIRS += \
     can_db \
     trace_file_format \
     trace_line_format \
-    pcapng_format \
     trace_file_writer \
+    trace_file_reader \
     trace_recorder \
-    decoders \
-    autosar_e2e \
-    ldf_parser \
-    slcan_codec \
-    ulc_codec \
-    ulc_driver \
-    slcan_driver \
+    trigger_capture \
     candle_driver \
-    canblaster_driver \
-    lindeapi_driver \
     measurement_setup \
-    python_engine
+    update_checker \
+    motor_decoder \
+    motor_manager \
+    motor_dbc
+SUBDIRS += raw_tx_message

@@ -105,9 +105,13 @@ QVariant LogModel::headerData(int section, Qt::Orientation orientation, int role
     return QVariant();
 }
 
+void LogModel::retranslateHeaders()
+{
+    emit headerDataChanged(Qt::Horizontal, 0, column_count - 1);
+}
+
 QVariant LogModel::data(const QModelIndex &index, int role) const
 {
-
     if (role == Qt::TextAlignmentRole) {
         switch (index.column()) {
         case column_time:

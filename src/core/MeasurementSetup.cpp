@@ -29,8 +29,6 @@
 #include "core/BusMessage.h"
 #include "core/MeasurementInterface.h"
 #include "core/MeasurementNetwork.h"
-#include "db/model/LinDb.h"
-#include "db/model/LinFrame.h"
 
 MeasurementSetup::MeasurementSetup(QObject *parent)
   : QObject(parent)
@@ -50,7 +48,6 @@ void MeasurementSetup::clear()
     _pgnCache.clear();
     _networkPgnCache.clear();
     _assignedInterfaces.clear();
-    _linFrameCache.clear();
     emit onSetupChanged();
 }
 
@@ -95,7 +92,6 @@ bool MeasurementSetup::loadXML(Backend &backend, QDomElement &el)
     return true;
 }
 
-
 MeasurementNetwork *MeasurementSetup::createNetwork()
 {
     MeasurementNetwork *network = new MeasurementNetwork();
@@ -110,14 +106,12 @@ void MeasurementSetup::removeNetwork(MeasurementNetwork *network)
     }
 }
 
-
 void MeasurementSetup::rebuildMessageCache()
 {
     _messageCache.clear();
     _pgnCache.clear();
     _networkPgnCache.clear();
     _assignedInterfaces.clear();
-    _linFrameCache.clear();
     for (auto *network : _networks)
     {
         const QList<MeasurementInterface *> interfaces = network->interfaces();
@@ -154,13 +148,6 @@ void MeasurementSetup::rebuildMessageCache()
                 }
             }
         }
-        for (const auto &lindb : network->_linDbs)
-        {
-            for (LinFrame *frame : lindb->frames())
-            {
-                _linFrameCache.insert(frame->id(), frame);
-            }
-        }
     }
 }
 
@@ -175,16 +162,15 @@ void MeasurementSetup::beginDatabaseReload()
 
 void MeasurementSetup::endDatabaseReload()
 {
-    // Rebuild the raw-pointer caches (which may now reference new frames after a
-    // LIN reload, or new messages after a DBC reload) before any consumer can use
-    // them again, then refresh all consumers.
+    // Rebuild the raw-pointer caches (which may now reference new messages after
+    // a DBC reload) before any consumer can use them again, then refresh all
+    // consumers.
     rebuildMessageCache();
     emit onSetupChanged();
 }
 
 CanDbMessage *MeasurementSetup::findDbMessage(const BusMessage &msg) const
 {
-    if (msg.busType() != BusType::CAN) return nullptr;
     // Error frames carry no CAN ID (drivers set it to 0): never match a DBC entry.
     if (msg.isErrorFrame()) return nullptr;
     auto it = _messageCache.constFind(msg.getRawId());
@@ -205,12 +191,6 @@ CanDbMessage *MeasurementSetup::findDbMessage(const BusMessage &msg) const
         return _pgnCache.value(pgn, nullptr);
     }
     return nullptr;
-}
-
-LinFrame *MeasurementSetup::findLinFrame(const BusMessage &msg) const
-{
-    if (msg.busType() != BusType::LIN) return nullptr;
-    return _linFrameCache.value(static_cast<uint8_t>(msg.getId() & 0x3F), nullptr);
 }
 
 QString MeasurementSetup::getInterfaceName(const BusInterface &id) const
@@ -241,5 +221,74 @@ MeasurementNetwork *MeasurementSetup::getNetworkByName(QString name) const
 QList<MeasurementNetwork *> MeasurementSetup::getNetworks()
 {
     return _networks;
+}
+
+RebindReport MeasurementSetup::rebindInterfaces(const QVector<InterfaceDescriptor> &available)
+{
+    RebindReport report;
+    QSet<BusInterfaceId> claimed;
+
+    for (MeasurementNetwork *network : _networks)
+    {
+        for (MeasurementInterface *mi : network->interfaces())
+        {
+            const QString driverName = mi->savedDriverName();
+            const QString ifaceName  = mi->savedInterfaceName();
+            const QString hwKey      = mi->savedHardwareKey();
+            const QString label      = QStringLiteral("%1/%2").arg(
+                driverName.isEmpty() ? QStringLiteral("?") : driverName,
+                ifaceName.isEmpty() ? QStringLiteral("?") : ifaceName);
+
+            QVector<InterfaceDescriptor> matches;
+            if (!hwKey.isEmpty())
+            {
+                for (const InterfaceDescriptor &cand : available)
+                {
+                    if (claimed.contains(cand.id)) continue;
+                    if (cand.driverName == driverName && cand.hardwareKey == hwKey)
+                    {
+                        matches.append(cand);
+                    }
+                }
+            }
+            else if (!driverName.isEmpty() && !ifaceName.isEmpty())
+            {
+                for (const InterfaceDescriptor &cand : available)
+                {
+                    if (claimed.contains(cand.id)) continue;
+                    if (cand.driverName == driverName && cand.interfaceName == ifaceName)
+                    {
+                        matches.append(cand);
+                    }
+                }
+            }
+
+            if (matches.size() == 1)
+            {
+                const InterfaceDescriptor &chosen = matches.first();
+                mi->setBusInterface(chosen.id);
+                mi->setResolved(true);
+                mi->setSavedIdentity(chosen.driverName, chosen.interfaceName, chosen.hardwareKey);
+                claimed.insert(chosen.id);
+                report.rebound.append(QStringLiteral("%1/%2").arg(chosen.driverName, chosen.interfaceName));
+            }
+            else if (matches.size() > 1)
+            {
+                mi->setBusInterface(InvalidBusInterfaceId);
+                mi->setResolved(false);
+                report.ambiguous.append(label);
+            }
+            else
+            {
+                mi->setBusInterface(InvalidBusInterfaceId);
+                mi->setResolved(false);
+                report.missing.append(label);
+            }
+        }
+    }
+
+    rebuildMessageCache();
+    emit onSetupChanged();
+    return report;
 }
 

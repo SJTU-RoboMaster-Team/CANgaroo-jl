@@ -3,8 +3,9 @@ include(../common.pri)
 
 QT += xml
 
-HEADERS += \
-    $$SRC_DIR/core/MeasurementSetup.h
+# MeasurementSetup::findDbMessage own tests: exact identifier matching for plain
+# DBCs, PGN matching for J1939 databases, and interface rebinding.
+HEADERS += $$SRC_DIR/core/MeasurementSetup.h
 
 SOURCES += \
     MeasurementSetupTest.cpp \
@@ -19,7 +20,4 @@ SOURCES += \
     $$SRC_DIR/db/model/CanDb.cpp \
     $$SRC_DIR/db/model/CanDbMessage.cpp \
     $$SRC_DIR/db/model/CanDbNode.cpp \
-    $$SRC_DIR/db/model/CanDbSignal.cpp \
-    $$SRC_DIR/db/model/LinDb.cpp \
-    $$SRC_DIR/db/model/LinFrame.cpp \
-    $$SRC_DIR/db/model/LinSignal.cpp
+    $$SRC_DIR/db/model/CanDbSignal.cpp

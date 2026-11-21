@@ -37,18 +37,15 @@ enum {
 };
 
 BusMessage::BusMessage()
-    : _raw_id(0), _dlc(0), _flags(0), _errorFlags{}, _isFD(false), _isBRS(false), _isESI(false), _isRX(true), _isShow(true), _busType(BusType::CAN), _interface(0), _u8()
+    : _raw_id(0), _dlc(0), _flags(0), _errorFlags{}, _isFD(false), _isBRS(false), _isESI(false), _isRX(true), _isShow(true), _interface(0), _u8()
 {
 }
 
 BusMessage::BusMessage(uint32_t can_id)
-    : _raw_id(0), _dlc(0), _flags(0), _errorFlags{}, _isFD(false), _isBRS(false), _isESI(false), _isRX(true), _isShow(true), _busType(BusType::CAN), _interface(0), _u8()
+    : _raw_id(0), _dlc(0), _flags(0), _errorFlags{}, _isFD(false), _isBRS(false), _isESI(false), _isRX(true), _isShow(true), _interface(0), _u8()
 {
     setId(can_id);
 }
-
-BusType BusMessage::busType() const { return _busType; }
-void    BusMessage::setBusType(BusType type) { _busType = type; }
 
 
 uint32_t BusMessage::getRawId() const {
@@ -141,9 +138,6 @@ BusErrors BusMessage::errorFlags() const { return _errorFlags; }
 void BusMessage::setErrorFlag(BusError flag) { _errorFlags |= flag; }
 void BusMessage::clearErrorFlag(BusError flag) { _errorFlags &= ~BusErrors(flag); }
 void BusMessage::setErrorFlags(BusErrors flags) { _errorFlags = flags; }
-
-bool BusMessage::isLinSleepFrame()  const { return _busType == BusType::LIN && (_flags & lin_flag_sleep); }
-bool BusMessage::isLinWakeupFrame() const { return _busType == BusType::LIN && (_flags & lin_flag_wakeup); }
 
 BusInterfaceId BusMessage::getInterfaceId() const
 {
@@ -450,9 +444,6 @@ void BusMessage::setTimestamp(uint64_t seconds, uint32_t micro_seconds)
 
 QString BusMessage::getIdString() const
 {
-    if (_busType == BusType::LIN)
-        return QStringLiteral("0x%1").arg(getId() & 0x3F, 2, 16, QLatin1Char('0')).toUpper();
-
     if (isExtended()) {
         return QStringLiteral("0x%1").arg(getId(), 8, 16, QLatin1Char('0')).toUpper();
     } else {
@@ -546,8 +537,6 @@ QString BusMessage::getErrorFlagsString() const
         { BusError::BusOff,   "BUSOFF"  },
         { BusError::Overrun,  "OVERRUN" },
         { BusError::TxTimeout,        "TIMEOUT"        },
-        { BusError::LinNotResponded,  "NOT RESPONDED"  },
-        { BusError::LinChecksumError, "CHECKSUM ERROR" },
         { BusError::Restarted,        "RESTARTED"      },
         { BusError::ErrorWarning,     "WARNING"        },
         { BusError::ErrorPassive,     "PASSIVE"        },

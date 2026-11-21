@@ -1,4 +1,6 @@
 SOURCES += \
-    $$PWD/apphelpers.cpp
+    $$PWD/apphelpers.cpp \
+    $$PWD/translation.cpp
 HEADERS += \
-    $$PWD/apphelpers.h
+    $$PWD/apphelpers.h \
+    $$PWD/translation.h
