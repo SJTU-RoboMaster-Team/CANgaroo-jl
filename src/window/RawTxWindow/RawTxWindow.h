@@ -50,6 +50,7 @@ public:
 protected:
     void retranslateUi() override;
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void changeEvent(QEvent *event) override;
 
 public slots:
     void setMessage(const BusMessage &msg, const QString &name, BusInterfaceId interfaceId, CanDbMessage *dbMsg = nullptr);
@@ -100,6 +101,11 @@ private:
     static constexpr int MaxDataRows = 8; // 8 rows × 8 cols = 64 bytes
 
     void updateDataGrid();
+    // Sizes the hex grid to the visible rows using the *current* header/font
+    // metrics. The header height changes with the theme stylesheet and the font
+    // size setting, so this has to be re-evaluated after style/font changes;
+    // otherwise the last byte row is clipped.
+    void updateDataTableHeight();
     void updateSignalTable();
     void populateDlcCombo(bool canfd);
     [[nodiscard]] int currentDlc() const;

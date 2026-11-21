@@ -44,6 +44,7 @@
 
 #include "core/Backend.h"
 #include "core/Log.h"
+#include "core/ThemeManager.h"
 #include "core/TraceLineFormat.h"
 #include "db/model/CanDbMessage.h"
 #include "db/model/CanDbSignal.h"
@@ -212,6 +213,15 @@ RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend, bool enableSending)
     splitter->setStretchFactor(1, 1);
     mainLayout->addWidget(splitter);
 
+    // The table height depends on the stylesheet/font metrics, which are only
+    // final after the first polish/show. Re-evaluate once the event loop runs,
+    // and again whenever the theme changes.
+    QTimer::singleShot(0, this, [this]() { updateDataTableHeight(); });
+    connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this,
+            [this](ThemeManager::Theme) {
+                QTimer::singleShot(0, this, [this]() { updateDataTableHeight(); });
+            });
+
     // --- Populate DLC combo (classic CAN by default) ---
     populateDlcCombo(false);
     _comboDlc->setCurrentIndex(_comboDlc->findData(8));
@@ -370,9 +380,40 @@ void RawTxWindow::updateDataGrid()
     _dataTable->blockSignals(false);
 
     // Resize table height to visible rows
-    int headerH = _dataTable->horizontalHeader()->height();
-    int rowH = _dataTable->verticalHeader()->defaultSectionSize();
-    _dataTable->setFixedHeight(headerH + rowH * rows + 2);
+    updateDataTableHeight();
+}
+
+void RawTxWindow::updateDataTableHeight()
+{
+    if (!_dataTable)
+        return;
+
+    const int dlc = currentDlc();
+    int rows = (dlc + DataCols - 1) / DataCols;
+    rows = qBound(1, rows, MaxDataRows);
+
+    const QHeaderView *header = _dataTable->horizontalHeader();
+    int headerHeight = header->sizeHint().height();
+    if (headerHeight <= 0)
+        headerHeight = header->height();
+
+    int rowsHeight = 0;
+    for (int r = 0; r < rows; ++r) {
+        int rowHeight = _dataTable->verticalHeader()->sectionSize(r);
+        if (rowHeight <= 0)
+            rowHeight = _dataTable->verticalHeader()->defaultSectionSize();
+        rowsHeight += rowHeight;
+    }
+
+    const int frameHeight = 2 * _dataTable->frameWidth();
+    _dataTable->setFixedHeight(headerHeight + rowsHeight + frameHeight);
+}
+
+void RawTxWindow::changeEvent(QEvent *event)
+{
+    ConfigurableWidget::changeEvent(event);
+    if (event->type() == QEvent::FontChange || event->type() == QEvent::StyleChange)
+        QTimer::singleShot(0, this, [this]() { updateDataTableHeight(); });
 }
 
 std::optional<BusMessage> RawTxWindow::buildCurrentMessage(QString *error) const
