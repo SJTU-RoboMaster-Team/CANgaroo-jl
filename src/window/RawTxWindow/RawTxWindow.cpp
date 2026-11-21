@@ -18,6 +18,7 @@
 */
 
 #include "RawTxWindow.h"
+#include "RawTxMessageBuilder.h"
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -32,9 +33,17 @@
 #include <QRegularExpressionValidator>
 #include <QSplitter>
 #include <QDomDocument>
+#include <QEvent>
 #include <QFont>
+#include <QPushButton>
+#include <QSettings>
+#include <QSignalBlocker>
+#include <QSpinBox>
+#include <QTimer>
 
 #include "core/Backend.h"
+#include "core/Log.h"
+#include "core/TraceLineFormat.h"
 #include "db/model/CanDbMessage.h"
 #include "db/model/CanDbSignal.h"
 #include "core/MeasurementSetup.h"
@@ -42,11 +51,14 @@
 #include "core/MeasurementInterface.h"
 #include "driver/BusInterface.h"
 
-RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend)
+namespace {
+constexpr int FdEnabledRole = Qt::UserRole + 1;
+}
+
+RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend, bool enableSending)
     : ConfigurableWidget(parent)
     , _backend(backend)
     , _currentDbMsg(nullptr)
-    , _slavedInterfaceId(0)
     , _settingMessage(false)
     , _updatingSignals(false)
 {
@@ -89,13 +101,57 @@ RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend)
     _comboInterface->setMinimumWidth(180);
     headerLayout->addWidget(_comboInterface);
 
-    connect(_comboInterface, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int) {
-        BusInterfaceId id = static_cast<BusInterfaceId>(_comboInterface->currentData().toUInt());
-        _slavedInterfaceId = id;
-        emit interfaceSelected(id);
-    });
-
     mainLayout->addLayout(headerLayout);
+
+    if (enableSending) {
+        QSettings settings;
+        _lastInterfaceName = settings.value("rawtx/lastInterfaceName").toString();
+
+        auto *sendLayout = new QHBoxLayout();
+        sendLayout->setSpacing(8);
+        _btnSend = new QPushButton(tr("Send"), this);
+        _btnRepeat = new QPushButton(tr("Repeat"), this);
+        _btnRepeat->setCheckable(true);
+        _labelInterval = new QLabel(tr("Interval"), this);
+        _spinRepeat = new QSpinBox(this);
+        _spinRepeat->setRange(1, 100000);
+        _spinRepeat->setValue(settings.value("rawtx/repeatInterval", 100).toInt());
+        _spinRepeat->setSuffix(tr(" ms"));
+        _labelInterval->setBuddy(_spinRepeat);
+        _sendStatusLabel = new QLabel(this);
+        _sendStatusLabel->setTextFormat(Qt::PlainText);
+        _sendStatusLabel->setWordWrap(true);
+        sendLayout->addWidget(_btnSend);
+        sendLayout->addWidget(_btnRepeat);
+        sendLayout->addWidget(_labelInterval);
+        sendLayout->addWidget(_spinRepeat);
+        sendLayout->addWidget(_sendStatusLabel, 1);
+        mainLayout->addLayout(sendLayout);
+
+        _repeatTimer = new QTimer(this);
+        _repeatTimer->setTimerType(Qt::PreciseTimer);
+        _repeatTimer->setInterval(_spinRepeat->value());
+        connect(_btnSend, &QPushButton::clicked, this, &RawTxWindow::onSendClicked);
+        connect(_btnRepeat, &QPushButton::toggled, this, &RawTxWindow::onRepeatToggled);
+        connect(_repeatTimer, &QTimer::timeout, this, &RawTxWindow::onSendClicked);
+        connect(_spinRepeat, &QSpinBox::valueChanged, this, [this](int interval) {
+            _repeatTimer->setInterval(interval);
+            QSettings().setValue("rawtx/repeatInterval", interval);
+            updateSendAvailability();
+        });
+        connect(&backend, &Backend::beginMeasurement, this, [this]() {
+            _sendStatus = SendStatus::Idle;
+            refreshInterfaces();
+        });
+        connect(&backend, &Backend::endMeasurement, this, [this]() {
+            if (_repeatTimer->isActive()) {
+                stopRepeat(SendStatus::MeasurementStopped);
+                log_info(tr("Repeat stopped because measurement ended."));
+            }
+            refreshInterfaces();
+        });
+        connect(&backend, &Backend::interfaceConnectionLost, this, &RawTxWindow::updateSendAvailability);
+    }
 
     // --- Data hex grid ---
     _dataTable = new QTableWidget(MaxDataRows, DataCols, this);
@@ -155,6 +211,7 @@ RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend)
 
     // --- Populate DLC combo (classic CAN by default) ---
     populateDlcCombo(false);
+    _comboDlc->setCurrentIndex(_comboDlc->findData(8));
 
     // --- Connections ---
     connect(_editId, &QLineEdit::textChanged, this, [this](const QString &text) {
@@ -178,32 +235,54 @@ RawTxWindow::RawTxWindow(QWidget *parent, Backend &backend)
         onFieldChanged();
     });
 
-    connect(_cbExtended, &QCheckBox::stateChanged, this, &RawTxWindow::onFieldChanged);
-    connect(_cbRTR, &QCheckBox::stateChanged, this, &RawTxWindow::onFieldChanged);
-    connect(_cbFD, &QCheckBox::stateChanged, this, [this]() {
-        bool fd = _cbFD->isChecked();
-        _cbBRS->setEnabled(fd);
-        if (!fd) { _cbBRS->setChecked(false); }
-        // RTR not allowed with FD
-        _cbRTR->setEnabled(!fd);
-        if (fd) { _cbRTR->setChecked(false); }
-        // Force DLC > 8 to enable FD
-        int dlc = currentDlc();
-        if (dlc > 8 && !fd) {
+    connect(_cbExtended, &QCheckBox::toggled, this, &RawTxWindow::onFieldChanged);
+    connect(_cbRTR, &QCheckBox::toggled, this, &RawTxWindow::onFieldChanged);
+    connect(_cbFD, &QCheckBox::toggled, this, [this](bool fd) {
+        if (!fd && currentDlc() > 8 && !_settingMessage) {
             _cbFD->setChecked(true);
             return;
         }
+        _cbBRS->setEnabled(fd);
+        _cbRTR->setEnabled(!fd);
+        if (fd) {
+            _cbRTR->setChecked(false);
+        } else {
+            _cbBRS->setChecked(false);
+        }
+        populateDlcCombo(fd);
         updateDataGrid();
         onFieldChanged();
     });
-    connect(_cbBRS, &QCheckBox::stateChanged, this, &RawTxWindow::onFieldChanged);
+    connect(_cbBRS, &QCheckBox::toggled, this, &RawTxWindow::onFieldChanged);
 
     connect(_dataTable, &QTableWidget::cellChanged, this, &RawTxWindow::onFieldChanged);
     connect(_signalTable, &QTableWidget::cellChanged, this, &RawTxWindow::onSignalValueChanged);
+    connect(_comboInterface, &QComboBox::currentIndexChanged, this, [this](int index) {
+        _interfaceId = index >= 0 ? _comboInterface->currentData().value<BusInterfaceId>() : InvalidBusInterfaceId;
+        if (index >= 0) {
+            _lastInterfaceName = _comboInterface->currentText();
+            if (_repeatTimer) {
+                QSettings().setValue("rawtx/lastInterfaceName", _lastInterfaceName);
+            }
+        }
+        if (!_settingMessage) {
+            if (!_repeatTimer || !_repeatTimer->isActive()) {
+                _sendStatus = SendStatus::Idle;
+            }
+            onFieldChanged();
+            updateSendAvailability();
+            emit interfaceSelected(_interfaceId);
+        }
+    });
+    connect(&backend, &Backend::onSetupChanged, this, [this]() {
+        // The setup can replace the database that owns this message.
+        _currentDbMsg = nullptr;
+        updateSignalTable();
+        refreshInterfaces();
+    });
 
-    // Initial state
     updateDataGrid();
-    this->setEnabled(false);
+    refreshInterfaces();
 }
 
 void RawTxWindow::retranslateUi()
@@ -216,27 +295,40 @@ void RawTxWindow::retranslateUi()
     _cbFD->setText(tr("FD"));
     _cbBRS->setText(tr("BRS"));
     _signalTable->setHorizontalHeaderLabels({tr("Signal"), tr("Value"), tr("Unit")});
+    if (_repeatTimer) {
+        _btnSend->setText(tr("Send"));
+        _btnRepeat->setText(tr("Repeat"));
+        _labelInterval->setText(tr("Interval"));
+        _spinRepeat->setSuffix(tr(" ms"));
+        updateSendAvailability();
+    }
+}
+
+bool RawTxWindow::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::Close && _repeatTimer && _repeatTimer->isActive()) {
+        stopRepeat(SendStatus::RepeatStopped);
+        updateSendAvailability();
+    }
+    return ConfigurableWidget::eventFilter(watched, event);
 }
 
 int RawTxWindow::currentDlc() const
 {
-    return _comboDlc->currentData().toInt();
+    return _comboDlc->currentIndex() >= 0 ? _comboDlc->currentData().toInt() : -1;
 }
 
 void RawTxWindow::populateDlcCombo(bool canfd)
 {
-    int prevDlc = _comboDlc->currentData().toInt();
-    _comboDlc->blockSignals(true);
+    const int prevDlc = currentDlc();
+    const QSignalBlocker blocker(_comboDlc);
     _comboDlc->clear();
 
-    for (int d = 0; d <= 8; d++) {
-        _comboDlc->addItem(QString::number(d), d);
-    }
-    if (canfd) {
-        static const int fdSizes[] = {12, 16, 20, 24, 32, 48, 64};
-        for (int s : fdSizes) {
-            _comboDlc->addItem(QString::number(s), s);
+    for (int d : TraceLineFormat::can_fd_dlc_lengths) {
+        if (d > 8 && !canfd) {
+            break;
         }
+        _comboDlc->addItem(QString::number(d), d);
     }
 
     // Restore previous DLC if possible
@@ -244,7 +336,6 @@ void RawTxWindow::populateDlcCombo(bool canfd)
     if (idx >= 0) {
         _comboDlc->setCurrentIndex(idx);
     }
-    _comboDlc->blockSignals(false);
 }
 
 void RawTxWindow::updateDataGrid()
@@ -281,48 +372,183 @@ void RawTxWindow::updateDataGrid()
     _dataTable->setFixedHeight(headerH + rowH * rows + 2);
 }
 
+std::optional<BusMessage> RawTxWindow::buildCurrentMessage(QString *error) const
+{
+    RawTxMessageInput input;
+    input.id = _editId->text().toUInt(nullptr, 16);
+    input.extended = _cbExtended->isChecked();
+    input.rtr = _cbRTR->isChecked();
+    input.fd = _cbFD->isChecked();
+    input.brs = _cbBRS->isChecked();
+    input.dlc = currentDlc();
+    input.interfaceId = _interfaceId;
+
+    if (!input.rtr) {
+        for (int i = 0; i < input.dlc; ++i) {
+            const auto *item = _dataTable->item(i / DataCols, i % DataCols);
+            bool ok = false;
+            const uint byte = item ? item->text().toUInt(&ok, 16) : 0;
+            if (!ok || byte > 0xFF) {
+                if (error) {
+                    *error = QStringLiteral(QT_TR_NOOP("Payload bytes must be hexadecimal values from 00 to FF."));
+                }
+                return std::nullopt;
+            }
+            input.data[i] = static_cast<quint8>(byte);
+        }
+    }
+    return buildRawTxMessage(input, error);
+}
+
 void RawTxWindow::onFieldChanged()
 {
     if (_settingMessage) { return; }
+    if (const auto message = buildCurrentMessage()) {
+        _can_msg = *message;
+        updateSignalTable();
+        emit messageUpdated(_can_msg);
+    }
+}
 
-    uint32_t id = _editId->text().toUInt(nullptr, 16);
-    if (id > 0x1FFFFFFF) {
-        id = 0x1FFFFFFF;
+void RawTxWindow::refreshInterfaces()
+{
+    const BusInterfaceId previousId = _interfaceId;
+    const QString previousName = _comboInterface->currentText();
+    {
+        const QSignalBlocker blocker(_comboInterface);
+        _comboInterface->clear();
+        for (auto *network : _backend.getSetup().getNetworks()) {
+            for (auto *mi : network->interfaces()) {
+                const BusInterfaceId id = mi->busInterface();
+                if (BusInterface *intf = _backend.getInterfaceById(id)) {
+                    const QString name = network->name() + ": " + intf->getName();
+                    _comboInterface->addItem(name, QVariant::fromValue(id));
+                    const bool fdEnabled = mi->isCanFD() && (intf->getCapabilities() & BusInterface::capability_canfd);
+                    _comboInterface->setItemData(_comboInterface->count() - 1, fdEnabled, FdEnabledRole);
+                }
+            }
+        }
+        const QString preferredName = previousName.isEmpty() ? _lastInterfaceName : previousName;
+        int index = _comboInterface->findText(preferredName);
+        if (index < 0 && _comboInterface->count() > 0) {
+            index = 0;
+        }
+        _comboInterface->setCurrentIndex(index);
+        _interfaceId = index >= 0 ? _comboInterface->currentData().value<BusInterfaceId>() : InvalidBusInterfaceId;
+    }
+    if (_repeatTimer) {
+        setEnabled(_comboInterface->count() > 0);
+        if (_repeatTimer->isActive()
+            && (_interfaceId != previousId || _comboInterface->currentText() != previousName)) {
+            reportSendFailure(QStringLiteral(QT_TR_NOOP("The selected interface changed during Repeat.")));
+        }
+    }
+    onFieldChanged();
+    updateSendAvailability();
+}
+
+void RawTxWindow::updateSendAvailability()
+{
+    if (!_repeatTimer) { return; }
+
+    BusInterface *intf = _backend.getInterfaceById(_interfaceId);
+    const bool ready = _backend.isMeasurementRunning() && intf && intf->isOpen();
+    if (!ready && _repeatTimer->isActive()) {
+        reportSendFailure(QStringLiteral(QT_TR_NOOP("The selected interface is not open.")));
     }
 
-    int dlc = currentDlc();
-    bool fd = _cbFD->isChecked();
-    if (dlc > 8 && !fd) {
-        _cbFD->setChecked(true);
+    const bool repeating = _repeatTimer->isActive();
+    _btnSend->setEnabled(ready && !repeating);
+    _btnRepeat->setEnabled(ready);
+
+    QString status;
+    if (!ready && (_sendStatus == SendStatus::Idle || _sendStatus == SendStatus::Sent
+                   || _sendStatus == SendStatus::RepeatStopped)) {
+        _sendStatusLabel->setText(tr("Interface is closed. Start measurement and select an open interface."));
         return;
     }
+    switch (_sendStatus) {
+    case SendStatus::Idle:
+        status = tr("Ready to send");
+        break;
+    case SendStatus::Sent:
+        status = repeating ? tr("TX requested: %1 (every %2 ms)").arg(_sentCount).arg(_repeatTimer->interval())
+                           : tr("TX requested: %1").arg(_sentCount);
+        break;
+    case SendStatus::RepeatStopped:
+        status = tr("Repeat stopped. TX requested: %1").arg(_sentCount);
+        break;
+    case SendStatus::MeasurementStopped:
+        status = tr("Repeat stopped because measurement ended.");
+        break;
+    case SendStatus::Failed:
+        status = tr("Send failed: %1").arg(tr(qPrintable(_lastSendError)));
+        break;
+    }
+    _sendStatusLabel->setText(status);
+}
 
-    _can_msg.setId(id);
-    _can_msg.setExtended(_cbExtended->isChecked());
-    _can_msg.setRTR(_cbRTR->isChecked());
-    _can_msg.setFD(fd);
-    _can_msg.setBRS(_cbBRS->isChecked());
-    _can_msg.setErrorFrame(false);
-    _can_msg.setLength(dlc);
-    _can_msg.setInterfaceId(_slavedInterfaceId);
+void RawTxWindow::stopRepeat(SendStatus status)
+{
+    _repeatTimer->stop();
+    const QSignalBlocker blocker(_btnRepeat);
+    _btnRepeat->setChecked(false);
+    _sendStatus = status;
+}
 
-    // Read data bytes from grid
-    for (int i = 0; i < 64; i++) {
-        int r = i / DataCols;
-        int c = i % DataCols;
-        QTableWidgetItem *item = _dataTable->item(r, c);
-        uint8_t val = 0;
-        if (item && i < dlc) {
-            val = static_cast<uint8_t>(item->text().toUInt(nullptr, 16));
+void RawTxWindow::reportSendFailure(const QString &error)
+{
+    _lastSendError = error;
+    stopRepeat(SendStatus::Failed);
+    log_error(tr("Send failed: %1").arg(tr(qPrintable(error)))
+              + QStringLiteral(" [%1]").arg(_comboInterface->currentText()));
+}
+
+void RawTxWindow::onSendClicked()
+{
+    QString error;
+    if (sendCurrentMessage(&error)) {
+        ++_sentCount;
+        _sendStatus = SendStatus::Sent;
+        if (_btnRepeat->isChecked() && !_repeatTimer->isActive()) {
+            _repeatTimer->start();
         }
-        _can_msg.setDataAt(i, val);
+    } else {
+        reportSendFailure(error);
+    }
+    updateSendAvailability();
+}
+
+void RawTxWindow::onRepeatToggled(bool checked)
+{
+    if (checked) {
+        onSendClicked();
+    } else {
+        stopRepeat(SendStatus::RepeatStopped);
+        updateSendAvailability();
+    }
+}
+
+bool RawTxWindow::sendCurrentMessage(QString *error)
+{
+    const BusInterfaceId id = _comboInterface->currentIndex() >= 0
+        ? _comboInterface->currentData().value<BusInterfaceId>() : InvalidBusInterfaceId;
+    BusInterface *intf = _backend.getInterfaceById(id);
+    if (!_backend.isMeasurementRunning() || !intf || !intf->isOpen()) {
+        *error = QStringLiteral(QT_TR_NOOP("The selected interface is not open."));
+        return false;
     }
 
-    _can_msg.setRX(false);
-    _can_msg.setShow(true);
-
-    updateSignalTable();
-    emit messageUpdated(_can_msg);
+    const auto message = buildCurrentMessage(error);
+    if (!message) {
+        return false;
+    }
+    if (message->isFD() && !_comboInterface->currentData(FdEnabledRole).toBool()) {
+        *error = QStringLiteral(QT_TR_NOOP("CAN FD is not enabled on the selected interface."));
+        return false;
+    }
+    intf->sendMessage(*message);
+    return true;
 }
 
 void RawTxWindow::updateSignalTable()
@@ -408,72 +634,26 @@ void RawTxWindow::onSignalValueChanged(int row, int col)
 void RawTxWindow::setMessage(const BusMessage &msg, const QString &name, BusInterfaceId interfaceId, CanDbMessage *dbMsg)
 {
     _settingMessage = true;
-    this->setEnabled(true);
     Q_UNUSED(name);
 
-    _slavedInterfaceId = interfaceId;
+    if (_currentDbMsg != dbMsg) {
+        const QSignalBlocker blocker(_signalTable);
+        _signalTable->setRowCount(0);
+    }
     _currentDbMsg = dbMsg;
 
-    // Populate interface combo and select the current one
-    _comboInterface->blockSignals(true);
-    _comboInterface->clear();
-    MeasurementSetup &setup = _backend.getSetup();
-    for (auto *network : setup.getNetworks()) {
-        for (auto *mi : network->interfaces()) {
-            BusInterfaceId ifid = mi->busInterface();
-            BusInterface *i = _backend.getInterfaceById(ifid);
-            if (i) {
-                QString label = network->name() + ": " + i->getName();
-                _comboInterface->addItem(label, QVariant(ifid));
-            }
-        }
-    }
-    for (int i = 0; i < _comboInterface->count(); ++i) {
-        if (static_cast<BusInterfaceId>(_comboInterface->itemData(i).toUInt()) == interfaceId) {
-            _comboInterface->setCurrentIndex(i);
-            break;
-        }
-    }
-    _comboInterface->blockSignals(false);
-
-    // Determine capabilities from interface
-    BusInterface *intf = _backend.getInterfaceById(interfaceId);
-    bool canfd = intf && (intf->getCapabilities() & BusInterface::capability_canfd);
-    populateDlcCombo(canfd);
-
-    _cbFD->setEnabled(canfd);
-    _cbBRS->setEnabled(canfd && msg.isFD());
-    _cbRTR->setEnabled(!msg.isFD());
-
-    bool isExtended = msg.isExtended();
-    bool isFD = msg.isFD();
-    bool isBRS = msg.isBRS();
-    int dlc = msg.getLength();
-
-    if (dbMsg) {
-        isExtended = (dbMsg->getRaw_id() & 0x80000000) != 0;
-        int dlcCode = dbMsg->getDlc();
-        if (dlcCode <= 8) {
-            dlc = dlcCode;
-        } else {
-            isFD = true;
-            static const int dlcToLen[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 32, 48, 64};
-            if (dlcCode < 16) {
-                dlc = dlcToLen[dlcCode];
-            }
-        }
-    }
+    const int interfaceIndex = _comboInterface->findData(QVariant::fromValue(interfaceId));
+    _comboInterface->setCurrentIndex(interfaceIndex);
+    _interfaceId = interfaceIndex >= 0 || !_repeatTimer ? interfaceId : InvalidBusInterfaceId;
+    const int length = msg.getLength();
+    const bool fd = msg.isFD() || length > 8;
 
     _editId->setText(QString("%1").arg(msg.getId(), 0, 16).toUpper());
-    _cbExtended->setChecked(isExtended);
-    _cbRTR->setChecked(msg.isRTR());
-    _cbFD->setChecked(isFD);
-    _cbBRS->setChecked(isBRS);
-
-    int dlcIdx = _comboDlc->findData(dlc);
-    if (dlcIdx >= 0) {
-        _comboDlc->setCurrentIndex(dlcIdx);
-    }
+    _cbExtended->setChecked(msg.isExtended());
+    _cbFD->setChecked(fd);
+    _cbRTR->setChecked(msg.isRTR() && !fd);
+    _cbBRS->setChecked(msg.isBRS() && fd);
+    _comboDlc->setCurrentIndex(_comboDlc->findData(length));
 
     // Load data bytes into grid
     _dataTable->blockSignals(true);
@@ -491,6 +671,7 @@ void RawTxWindow::setMessage(const BusMessage &msg, const QString &name, BusInte
 
     _settingMessage = false;
     onFieldChanged(); // populates _can_msg from the current UI state
+    updateSendAvailability();
 }
 
 bool RawTxWindow::saveXML(Backend &backend, QDomDocument &xml, QDomElement &root)
